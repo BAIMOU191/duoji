@@ -1,0 +1,19 @@
+{
+  "restored_source": [
+    "Application/A_UartCmd.c",
+    "Drivers/D_i2c.c",
+    "Drivers/D_tmp112.c",
+    "Drivers/D_tmp112.h"
+  ],
+  "restored_firmware": [
+    "CH32V00X_APP.bin",
+    "CH32V00X_APP.elf",
+    "CH32V00X_APP.hex",
+    "CH32V00X_APP.lst",
+    "CH32V00X_APP.map",
+    "CH32V00X_APP.siz"
+  ],
+  "hex_sha256": "65c1d294065baa890d4a6700f127e42d12f0174a02e00441e4ed1b799df99cfe",
+  "servo_unchanged": true,
+  "flashed": false
+}

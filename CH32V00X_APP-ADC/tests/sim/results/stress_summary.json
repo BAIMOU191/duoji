@@ -1,0 +1,20 @@
+{
+  "baseline": {
+    "cases": 36,
+    "moves": 144,
+    "quiet_moves": 134,
+    "last_drive_ms": 2999,
+    "max_overshoot_deg": 10.114795,
+    "max_post_done_travel_deg": 157.770498,
+    "max_final_error_deg": 9.809491000000001
+  },
+  "fixed": {
+    "cases": 36,
+    "moves": 144,
+    "quiet_moves": 144,
+    "last_drive_ms": 2127,
+    "max_overshoot_deg": 2.112462,
+    "max_post_done_travel_deg": 2.5893139999999994,
+    "max_final_error_deg": 0.4323599999999999
+  }
+}

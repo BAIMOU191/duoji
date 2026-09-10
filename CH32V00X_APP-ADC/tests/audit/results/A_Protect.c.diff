@@ -1,0 +1,70 @@
+--- baseline/A_Protect.c
++++ A_Protect.c
+@@ -34,8 +34,8 @@
+  *       让实测电流落在限流值上。为什么不直接按比例砍PWM上限：电机扭矩正比于
+  *       电流而不是占空比，同一个占空比在电池满电和亏电时出的扭矩差一大截，
+  *       开环映射标出来的"50%扭矩"会随电压漂。闭环之后扭矩只跟限流值挂钩，
+- *       与电压、温度、负载都无关。代价是回路要几拍才收敛，所以起步瞬间的
+- *       过冲用开环线性估计夹住(见 Protect_PowerLimit 的回升目标)。
++ *       回路要几拍才收敛；新扭矩设置从开环线性估计起步，之后由电流反馈
++ *       调整上限。采样无效时保持当前上限，零扭矩设置始终保持最小限幅。
+  */
+ 
+ #include "A_Protect.h"
+@@ -65,7 +65,6 @@
+     uint8_t  temp_div;   /* 250ms分频计数                                 */
+     uint16_t cooldown;   /* 过流冷却剩余拍数，0=不在冷却中                */
+     uint16_t i_limit_ma; /* 扭矩百分比换算出的限流值                      */
+-    int16_t  pwm_ff;     /* 扭矩百分比的开环线性估计，作回升上限用        */
+     int16_t  pwm_limit;  /* 当前下发给舵机的PWM上限                       */
+ } Protect_t;
+ 
+@@ -103,10 +102,8 @@
+     s_prot.torque_pct = pct;
+     s_prot.i_limit_ma = (uint16_t)((uint32_t)pct * PROT_CURRENT_LIMIT_MA
+                                  / PROT_TORQUE_MAX);
+-    s_prot.pwm_ff     = (int16_t)((uint32_t)pct * CFG_PWM_FULL / PROT_TORQUE_MAX);
+-    if (s_prot.pwm_ff < PROT_LIMIT_MIN) s_prot.pwm_ff = PROT_LIMIT_MIN;
+-
+-    s_prot.pwm_limit = s_prot.pwm_ff;
++    s_prot.pwm_limit = (int16_t)((uint32_t)pct * CFG_PWM_FULL / PROT_TORQUE_MAX);
++    if (s_prot.pwm_limit < PROT_LIMIT_MIN) s_prot.pwm_limit = PROT_LIMIT_MIN;
+     A_Servo_SetOutputLimit(s_prot.pwm_limit);
+ }
+ 
+@@ -151,7 +148,12 @@
+     int32_t ceiling;                  /* 回升目标         */
+     int32_t step;                     /* 降额步长         */
+ 
+-    if (valid && ma > s_prot.i_limit_ma)
++    if (s_prot.torque_pct == 0U)
++    {
++        /* 零扭矩设定不参与回升；0是控制器的取消限幅标记，保留最小限幅。 */
++        limit = PROT_LIMIT_MIN;
++    }
++    else if (valid && ma > s_prot.i_limit_ma)
+     {
+         step = (int32_t)(ma - s_prot.i_limit_ma) / PROT_LIMIT_DOWN_DIV;
+         if (step < 1) step = 1;
+@@ -183,11 +185,6 @@
+             limit += PROT_LIMIT_UP_STEP;
+             if (limit > ceiling) limit = ceiling;
+         }
+-        else if (limit > ceiling)
+-        {
+-            limit -= PROT_LIMIT_UP_STEP;
+-            if (limit < ceiling) limit = ceiling;
+-        }
+     }
+ 
+     if (limit < PROT_LIMIT_MIN) limit = PROT_LIMIT_MIN;
+@@ -262,8 +259,7 @@
+  * @return  无
+  *
+  * 每拍复检扭矩状态而不是只在故障边沿动一次：故障期间上位机完全可能发来
+- * ULR或一条运动指令(A_Servo_Submit内部会自动恢复扭矩)，那样舵机就绕过保护
+- * 重新带电了。这里持续复位，最多让它带电10ms。
++ * ULR或一条运动指令。舵机入口会拒绝故障期间恢复扭矩，这里仍逐拍落实卸力。
+  *
+  * 恢复只解除"本模块发出的"那次卸力：用户自己发的ULK不该被保护顺手撤销。
+  */

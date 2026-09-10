@@ -1,0 +1,12 @@
+{
+	"details": [
+		{
+			"file": "User/main.c",
+			"encoding": "utf8"
+		},
+		{
+			"file": "Drivers/tim.h",
+			"encoding": "utf8"
+		}
+	]
+}

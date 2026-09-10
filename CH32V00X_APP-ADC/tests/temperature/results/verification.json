@@ -1,0 +1,22 @@
+{
+  "before": {
+    "i2c": {
+      "returncode": 1,
+      "output": "modeled bus frequency=480000Hz\nFAIL line 48: bus_hz==400000\nFAIL line 49: D_I2C_Read(0x48,0,b,2)==0\nFAIL line 49: received==2\nFAIL line 49: !ack_order_bad\nFAIL line 51: D_I2C_Read(0x48,0,b,2)==0\nFAIL line 51: received==2\nFAIL line 53: D_I2C_Read(0x48,0,b,2)==0\nFAIL line 53: received==2\nI2C contract failures=8\n"
+    },
+    "temperature": {
+      "returncode": 1,
+      "output": "#000PDP1500T25V12.3!\n#000PDP1500T0V12.3!\nFAIL line 57: !strcmp(reply,\"#000PDP1500T-32768V12.3!\")\ntemperature and protocol failures=1\n"
+    }
+  },
+  "after": {
+    "i2c": {
+      "returncode": 0,
+      "output": "modeled bus frequency=400000Hz\nI2C contract failures=0\n"
+    },
+    "temperature": {
+      "returncode": 0,
+      "output": "#000PDP1500T25V12.3!\n#000PDP1500T-32768V12.3!\ntemperature and protocol failures=0\n"
+    }
+  }
+}

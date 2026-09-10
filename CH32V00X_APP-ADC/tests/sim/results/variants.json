@@ -1,0 +1,136 @@
+{
+  "motor_negative": {
+    "cycle": {
+      "final_pos": 20241.7913,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "escape_entries": 0,
+      "max_abs_pwm": 2400.0,
+      "moves": [
+        {
+          "done_ms": 594,
+          "overshoot": 1.6007999999999925,
+          "post_done_travel": 4.053399999999982,
+          "final_error": -1.6007999999999925,
+          "tail_pwm": 0
+        },
+        {
+          "done_ms": 841,
+          "overshoot": 6.696599999999307,
+          "post_done_travel": 3.7805000000007567,
+          "final_error": 6.696599999999307,
+          "tail_pwm": 0
+        },
+        {
+          "done_ms": 841,
+          "overshoot": 25.35669999999999,
+          "post_done_travel": 4.4410000000000025,
+          "final_error": -25.35669999999999,
+          "tail_pwm": 0
+        },
+        {
+          "done_ms": 842,
+          "overshoot": 0,
+          "post_done_travel": 3.9972000000016124,
+          "final_error": -8.208699999999226,
+          "tail_pwm": 0
+        }
+      ]
+    },
+    "boot-low": {
+      "final_pos": 205.3017,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "escape_entries": 1,
+      "max_abs_pwm": 600.0
+    },
+    "boot-high": {
+      "final_pos": 26834.8324,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "escape_entries": 1,
+      "max_abs_pwm": 600.0
+    }
+  },
+  "magnetic": {
+    "cycle": {
+      "final_pos": 20260.6494,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "escape_entries": 0,
+      "max_abs_pwm": 2400.0,
+      "moves": [
+        {
+          "done_ms": 602,
+          "overshoot": 0,
+          "post_done_travel": 4.4399999999999995,
+          "final_error": 2.2111,
+          "tail_pwm": 0
+        },
+        {
+          "done_ms": 848,
+          "overshoot": 0,
+          "post_done_travel": 4.021899999999732,
+          "final_error": -3.711800000000949,
+          "tail_pwm": 0
+        },
+        {
+          "done_ms": 848,
+          "overshoot": 4.4842,
+          "post_done_travel": 4.348800000000001,
+          "final_error": -4.4842,
+          "tail_pwm": 0
+        },
+        {
+          "done_ms": 848,
+          "overshoot": 10.649399999998423,
+          "post_done_travel": 4.266599999999016,
+          "final_error": 10.649399999998423,
+          "tail_pwm": 0
+        }
+      ]
+    }
+  },
+  "reverse_position": {
+    "final_pos": 6753.3113,
+    "tail_motion_pp": 0.0,
+    "tail_nonzero_pwm": 0,
+    "tail_max_pwm": 0.0,
+    "escape_entries": 0,
+    "max_abs_pwm": 2400.0,
+    "moves": [
+      {
+        "done_ms": 594,
+        "overshoot": 0,
+        "post_done_travel": 4.398199999999633,
+        "final_error": -9.51759999999922,
+        "tail_pwm": 0
+      },
+      {
+        "done_ms": 841,
+        "overshoot": 0,
+        "post_done_travel": 4.367999999999483,
+        "final_error": 6.989300000000185,
+        "tail_pwm": 0
+      },
+      {
+        "done_ms": 841,
+        "overshoot": 0,
+        "post_done_travel": 4.092100000001665,
+        "final_error": -9.634500000000116,
+        "tail_pwm": 0
+      },
+      {
+        "done_ms": 841,
+        "overshoot": 0,
+        "post_done_travel": 3.868899999999485,
+        "final_error": 3.3113000000003012,
+        "tail_pwm": 0
+      }
+    ]
+  }
+}

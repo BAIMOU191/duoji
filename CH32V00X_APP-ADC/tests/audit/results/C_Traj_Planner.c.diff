@@ -1,0 +1,145 @@
+--- baseline/C_Traj_Planner.c
++++ C_Traj_Planner.c
+@@ -191,13 +191,10 @@
+                           * 取更大的k即取更小的加速度，同时满足两个上限 */
+     int32_t r_acc_q15;
+     int32_t r_dec_q15;
+-    int32_t r_rev_q15;       /* 刹车/换向段：取两侧较柔的一档 */
+     int32_t peak_acc_q15;    /* 1/(1-r)，也是段时长倍率，Q15 */
+     int32_t peak_dec_q15;
+-    int32_t peak_rev_q15;
+     int32_t inv_r_acc_q15;   /* 1/r，Q15；r=0时为0 */
+     int32_t inv_r_dec_q15;
+-    int32_t inv_r_rev_q15;
+ 
+     /* 本段计划(全部在C_Traj_Plan中一次算好) */
+     int32_t p0;          /* 段起点位置(未回绕)，厘度 */
+@@ -405,27 +402,17 @@
+      * 到位冲击发生在末段减速归零(seg3，只认 r_dec)，与本段无关；
+      * 若这里取 max，停车的平滑度就会漏到在线改目标的换向上，
+      * 实测 DEC=25 时参考翻转 73->81ms、到达 366->393ms。 */
+-    s_tj.r_rev_q15 = s_tj.r_acc_q15;
+ 
+     s_tj.peak_acc_q15 = (int32_t)(((int64_t)32768 * 32768)
+                                    / (32768 - s_tj.r_acc_q15));
+     s_tj.peak_dec_q15 = (int32_t)(((int64_t)32768 * 32768)
+                                    / (32768 - s_tj.r_dec_q15));
+-    s_tj.peak_rev_q15 = (int32_t)(((int64_t)32768 * 32768)
+-                                   / (32768 - s_tj.r_rev_q15));
+     s_tj.inv_r_acc_q15 = (s_tj.r_acc_q15 > 0)
+                        ? (int32_t)(((int64_t)32768 * 32768) / s_tj.r_acc_q15) : 0;
+     s_tj.inv_r_dec_q15 = (s_tj.r_dec_q15 > 0)
+                        ? (int32_t)(((int64_t)32768 * 32768) / s_tj.r_dec_q15) : 0;
+-    s_tj.inv_r_rev_q15 = (s_tj.r_rev_q15 > 0)
+-                       ? (int32_t)(((int64_t)32768 * 32768) / s_tj.r_rev_q15) : 0;
+-
+-    /* k 不再在这里定死：它随每段行程由 Traj_AutoAmax 算出，见 C_Traj_Plan。
+-     * 这里先给一份保底值，避免 Plan 之前就调用 Step。 */
+-    s_tj.k_acc_q32 = Traj_K_Linear_Q32(TRAJ_AMAX_ACC_CDPSS);
+-    s_tj.k_dec_q32 = Traj_K_Linear_Q32(TRAJ_AMAX_DEC_CDPSS);
+-    s_tj.k_rev_q32 = (s_tj.k_acc_q32 > s_tj.k_dec_q32)
+-                   ? s_tj.k_acc_q32 : s_tj.k_dec_q32;
++
++    /* k 仅由 Plan 计算和读取。T=0 时 Step 直接输出静止参考，无需预算。 */
+ 
+     /* 默认放开整圈；A_Servo 会按舵机模式立刻调 C_Traj_Set_Range 收紧到实际行程 */
+     s_tj.lo     = 0;
+@@ -463,14 +450,14 @@
+ /*
+  * @fn      C_Traj_Set_Range
+  * @brief   设置可用行程(厘度)，范围以外即死区
+- * @param   lo 下限，@param hi 上限(必须 > lo)
++ * @param   lo 下限，@param hi 上限(必须 >= lo，等号表示固定位置)
+  *
+  * 调用后当前指令位置被夹进[lo,hi]、速度归零并停住，避免换模式的瞬间
+  * 参考还带着旧行程的速度往死区里冲。参数非法时保持原设置不动。
+  */
+ void C_Traj_Set_Range(int32_t lo, int32_t hi)
+ {
+-    if (hi <= lo) return;
++    if (hi < lo) return;
+ 
+     s_tj.lo = lo;
+     s_tj.hi = hi;
+@@ -561,6 +548,12 @@
+     D   = dp * sgn;                 /* 运动方向上的行程，>=0 */
+     u0  = s_tj.v0_qt * sgn;         /* 起点速度沿运动方向的分量，反向时为负 */
+ 
++    if (D == 0 && u0 == 0)
++    {
++        C_Traj_Hold(s_tj.p0);
++        return; /* 已静止且同目标，不再做速度/加速度上限的除法计算 */
++    }
++
+     /* ---- 本段的动力学上限：按行程自动确定，不再取固定配置值 ----
+      * 两件事在这里发生：
+      *   1) 小位移限速：行程小于 TRAJ_VMAX_CDPS*TUNE_MOVE_MIN_MS 时按
+@@ -570,15 +563,18 @@
+      * 都只在收到指令时算一次，不进每拍路径。 */
+     {
+         int32_t vmax_use = Traj_VelCap(D);
+-        int32_t a_ceil   = Traj_AccelCeil(vmax_use);
++        int32_t a_ceil;
+         int32_t amax_a, amax_d, kl_a, kl_d, v0_cdps;
+-
+-        if (vmax_use < 1) vmax_use = 1;
+-        vmax_qt = (int32_t)(((int64_t)vmax_use << TRAJ_VEL_SHIFT) / CFG_TICK_HZ);
+ 
+         /* 起点速度换算成厘度/秒，供加速度上限推导用(见 Traj_AutoAmax) */
+         v0_cdps = (int32_t)((((int64_t)((u0 < 0) ? -u0 : u0)) * CFG_TICK_HZ)
+                             >> TRAJ_VEL_SHIFT);
++        /* 移动中把目标改到当前位置附近，仍须保留消除已有动量的能力。
++         * 只按剩余1厘度限速，会把加减速度压到极小，并生成数小时的错误轨迹。 */
++        if (vmax_use < v0_cdps) vmax_use = v0_cdps;
++        if (vmax_use < 1) vmax_use = 1;
++        vmax_qt = (int32_t)(((int64_t)vmax_use << TRAJ_VEL_SHIFT) / CFG_TICK_HZ);
++        a_ceil = Traj_AccelCeil(vmax_use);
+ 
+         amax_a = Traj_AutoAmax(D, s_tj.peak_acc_q15, vmax_use, v0_cdps);
+         if (amax_a > a_ceil) amax_a = a_ceil;
+@@ -610,22 +606,11 @@
+          * 不应该跟到换向上。DEC=25 时 peak_dec=1.143，就是另一半滞后。 */
+         {
+             int32_t kl_r = (kl_a > kl_d) ? kl_a : kl_d;
+-            s_tj.k_rev_q32 = (int32_t)(((int64_t)kl_r * s_tj.peak_rev_q15) >> 15);
++            s_tj.k_rev_q32 = (int32_t)(((int64_t)kl_r * s_tj.peak_acc_q15) >> 15);
+         }
+     }
+ 
+     T_req = ((int32_t)time_ms * CFG_TICK_HZ) / 1000;
+-
+-    /* 已经停在目标上：保持不动。云台连续微调时目标常常与上一拍相同，
+-     * 这里直接返回可以避免每帧都重建一条长度为0的轨迹。 */
+-    if (D == 0 && u0 == 0)
+-    {
+-        s_tj.p_end = s_tj.p0;
+-        s_tj.vc_qt = 0;
+-        s_tj.t1 = 1; s_tj.tc = 0; s_tj.t3 = 1;
+-        s_tj.T  = 0; s_tj.t  = 0;
+-        return;
+-    }
+ 
+     au0 = (u0 < 0) ? -u0 : u0;
+     W0  = au0 >> TRAJ_W_SHIFT;      /* Q8，用于平方时不溢出 */
+@@ -640,9 +625,9 @@
+     }
+     /* 第一段若需要刹车或换向，取更保守的k(=更小的加速度)同时满足两个上限 */
+     k1 = (case_b || u0 < 0) ? s_tj.k_rev_q32 : s_tj.k_acc_q32;
+-    s_tj.seg1_r_q15 = (case_b || u0 < 0) ? s_tj.r_rev_q15 : s_tj.r_acc_q15;
+-    s_tj.seg1_peak_q15 = (case_b || u0 < 0) ? s_tj.peak_rev_q15 : s_tj.peak_acc_q15;
+-    s_tj.seg1_inv_r_q15 = (case_b || u0 < 0) ? s_tj.inv_r_rev_q15 : s_tj.inv_r_acc_q15;
++    s_tj.seg1_r_q15 = s_tj.r_acc_q15;
++    s_tj.seg1_peak_q15 = s_tj.peak_acc_q15;
++    s_tj.seg1_inv_r_q15 = s_tj.inv_r_acc_q15;
+     s_tj.seg3_r_q15 = s_tj.r_dec_q15;
+     s_tj.seg3_peak_q15 = s_tj.peak_dec_q15;
+     s_tj.seg3_inv_r_q15 = s_tj.inv_r_dec_q15;
+@@ -775,7 +760,7 @@
+      * 这样段与段的接缝上不会因为舍入差出1厘度。 */
+     s_tj.p_a = s_tj.p0
+              + (int32_t)((((int64_t)s_tj.v0_qt * t1)
+-                        + ((int64_t)s_tj.posk1 << (TRAJ_U_SHIFT - 1))) >> TRAJ_VEL_SHIFT);
++                        + (int64_t)s_tj.posk1 * (1L << (TRAJ_U_SHIFT - 1))) >> TRAJ_VEL_SHIFT);
+     s_tj.p_c = s_tj.p_a
+              + (int32_t)(((int64_t)s_tj.vc_qt * tc) >> TRAJ_VEL_SHIFT);
+     s_tj.p_end = s_tj.p0 + dp;   /* 终点用解析值，避免逐段舍入累积 */

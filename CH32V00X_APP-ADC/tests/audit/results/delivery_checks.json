@@ -1,0 +1,9 @@
+{
+  "audit_before": {
+    "final_100ms_zero_pwm_moves": 144
+  },
+  "audit_after": {
+    "final_100ms_zero_pwm_moves": 144
+  },
+  "firmware_sha256": "293407162b1515515a6ae62ff61df6669e6ac195b0abcfcdd8e9447320dbb784"
+}
