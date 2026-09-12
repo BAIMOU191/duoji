@@ -37,11 +37,12 @@ int16_t D_Motor_Set(int16_t pwm)
      * 传入的是幅值而不是反相后的比较值：D_TIM2_ADC_Trigger_Set 自己
      * 换算成 RES - mag/2 的中点。 */
     window = D_TIM2_ADC_Trigger_Set(magnitude);
+    D_ADC_Current_Window_Set(window);
 
     /* 三种情况下必须让已有电流样本失效并丢弃下一块：
      *   换向        —— 前后两块样本来自不同的电流方向
-     *   窗口关闭    —— 之后不会再有新样本，否则旧值会被当成有效值一直报
-     *   窗口重新打开—— DMA指针停在缓冲区中间，下一块会混入停摆前的旧样本 */
+     *   窗口关闭    —— 触发点移到了续流段，采到的不再是绕组电流
+     *   窗口重新打开—— 那一块会混进窗口关闭期间采的续流段样本 */
     if (direction != old_direction || window != s_adc_window)
         D_ADC_Current_Filter_Reset();
     s_adc_window = window;
@@ -71,7 +72,7 @@ int16_t D_Motor_Set(int16_t pwm)
 
 void D_Motor_Release(uint8_t high_resistance)
 {
-    D_TIM2_ADC_Trigger_Set(0U);
+    D_ADC_Current_Window_Set(D_TIM2_ADC_Trigger_Set(0U));
     D_ADC_Current_Filter_Reset();
     if (high_resistance)
     {

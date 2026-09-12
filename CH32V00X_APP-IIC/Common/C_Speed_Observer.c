@@ -62,7 +62,7 @@ void C_SpeedObs_Init(int32_t init_pos)
     for (i = 0U; i < OBS_DEAD_MAX; i++) s_obs.u_hist[i] = 0;
     s_obs.u_idx = 0U;
 
-    s_obs.pos_q8  = init_pos << OBS_Q8;
+    s_obs.pos_q8  = init_pos * (1 << OBS_Q8);
     s_obs.vel_q8  = 0;
     s_obs.load_q8 = 0;
 
@@ -95,7 +95,7 @@ void C_SpeedObs_Update(int32_t measured_pos, int16_t pwm_applied, SpeedObsOut_t 
     if (!s_obs.ready) C_SpeedObs_Init(measured_pos);
 
     /* ---- 1. 纯延迟对齐 ----
-     * 标定实测指令到编码器响应有 plant_dead_ticks 拍纯延迟。预测步必须用
+     * 标定实测指令到编码器响应有 PLANT_DEAD_TICKS 拍纯延迟。预测步必须用
      * 当时真正作用在电机上的那个PWM，否则模型会比实际提前一个延迟量，
      * 在加减速段产生系统性偏差(实测梯形RMS 37 -> 80)。 */
     /* 控制器返回的是 H 桥物理方向的 PWM；观测器状态则始终使用“编码器角度
@@ -151,23 +151,29 @@ void C_SpeedObs_Update(int32_t measured_pos, int16_t pwm_applied, SpeedObsOut_t 
     /* 位置积分：p += v*T，T=1ms。除以1000用Q22倒数(4194)代替，避免除法。 */
     pos_pred_q8 = s_obs.pos_q8 + (int32_t)(((int64_t)s_obs.vel_q8 * 4194) >> 22);
 
-    range_q8 = (int32_t)CDEG_RANGE << OBS_Q8;
-    if (pos_pred_q8 >= range_q8) pos_pred_q8 -= range_q8;
-    else if (pos_pred_q8 < 0)    pos_pred_q8 += range_q8;
+    range_q8 = (int32_t)CFG_WRAP_RANGE_CDEG * (1 << OBS_Q8);
+    if (range_q8 > 0)
+    {
+        if (pos_pred_q8 >= range_q8) pos_pred_q8 -= range_q8;
+        else if (pos_pred_q8 < 0)    pos_pred_q8 += range_q8;
+    }
 
     /* ---- 4. 残差校正 ---- */
-    resid_q8 = Obs_WrapFold((measured_pos << OBS_Q8) - pos_pred_q8, range_q8);
+    resid_q8 = Obs_WrapFold(measured_pos * (1 << OBS_Q8) - pos_pred_q8, range_q8);
 
     s_obs.pos_q8 = pos_pred_q8
                  + (int32_t)(((int64_t)OBS_L1_Q15 * resid_q8) >> OBS_Q15);
-    if (s_obs.pos_q8 >= range_q8) s_obs.pos_q8 -= range_q8;
-    else if (s_obs.pos_q8 < 0)    s_obs.pos_q8 += range_q8;
+    if (range_q8 > 0)
+    {
+        if (s_obs.pos_q8 >= range_q8) s_obs.pos_q8 -= range_q8;
+        else if (s_obs.pos_q8 < 0)    s_obs.pos_q8 += range_q8;
+    }
 
     s_obs.vel_q8 = vel_pred_q8
                  + (int32_t)(((int64_t)OBS_L2_Q15 * resid_q8) >> OBS_Q15);
     s_obs.vel_q8 = Obs_Clamp(s_obs.vel_q8, OBS_VMAX_CDPS << OBS_Q8);
 
-    /* d 与位置/速度用同一形式的校正：d += L3*e。obs_l3_q15 的设计值本身为负，
+    /* d 与位置/速度用同一形式的校正：d += L3*e。OBS_L3_Q15 的设计值本身为负，
      * 所以实际效果是"测量位置落后于预测 -> 判定负载变大 -> d 增大"。
      * 写成减法会把负反馈变成正反馈，观测器直接发散。 */
     s_obs.load_q8 += (int32_t)(((int64_t)OBS_L3_Q15 * resid_q8) >> OBS_Q15);

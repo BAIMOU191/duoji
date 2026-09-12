@@ -29,7 +29,16 @@
  * 读数恒为零。
  *
  * 时序常数统一放在 D_tim.h，与 D_adc.c 的分频和采样档由 #if 绑死。 */
-#define ADC_TRIGGER_DISABLED_CCR      TIM_PWM_RESOLUTION
+/* 采样窗口放不下时，触发点停到周期中部而**不是关掉**。
+ *
+ * 关掉触发是给纯电流采样写的：没有窗口就没有样本，valid自然保持0。但规则组
+ * 现在还挂着电位器角度，那是位置环的反馈——舵机保持位置时输出接近0，正是最
+ * 需要角度的时候，触发一关角度就跟着断了。
+ *
+ * 停在周期中部是续流段的正中间，离两个开关沿最远，电位器那一路采得最干净；
+ * 电流那一路此刻采到的不是绕组电流(续流段检流电阻上净电流为零)，由
+ * D_ADC_Current_Window_Set 显式标成无效，不靠"没有样本"来表达。 */
+#define ADC_TRIGGER_PARK_CCR          (TIM_PWM_RESOLUTION / 2U)
 
 static uint8_t  s_ic_wait_falling; /* 0=等待上升沿，1=等待下降沿 */
 static uint8_t  s_ic_have_rise;    /* 已捕获上升沿标志 */
@@ -110,7 +119,7 @@ void D_TIM2_PWM_Init(void)
     TIM_OCStructInit(&TIM_OCInitStructure);
     TIM_OCInitStructure.TIM_OCMode      = TIM_OCMode_PWM2;
     TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Disable;
-    TIM_OCInitStructure.TIM_Pulse       = ADC_TRIGGER_DISABLED_CCR;
+    TIM_OCInitStructure.TIM_Pulse       = ADC_TRIGGER_PARK_CCR;
     TIM_OCInitStructure.TIM_OCPolarity  = TIM_OCPolarity_High;
     TIM_OC4Init(TIM2, &TIM_OCInitStructure);
     TIM_OC4PreloadConfig(TIM2, TIM_OCPreload_Enable);
@@ -127,7 +136,7 @@ void D_TIM2_PWM_Init(void)
  * @fn      D_TIM2_ADC_Trigger_Set
  * @brief   按当前PWM幅值把电流采样点重新定位到驱动段内
  * @param   pwm_ticks 本次输出的PWM幅值(绝对值)，不是反相后的比较值
- * @return  1=采样窗口有效，0=占空比过低已关闭触发
+ * @return  1=采样窗口有效，0=占空比过低，触发点已停到续流段(电流读数无效)
  *
  * 采样点自适应：
  *   占空比够宽 -> 孔径居中于驱动段，对驱动段电流纹波无偏，是首选；
@@ -151,8 +160,8 @@ uint8_t D_TIM2_ADC_Trigger_Set(uint16_t pwm_ticks)
 
     if (pwm_ticks < ADC_TRIGGER_MIN_PWM_TICKS)
     {
-        TIM_SetCompare4(TIM2, ADC_TRIGGER_DISABLED_CCR);
-        return 0;
+        TIM_SetCompare4(TIM2, ADC_TRIGGER_PARK_CCR);
+        return 0;   /* 转换继续，但电流那一路的读数此刻没有意义 */
     }
 
     /* 驱动段 = [RES-mag, RES)，中点 = RES - mag/2 */

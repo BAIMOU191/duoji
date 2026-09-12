@@ -2,142 +2,214 @@
 
 #include <stdint.h>
 
-/* 控制设计参数：标定输入、调参面板、派生系数和编译期护栏。 */
-#define CDEG_RANGE 36000  /** 位置环绕量程，整圈=36000厘度。 */
-#define SERVO_PWM_MIN 500  /** 舵机协议最小脉宽，也是电机模式负向满速指令。 */
-#define SERVO_PWM_MAX 2500 /** 舵机协议最大脉宽，也是电机模式正向满速指令。 */
-#define SERVO_PWM_MID 1500 /** 电机模式零速指令；两侧分别线性映射到正负满PWM。 */
-#define CFG_PWM_FULL 2400 /** PWM满量程，必须与驱动层实际限制保持一致。 */
+/*
+ * A_Parameter.h —— 控制设计参数：标定输入、调参面板、派生系数、编译期护栏
+ *
+ * 只允许改"标定输入"和"调参面板"两段。DSGC_/DSG_/PLANT_/OBS_/TRAJ_/CTRL_
+ * 全是派生量，手改会与文件末尾的护栏冲突。
+ *
+ * ==================== 本机实测结论(MT6701 磁编码器) ====================
+ *
+ * 1) 传感器：MT6701 14位，1计数=2.197厘度，运动中噪声 sigma=0.76厘度，**静止时
+ *    完全没有 dither**(2000拍原始计数一动不动)。没有 dither 意味着过采样平均无法
+ *    恢复亚LSB分辨率——平均100次还是同一个数。
+ *
+ * 2) 因此编码器单源求速度被死死钉在这条曲线上(N点中心差分，厘度/秒)：
+ *        N=5:235  N=7:143  N=11:72  N=15:45，滞后=(N-1)/2 拍
+ *    降噪只能加窗，加窗就是加滞后：SG-11 在暂态反而比 SG-7 更差(梯形269 vs 190、
+ *    换向560 vs 378)，省下的噪声被滞后吃光还倒亏。出路是引入第二个信息源(下发的
+ *    PWM + 标定出来的电机模型)，即 C_Speed_Observer 的模型观测器。实测对比：
+ *        工况        SG-7   SG-11   观测器
+ *        爬行11度/s   115     60      34
+ *        匀速99度/s    59     43      43
+ *        梯形         190    269      37
+ *        往复换向     378    560      62
+ *
+ * 3) 观测器带宽取舍：15Hz 稳态更干净但换向差，40Hz 反之，25Hz 最均衡。本机纯延迟
+ *    3拍，护栏算出的上限是 22Hz，所以取 22——已经贴着上限，**再增大纯延迟必须同时
+ *    降带宽**，否则编译期直接失败。
+ *
+ * 4) 摩擦：两方向动摩擦差 1%(87/88)、起转差 6%(188/200)，都在标定重复性(正向起转
+ *    散布 22 计数)以内，所以不分方向标定，起转取较大值 200。动摩擦(速度直线截距)
+ *    和静摩擦(起转)差 2~3 倍，末端修正工作在静摩擦工况，控制器按实测速度在两者间
+ *    滞环切换(见 C_Pos_Ctrl.c 的 PosCtrl_Friction)。**CAL_BREAKAWAY_PWM 目前沿用旧标定记录的 200，尚未
+ *    用 A_Calib_Min 的 T9 缓升法复测**，重测后按实测值替换。
+ *
+ * 5) 前馈余量：TUNE_SPEED_PCT 直接决定还剩多少输出留给反馈——前馈占用 =
+ *    pct% * PLANT_NET_PWM + CAL_FRICTION_PWM。余量不足的后果不是"慢一点"而是
+ *    **闭环彻底失去调节权限**：输出常驻饱和，反馈算多少都下不去。当前 89% ->
+ *    0.89*2322+78 = 2144/2400，反馈余量 256，由 guard_feedforward_leaves_no_headroom
+ *    在编译期挡住。
+ *
+ * 6) v_ss = 20470 厘度/秒 = 204.7 度/秒。
+ *
+ * ==================== 与电位器版(ADC)有意保留的差异 ====================
+ * 标定输入、调参面板、DSGC_DEC_OF_ACC_Q8、CTRL_POS_LEAD_Q16 这四类量按机器各自
+ * 取值，其余全部与电位器版一致。CTRL_POS_LEAD_Q16 本机取 1 拍(纯执行延迟)，
+ * 电位器版取"延迟+tau/8"，是两台机器分别调出来的，不要互相同步。
+ */
 
-/* 标定输入。A_Calib_Min 的输出替换此处的单机标定项。 */
-#define CAL_SPEED_SLOPE_Q16 7434 /** 实测PWM-速度斜率，Q16；标定输出直接填入。 */
-#define CAL_FRICTION_PWM 78      /** 实测等效动摩擦PWM，标定输出直接填入。 */
-#define MODEL_TAU_MS 37          /** 实测机械时间常数(ms)；偏小会显著降低稳定裕度。 */
-#define MODEL_DELAY_TICKS 3      /** 指令至轴响应的纯延迟(控制拍)；改变后需复核全部护栏。 */
-#define CAL_MOTOR_SIGN 1         /** 装配方向，+1/-1；由标定程序自动判定。 */
-#define MODEL_BRAKE_GAIN_Q8 256  /** 制动侧相对驱动侧的PWM增益，Q8；须通过实机制动测试确定。 */
-#define MODEL_RESONANCE_HZ 0     /** 第一机械谐振频率(Hz)，0=未测；非0时自动收紧观测器带宽。 */
+/* ============================== 基本量程 ============================== */
+#define CDEG_RANGE 36000        /** 整圈角度，厘度 */
+#define CFG_WRAP_RANGE_CDEG 36000 /** 反馈坐标回绕量程；整圈可测故回绕，须与ENCODER_MODE一致 */
+#define SERVO_PWM_MIN 500       /** 协议最小脉宽，也是电机模式负向满速指令 */
+#define SERVO_PWM_MAX 2500      /** 协议最大脉宽，也是电机模式正向满速指令 */
+#define SERVO_PWM_MID 1500      /** 电机模式零速指令，两侧线性映射到正负满PWM */
+#define CFG_PWM_FULL 2400       /** PWM满量程，必须与驱动层实际限制一致 */
 
-/* 调参面板。 */
-#define TUNE_SMOOTH_ACC 0       /** 加速平滑度，0~100；增大可降低加速段 jerk，但会增加反向响应时间。 */
-#define TUNE_SMOOTH_DEC 25      /** 减速平滑度，0~100；增大可降低到位时 PWM 跳变和冲击，但会延长减速过程。 */
-#define TUNE_MOVE_MIN_MS 70     /** 小位移最短运动时间(ms)，0=关闭；增大使短距离动作更柔和、更慢。 */
-#define TUNE_ACCEL_MIN_MS 30    /** 小位移加速段最短时间(ms)；增大可压低小位移 PWM 尖峰，且不得短于纯延迟。 */
-#define TUNE_SPEED_PCT 91       /** 最大速度占物理稳态速度的百分比；增大更快但闭环可用 PWM 余量更少，最大100。 */
-#define TUNE_ACCEL_PCT 95       /** 最大加速度占物理能力的百分比；增大更快但模型误差和饱和风险更高，最大100。 */
-#define TUNE_STIFFNESS_RADS 19  /** 位置环带宽(rad/s)；增大跟随更快，但受速度环/观测器级联分离约束。 */
-#define TUNE_DAMPING 24         /** 速度环带宽与位置环带宽之比的10倍；增大速度环更快，范围须满足护栏。 */
-#define TUNE_INTEGRAL_RADS 15   /** 速度积分零点(rad/s)；增大可更快消除稳态误差，但不得高于位置环带宽。 */
-#define TUNE_OBS_BW_HZ 22       /** 观测器带宽(Hz)；增大响应更快但受纯延迟和机械谐振上限约束。 */
-#define TUNE_RESOLUTION_CDEG 10 /** 最小可靠位移(厘度)；增大将同步增大死区、到位窗和零速阈值。 */
+/* ======================= 标定输入(A_Calib_Min 输出) ======================= */
+#define CAL_SPEED_SLOPE_Q16 7434 /** PWM-速度斜率，Q16 */
+#define CAL_FRICTION_PWM 78      /** 等效动摩擦PWM，速度直线的截距 */
+#define CAL_BREAKAWAY_PWM 200    /** 起转(静摩擦)PWM；<=动摩擦时静摩擦前馈自动退化 */
+#define MODEL_TAU_MS 37          /** 机械时间常数(ms)，偏小会显著降低稳定裕度 */
+#define MODEL_DELAY_TICKS 3      /** 指令至轴响应的纯延迟(控制拍)，改后需复核全部护栏 */
+#define CAL_MOTOR_SIGN 1         /** 装配方向，+1/-1，由标定程序自动判定 */
+#define MODEL_BRAKE_GAIN_Q8 256  /** 制动侧相对驱动侧的PWM增益，Q8 */
+#define MODEL_RESONANCE_HZ 0     /** 第一机械谐振频率(Hz)，0=未测，非0时自动收紧观测器带宽 */
 
-/* 结构常数及由调参面板导出的设计量。 */
-#define DSGC_HOLD_DB_X2 3                                                                  /** 设计关系常数，用于将调参项折算为控制阈值。 */
-#define DSGC_IN_WIN_X2 5                                                                   /** 设计关系常数，用于将调参项折算为控制阈值。 */
-#define DSGC_OUT_WIN_X 4                                                                   /** 设计关系常数，用于将调参项折算为控制阈值。 */
-#define DSGC_IN_VEL_X 50                                                                   /** 设计关系常数，用于将调参项折算为控制阈值。 */
-#define DSGC_WCMD_MIN_DIV 4                                                                /** 设计关系常数，用于将调参项折算为控制阈值。 */
-#define DSGC_FRIC_BLEND_X 3                                                                /** 设计关系常数，用于将调参项折算为控制阈值。 */
-#define DSGC_DEC_OF_ACC_Q8 189                                                             /** 设计关系常数，用于将调参项折算为控制阈值。 */
-#define DSG_SMOOTH_MAX 100                                                                 /** 平滑度取值上限。 */
-#define DSG_IN_HOLD_MS 20                                                                  /** 进入到位状态前需连续满足条件的控制拍数。 */
-#define DSG_WCORR_PCT 25                                                                   /** 位置环速度修正限幅占最大速度的百分比。 */
-#define DSG_POS_BW_RADS TUNE_STIFFNESS_RADS                                                /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_VEL_BW_RADS (TUNE_STIFFNESS_RADS * TUNE_DAMPING / 10)                          /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_VEL_I_RADS TUNE_INTEGRAL_RADS                                                  /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_OBS_BW_HZ TUNE_OBS_BW_HZ                                                       /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_VMAX_PCT TUNE_SPEED_PCT                                                        /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_ACC_RATIO_Q8 (TUNE_ACCEL_PCT * 256 / 100)                                      /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_DEC_RATIO_Q8 ((DSG_ACC_RATIO_Q8 * DSGC_DEC_OF_ACC_Q8) >> 8)                    /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define TRAJ_ACCEL_MIN_MS TUNE_ACCEL_MIN_MS                                                /** 轨迹规划器的速度、加速度或时间限制，由设计量派生。 */
-#define DSG_POS_DEADBAND_CDEG TUNE_RESOLUTION_CDEG                                         /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_HOLD_DEADBAND_CDEG (TUNE_RESOLUTION_CDEG * DSGC_HOLD_DB_X2 / 2)                /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_IN_WIN_CDEG (TUNE_RESOLUTION_CDEG * DSGC_IN_WIN_X2 / 2)                        /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_OUT_WIN_CDEG (TUNE_RESOLUTION_CDEG * DSGC_OUT_WIN_X)                           /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_IN_VEL_CDPS (TUNE_RESOLUTION_CDEG * DSGC_IN_VEL_X)                             /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_WCMD_MIN_CDPS (TUNE_STIFFNESS_RADS * TUNE_RESOLUTION_CDEG / DSGC_WCMD_MIN_DIV) /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
-#define DSG_FRICTION_BLEND_CDPS (DSG_WCMD_MIN_CDPS * DSGC_FRIC_BLEND_X)                    /** 由调参面板和结构常数导出的设计量，禁止单独修改。 */
+/* ============================== 调参面板 ============================== */
+#define TUNE_SMOOTH_ACC 0       /** 加速平滑度0~100，增大降低加速段jerk但延长反向响应 */
+#define TUNE_SMOOTH_DEC 25      /** 减速平滑度0~100，增大减小末端制动力突变 */
+#define TUNE_MOVE_MIN_MS 70     /** 小位移最短运动时间(ms)，0=关闭 */
+#define TUNE_ACCEL_MIN_MS 30    /** 小位移加速段最短时间(ms)，不得短于纯延迟 */
+#define TUNE_SPEED_PCT 89       /** 最大速度占物理稳态速度的百分比，受前馈余量护栏约束 */
+#define TUNE_ACCEL_PCT 95       /** 加速度百分比，仅在 Traj_AutoAmax 拿不到对象常数时兜底 */
+#define TUNE_STIFFNESS_RADS 19  /** 位置环带宽(rad/s)，受速度环/观测器级联分离约束 */
+#define TUNE_DAMPING 24         /** 速度环带宽与位置环带宽之比的10倍 */
+#define TUNE_INTEGRAL_RADS 15   /** 速度积分零点(rad/s)，不得高于位置环带宽 */
+#define TUNE_OBS_BW_HZ 22       /** 观测器带宽(Hz)，受纯延迟和机械谐振上限约束 */
+#define TUNE_RESOLUTION_CDEG 10 /** 最小可靠位移(厘度)，是全部位置阈值的公共标度 */
 
-/* 编译期派生系数。 */
-#define CFG_TICK_HZ 1000                                                                                                                                      /** 控制任务频率(Hz)。 */
-#define CFG_Q24_ONE 16777216L                                                                                                                                 /** Q24定点格式中的1.0。 */
-#define CFG_Q24_MUL(a, b) ((int32_t)(((int64_t)(a) * (int64_t)(b)) >> 24))                                                                                    /** Q24定点乘法常量表达式。 */
-#define PLANT_NET_PWM (((CFG_PWM_FULL - CAL_FRICTION_PWM) > 0) ? (CFG_PWM_FULL - CAL_FRICTION_PWM) : 1)                                                       /** 由标定输入推导的被控对象参数，禁止手动修改。 */
-#define PLANT_VSS_CDPS ((int32_t)(((int64_t)PLANT_NET_PWM << 16) / CAL_SPEED_SLOPE_Q16))                                                                      /** 由标定输入推导的被控对象参数，禁止手动修改。 */
-#define PLANT_A0_CDPSS ((int32_t)(((int64_t)PLANT_VSS_CDPS * 1000) / MODEL_TAU_MS))                                                                           /** 由标定输入推导的被控对象参数，禁止手动修改。 */
-#define PLANT_KA_Q8_RAW ((int32_t)(((int64_t)65536 * 1000 * 256) / ((int64_t)CAL_SPEED_SLOPE_Q16 * MODEL_TAU_MS)))                                            /** 由标定输入推导的被控对象参数，禁止手动修改。 */
-#define PLANT_KA_Q8 ((PLANT_KA_Q8_RAW > 0) ? PLANT_KA_Q8_RAW : 1)                                                                                             /** 由标定输入推导的被控对象参数，禁止手动修改。 */
-#define PLANT_KA_CDPSS (((PLANT_KA_Q8 >> 8) > 0) ? (PLANT_KA_Q8 >> 8) : 1)                                                                                    /** 由标定输入推导的被控对象参数，禁止手动修改。 */
-#define PLANT_SPEED_SLOPE_Q16 CAL_SPEED_SLOPE_Q16                                                                                                             /** 由标定输入推导的被控对象参数，禁止手动修改。 */
-#define PLANT_FRICTION_PWM CAL_FRICTION_PWM                                                                                                                   /** 由标定输入推导的被控对象参数，禁止手动修改。 */
-#define PLANT_TAU_MS MODEL_TAU_MS                                                                                                                             /** 由标定输入推导的被控对象参数，禁止手动修改。 */
-#define PLANT_DEAD_TICKS MODEL_DELAY_TICKS                                                                                                                    /** 由标定输入推导的被控对象参数，禁止手动修改。 */
+/* ========================= 结构常数与设计量 ========================= */
+#define DSGC_HOLD_DB_X2 3       /** 静止捕获窗=1.5倍最小步长，运动死区仍为1倍 */
+#define DSGC_IN_WIN_X2 5        /** 到位窗=2.5倍最小步长 */
+#define DSGC_OUT_WIN_X 4        /** 退出窗=4倍最小步长，与到位窗构成滞环 */
+#define DSGC_IN_VEL_X 50        /** 到位零速阈值=50倍最小步长(每秒) */
+#define DSGC_VEL_NOISE_NUM 3    /** 速度噪声底 = 观测器带宽 * 分辨率 * 3/8 的分子 */
+#define DSGC_VEL_NOISE_DEN 8    /** 同上的分母，位置噪声被观测器微分成速度噪声 */
+#define DSGC_VEL_DB_X 2         /** 保持态速度死区取噪声底的倍数，1倍会漏过一半噪声 */
+#define DSGC_FRIC_MOVE_X 4      /** 判"已挣脱静摩擦"的速度门限相对速度噪声底的倍数 */
+#define DSGC_KICK_MAX_PCT 50    /** 顶起值最多在标定起转值之上再自适应抬这么多(%) */
+#define DSGC_KICK_RISE_MS 50    /** 抬到上限所需时间(ms)，只在"要求动却不动"时计时 */
+#define DSGC_STUCK_MS 20        /** 实测速度连续低于噪声底这么多拍才认定轴真的粘住了 */
+#define DSGC_FF_MARGIN_PWM 250  /** 前馈之外必须留给反馈的PWM余量 */
+#define DSGC_WCMD_MIN_DIV 4     /** 最小速度指令 = 位置环带宽*分辨率/4 */
+#define DSGC_FRIC_BLEND_X 3     /** 观测器摩擦过渡速度相对最小速度指令的倍数 */
+#define DSGC_DEC_OF_ACC_Q8 189  /** 减速加速度占加速侧的比例，Q8，留出对象误差裕量 */
+#define DSG_SMOOTH_MAX 100      /** 平滑度取值上限 */
+#define DSG_IN_HOLD_MS 20       /** 进入到位状态前需连续满足条件的控制拍数 */
+#define DSG_WCORR_PCT 25        /** 位置环速度修正限幅占最大速度的百分比 */
+#define DSG_POS_BW_RADS TUNE_STIFFNESS_RADS                                 /** 位置环带宽 */
+#define DSG_VEL_BW_RADS (TUNE_STIFFNESS_RADS * TUNE_DAMPING / 10)           /** 速度环带宽 */
+#define DSG_VEL_I_RADS TUNE_INTEGRAL_RADS                                   /** 速度积分零点 */
+#define DSG_OBS_BW_HZ TUNE_OBS_BW_HZ                                        /** 观测器带宽 */
+#define DSG_VMAX_PCT TUNE_SPEED_PCT                                         /** 最大速度百分比 */
+#define DSG_ACC_RATIO_Q8 (TUNE_ACCEL_PCT * 256 / 100)                       /** 加速度比例，Q8 */
+#define DSG_DEC_RATIO_Q8 ((DSG_ACC_RATIO_Q8 * DSGC_DEC_OF_ACC_Q8) >> 8)     /** 减速度比例，Q8 */
+#define DSG_POS_DEADBAND_CDEG TUNE_RESOLUTION_CDEG                          /** 位置死区，厘度 */
+#define DSG_HOLD_DEADBAND_CDEG (TUNE_RESOLUTION_CDEG * DSGC_HOLD_DB_X2 / 2) /** 静音捕获窗，厘度 */
+#define DSG_IN_WIN_CDEG (TUNE_RESOLUTION_CDEG * DSGC_IN_WIN_X2 / 2)         /** 到位窗，厘度 */
+#define DSG_OUT_WIN_CDEG (TUNE_RESOLUTION_CDEG * DSGC_OUT_WIN_X)            /** 退出窗，厘度 */
+#define DSG_IN_VEL_CDPS (TUNE_RESOLUTION_CDEG * DSGC_IN_VEL_X)              /** 到位零速阈值，厘度/秒 */
+#define DSG_VEL_NOISE_CDPS (TUNE_OBS_BW_HZ * TUNE_RESOLUTION_CDEG * DSGC_VEL_NOISE_NUM / DSGC_VEL_NOISE_DEN) /** 观测速度噪声底，厘度/秒 */
+#define DSG_VEL_DB_CDPS (DSG_VEL_NOISE_CDPS * DSGC_VEL_DB_X)                /** 保持态速度死区，厘度/秒 */
+#define DSG_FRIC_MOVE_CDPS (DSG_VEL_NOISE_CDPS * DSGC_FRIC_MOVE_X)          /** 判已挣脱静摩擦的速度门限，厘度/秒 */
+#define DSG_WCMD_MIN_CDPS (TUNE_STIFFNESS_RADS * TUNE_RESOLUTION_CDEG / DSGC_WCMD_MIN_DIV) /** 最小速度指令，厘度/秒 */
+#define DSG_FRICTION_BLEND_CDPS (DSG_WCMD_MIN_CDPS * DSGC_FRIC_BLEND_X)     /** 观测器摩擦过渡速度，厘度/秒 */
 
-#define OBSG_X_Q24 ((int32_t)((105414357LL * DSG_OBS_BW_HZ) / CFG_TICK_HZ))                                                                                   /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_E1 OBSG_X_Q24                                                                                                                                    /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_E2 (CFG_Q24_MUL (OBSG_E1, OBSG_X_Q24) / 2)                                                                                                       /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_E3 (CFG_Q24_MUL (OBSG_E2, OBSG_X_Q24) / 3)                                                                                                       /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_E4 (CFG_Q24_MUL (OBSG_E3, OBSG_X_Q24) / 4)                                                                                                       /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_E5 (CFG_Q24_MUL (OBSG_E4, OBSG_X_Q24) / 5)                                                                                                       /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_E6 (CFG_Q24_MUL (OBSG_E5, OBSG_X_Q24) / 6)                                                                                                       /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_ALPHA (CFG_Q24_ONE - OBSG_E1 + OBSG_E2 - OBSG_E3 + OBSG_E4 - OBSG_E5 + OBSG_E6)                                                                  /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_BETA (CFG_Q24_ONE - OBSG_ALPHA)                                                                                                                  /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_A2 CFG_Q24_MUL (OBSG_ALPHA, OBSG_ALPHA)                                                                                                          /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_A3 CFG_Q24_MUL (OBSG_A2, OBSG_ALPHA)                                                                                                             /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_B2 CFG_Q24_MUL (OBSG_BETA, OBSG_BETA)                                                                                                            /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_B3 CFG_Q24_MUL (OBSG_B2, OBSG_BETA)                                                                                                              /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_A_Q24 ((MODEL_TAU_MS > 0) ? (CFG_Q24_ONE / MODEL_TAU_MS) : (CFG_Q24_ONE / 36))                                                                   /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_L1_NUM (((CFG_Q24_ONE - OBSG_A3 - OBSG_A_Q24) > 0) ? (CFG_Q24_ONE - OBSG_A3 - OBSG_A_Q24) : 0)                                                   /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_L1_DEN (((CFG_Q24_ONE - OBSG_A_Q24) > 1) ? (CFG_Q24_ONE - OBSG_A_Q24) : 1)                                                                       /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_L1_RAW ((int32_t)(((int64_t)OBSG_L1_NUM << 24) / OBSG_L1_DEN))                                                                                   /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBSG_L1_Q24 ((OBSG_L1_RAW > CFG_Q24_ONE) ? (int32_t)CFG_Q24_ONE : OBSG_L1_RAW)                                                                        /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBS_L1_Q15 (OBSG_L1_Q24 >> 9)                                                                                                                         /** 观测器增益、限幅或运行阈值，均由标定/调参派生。 */
-#define OBSG_L2_T ((3 * OBSG_B2 - OBSG_B3 - CFG_Q24_MUL (OBSG_L1_Q24, OBSG_A_Q24)) > 0 ? (3 * OBSG_B2 - OBSG_B3 - CFG_Q24_MUL (OBSG_L1_Q24, OBSG_A_Q24)) : 0) /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBS_L2_Q15 ((int32_t)(((int64_t)OBSG_L2_T * CFG_TICK_HZ) >> 9))                                                                                       /** 观测器增益、限幅或运行阈值，均由标定/调参派生。 */
-#define OBSG_L3_NUM ((((int64_t)OBSG_B3 * CFG_TICK_HZ) * CFG_TICK_HZ) << 15)                                                                                  /** 观测器离散极点及增益推导中间量，禁止手动修改。 */
-#define OBS_L3_Q15 (-(int32_t)((((OBSG_L3_NUM / PLANT_KA_Q8) * 256) >> 24)))                                                                                  /** 观测器增益、限幅或运行阈值，均由标定/调参派生。 */
-#define OBS_LOAD_MAX (CFG_PWM_FULL / 3)                                                                                                                       /** 观测器增益、限幅或运行阈值，均由标定/调参派生。 */
-#define OBS_VMAX_CDPS (PLANT_VSS_CDPS + (PLANT_VSS_CDPS >> 3))                                                                                                /** 观测器增益、限幅或运行阈值，均由标定/调参派生。 */
-#define OBS_FRIC_INV_Q15 ((int32_t)((1L << 23) / DSG_FRICTION_BLEND_CDPS))                                                                                    /** 观测器增益、限幅或运行阈值，均由标定/调参派生。 */
+/* ============================ 编译期派生系数 ============================ */
+#define CFG_TICK_HZ 1000                                                                              /** 控制任务频率(Hz) */
+#define CFG_Q24_ONE 16777216L                                                                         /** Q24格式中的1.0 */
+#define CFG_Q24_MUL(a, b) ((int32_t)(((int64_t)(a) * (int64_t)(b)) >> 24))                            /** Q24定点乘法 */
+#define PLANT_NET_PWM (((CFG_PWM_FULL - CAL_FRICTION_PWM) > 0) ? (CFG_PWM_FULL - CAL_FRICTION_PWM) : 1)/** 扣除摩擦后的净PWM */
+#define PLANT_VSS_CDPS ((int32_t)(((int64_t)PLANT_NET_PWM << 16) / CAL_SPEED_SLOPE_Q16))              /** 满PWM稳态速度，厘度/秒 */
+#define PLANT_A0_CDPSS ((int32_t)(((int64_t)PLANT_VSS_CDPS * 1000) / MODEL_TAU_MS))                   /** 零速起步加速度，厘度/秒^2 */
+#define PLANT_KA_Q8_RAW ((int32_t)(((int64_t)65536 * 1000 * 256) / ((int64_t)CAL_SPEED_SLOPE_Q16 * MODEL_TAU_MS))) /** 加速度增益原始值，Q8 */
+#define PLANT_KA_Q8 ((PLANT_KA_Q8_RAW > 0) ? PLANT_KA_Q8_RAW : 1)                                     /** 加速度增益，Q8 */
+#define PLANT_SPEED_SLOPE_Q16 CAL_SPEED_SLOPE_Q16                                                     /** PWM-速度斜率，Q16 */
+#define PLANT_FRICTION_PWM CAL_FRICTION_PWM                                                           /** 动摩擦PWM */
+#define PLANT_TAU_MS MODEL_TAU_MS                                                                     /** 机械时间常数(ms) */
+#define PLANT_DEAD_TICKS MODEL_DELAY_TICKS                                                            /** 纯延迟(控制拍) */
 
-#define TRAJ_VMAX_CDPS ((int32_t)(((int64_t)PLANT_VSS_CDPS * DSG_VMAX_PCT) / 100))                                                                            /** 轨迹规划器的速度、加速度或时间限制，由设计量派生。 */
-#define TRAJ_AMAX_ACC_RAW ((int32_t)(((int64_t)PLANT_A0_CDPSS * DSG_ACC_RATIO_Q8) >> 8))                                                                      /** 轨迹规划器的速度、加速度或时间限制，由设计量派生。 */
-#define TRAJ_AMAX_DEC_RAW ((int32_t)(((int64_t)PLANT_A0_CDPSS * DSG_DEC_RATIO_Q8) >> 8))                                                                      /** 轨迹规划器的速度、加速度或时间限制，由设计量派生。 */
-#define TRAJ_AMAX_ACC_CDPSS ((TRAJ_AMAX_ACC_RAW > 0) ? TRAJ_AMAX_ACC_RAW : 1)                                                                                 /** 轨迹规划器的速度、加速度或时间限制，由设计量派生。 */
-#define TRAJ_AMAX_DEC_CDPSS ((TRAJ_AMAX_DEC_RAW > 0) ? TRAJ_AMAX_DEC_RAW : 1)                                                                                 /** 轨迹规划器的速度、加速度或时间限制，由设计量派生。 */
-#define TRAJ_SMOOTH_MAX DSG_SMOOTH_MAX                                                                                                                        /** 轨迹规划器的速度、加速度或时间限制，由设计量派生。 */
-#define TRAJ_MOVE_MIN_MS TUNE_MOVE_MIN_MS                                                                                                                     /** 轨迹规划器的速度、加速度或时间限制，由设计量派生。 */
+/* 观测器增益：对(tau, Kv)做三重极点配置，令三个特征值均为 exp(-2*pi*f*T)，
+ * T=1ms，f=TUNE_OBS_BW_HZ。OBSG_* 是推导中间量，禁止手动修改。 */
+#define OBSG_X_Q24 ((int32_t)((105414357LL * DSG_OBS_BW_HZ) / CFG_TICK_HZ))                                                                                   /** 2*pi*f*T，Q24 */
+#define OBSG_E1 OBSG_X_Q24                                                                                                                                    /** 指数展开第1项 */
+#define OBSG_E2 (CFG_Q24_MUL (OBSG_E1, OBSG_X_Q24) / 2)                                                                                                       /** 指数展开第2项 */
+#define OBSG_E3 (CFG_Q24_MUL (OBSG_E2, OBSG_X_Q24) / 3)                                                                                                       /** 指数展开第3项 */
+#define OBSG_E4 (CFG_Q24_MUL (OBSG_E3, OBSG_X_Q24) / 4)                                                                                                       /** 指数展开第4项 */
+#define OBSG_E5 (CFG_Q24_MUL (OBSG_E4, OBSG_X_Q24) / 5)                                                                                                       /** 指数展开第5项 */
+#define OBSG_E6 (CFG_Q24_MUL (OBSG_E5, OBSG_X_Q24) / 6)                                                                                                       /** 指数展开第6项 */
+#define OBSG_ALPHA (CFG_Q24_ONE - OBSG_E1 + OBSG_E2 - OBSG_E3 + OBSG_E4 - OBSG_E5 + OBSG_E6)                                                                  /** 离散极点 exp(-2*pi*f*T)，Q24 */
+#define OBSG_BETA (CFG_Q24_ONE - OBSG_ALPHA)                                                                                                                  /** 1-极点，Q24 */
+#define OBSG_A2 CFG_Q24_MUL (OBSG_ALPHA, OBSG_ALPHA)                                                                                                          /** 极点平方 */
+#define OBSG_A3 CFG_Q24_MUL (OBSG_A2, OBSG_ALPHA)                                                                                                             /** 极点立方 */
+#define OBSG_B2 CFG_Q24_MUL (OBSG_BETA, OBSG_BETA)                                                                                                            /** beta平方 */
+#define OBSG_B3 CFG_Q24_MUL (OBSG_B2, OBSG_BETA)                                                                                                              /** beta立方 */
+#define OBSG_A_Q24 ((MODEL_TAU_MS > 0) ? (CFG_Q24_ONE / MODEL_TAU_MS) : (CFG_Q24_ONE / 36))                                                                   /** T/tau，Q24 */
+#define OBSG_L1_NUM (((CFG_Q24_ONE - OBSG_A3 - OBSG_A_Q24) > 0) ? (CFG_Q24_ONE - OBSG_A3 - OBSG_A_Q24) : 0)                                                   /** L1分子 */
+#define OBSG_L1_DEN (((CFG_Q24_ONE - OBSG_A_Q24) > 1) ? (CFG_Q24_ONE - OBSG_A_Q24) : 1)                                                                       /** L1分母 */
+#define OBSG_L1_RAW ((int32_t)(((int64_t)OBSG_L1_NUM << 24) / OBSG_L1_DEN))                                                                                   /** L1原始值，Q24 */
+#define OBSG_L1_Q24 ((OBSG_L1_RAW > CFG_Q24_ONE) ? (int32_t)CFG_Q24_ONE : OBSG_L1_RAW)                                                                        /** L1限幅后，Q24 */
+#define OBSG_L2_T ((3 * OBSG_B2 - OBSG_B3 - CFG_Q24_MUL (OBSG_L1_Q24, OBSG_A_Q24)) > 0 ? (3 * OBSG_B2 - OBSG_B3 - CFG_Q24_MUL (OBSG_L1_Q24, OBSG_A_Q24)) : 0) /** L2中间量，Q24 */
+#define OBSG_L3_NUM ((((int64_t)OBSG_B3 * CFG_TICK_HZ) * CFG_TICK_HZ) << 15)                                                                                  /** L3分子 */
+#define OBS_L1_Q15 (OBSG_L1_Q24 >> 9)                                                                                                                         /** 位置校正增益，Q15 */
+#define OBS_L2_Q15 ((int32_t)(((int64_t)OBSG_L2_T * CFG_TICK_HZ) >> 9))                                                                                       /** 速度校正增益，Q15 */
+#define OBS_L3_Q15 (-(int32_t)((((OBSG_L3_NUM / PLANT_KA_Q8) * 256) >> 24)))                                                                                  /** 负载校正增益，Q15，设计值为负 */
+#define OBS_LOAD_MAX (CFG_PWM_FULL / 3)                                                                                                                       /** 负载估计限幅，PWM计数 */
+#define OBS_VMAX_CDPS (PLANT_VSS_CDPS + (PLANT_VSS_CDPS >> 3))                                                                                                /** 速度估计限幅，厘度/秒 */
+#define OBS_FRIC_INV_Q15 ((int32_t)((1L << 23) / DSG_FRICTION_BLEND_CDPS))                                                                                    /** 摩擦过渡斜率倒数，Q15 */
 
-#define CTRL_KP_POS_Q8 (DSG_POS_BW_RADS * 256)                                                                                                                /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_KP_VEL_RAW ((int32_t)(((int64_t)DSG_VEL_BW_RADS * 65536 * 256) / PLANT_KA_Q8))                                                                   /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_KP_VEL_Q16 ((CTRL_KP_VEL_RAW > 0) ? CTRL_KP_VEL_RAW : 1)                                                                                         /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_KP_VEL_BRAKE_Q16 ((int32_t)(((int64_t)CTRL_KP_VEL_Q16 * MODEL_BRAKE_GAIN_Q8) >> 8))                                                              /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_KI_VEL_RAW ((int32_t)(((int64_t)DSG_VEL_I_RADS * CTRL_KP_VEL_Q16 * CFG_TICK_HZ) / 1000000))                                                      /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_KI_VEL_Q16 ((CTRL_KI_VEL_RAW > 0) ? CTRL_KI_VEL_RAW : 1)                                                                                         /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_INTEGRAL_MAX (CFG_PWM_FULL / 3)                                                                                                                  /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_INTEGRAL_ACC_GATE (PLANT_A0_CDPSS / 19)                                                                                                          /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_KVFF_Q16 CAL_SPEED_SLOPE_Q16                                                                                                                     /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_KA_Q20 ((int32_t)((1048576LL * 256) / PLANT_KA_Q8))                                                                                              /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_KA_BRAKE_Q20 ((int32_t)(((int64_t)CTRL_KA_Q20 * MODEL_BRAKE_GAIN_Q8) >> 8))                                                                      /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_FRIC_DYN CAL_FRICTION_PWM                                                                                                                        /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_WCMD_MIN_CDPS DSG_WCMD_MIN_CDPS                                                                                                                  /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_MOTOR_SIGN CAL_MOTOR_SIGN                                                                                                                        /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_VMAX_CDPS TRAJ_VMAX_CDPS                                                                                                                         /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_WCORR_MAX ((int32_t)(((int64_t)TRAJ_VMAX_CDPS * DSG_WCORR_PCT) / 100))                                                                           /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_PREVIEW_Q16 ((int32_t)(((int64_t)MODEL_DELAY_TICKS * 65536) / CFG_TICK_HZ))                                                                      /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_POS_LEAD_Q16 (65536 / CFG_TICK_HZ)                                                                                                               /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_POS_DEADBAND DSG_POS_DEADBAND_CDEG                                                                                                               /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_HOLD_DEADBAND DSG_HOLD_DEADBAND_CDEG                                                                                                             /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_IN_WIN_CDEG DSG_IN_WIN_CDEG                                                                                                                      /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_OUT_WIN_CDEG DSG_OUT_WIN_CDEG                                                                                                                    /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_IN_VEL_CDPS DSG_IN_VEL_CDPS                                                                                                                      /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_IN_HOLD_MS DSG_IN_HOLD_MS                                                                                                                        /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
-#define CTRL_PWM_LIMIT CFG_PWM_FULL                                                                                                                           /** 位置/速度控制器的增益、前馈或限制，由设计量派生。 */
+/* 轨迹规划器限制。 */
+#define TRAJ_VMAX_CDPS ((int32_t)(((int64_t)PLANT_VSS_CDPS * DSG_VMAX_PCT) / 100))            /** 最大速度，厘度/秒 */
+#define TRAJ_AMAX_ACC_RAW ((int32_t)(((int64_t)PLANT_A0_CDPSS * DSG_ACC_RATIO_Q8) >> 8))      /** 加速上限原始值 */
+#define TRAJ_AMAX_DEC_RAW ((int32_t)(((int64_t)PLANT_A0_CDPSS * DSG_DEC_RATIO_Q8) >> 8))      /** 减速上限原始值 */
+#define TRAJ_AMAX_ACC_CDPSS ((TRAJ_AMAX_ACC_RAW > 0) ? TRAJ_AMAX_ACC_RAW : 1)                 /** 加速上限，厘度/秒^2 */
+#define TRAJ_AMAX_DEC_CDPSS ((TRAJ_AMAX_DEC_RAW > 0) ? TRAJ_AMAX_DEC_RAW : 1)                 /** 减速上限，厘度/秒^2 */
+#define TRAJ_SMOOTH_MAX DSG_SMOOTH_MAX                                                        /** 平滑度上限 */
+#define TRAJ_MOVE_MIN_MS TUNE_MOVE_MIN_MS                                                     /** 小位移最短运动时间(ms) */
+#define TRAJ_ACCEL_MIN_MS TUNE_ACCEL_MIN_MS                                                   /** 小位移加速段最短时间(ms) */
 
-/* 编译期护栏。 */
-#define GUARD_2L_TICKS (2 * MODEL_DELAY_TICKS + 1)                                                                                                       /** 编译期安全护栏的中间上限，禁止手动修改。 */
-#define GUARD_OBS_BW_DELAY ((int)((CFG_TICK_HZ * 10000L) / (62832L * GUARD_2L_TICKS)))                                                                   /** 编译期安全护栏的中间上限，禁止手动修改。 */
-#define GUARD_OBS_BW_MAX (((MODEL_RESONANCE_HZ > 0) && ((MODEL_RESONANCE_HZ / 3) < GUARD_OBS_BW_DELAY)) ? (MODEL_RESONANCE_HZ / 3) : GUARD_OBS_BW_DELAY) /** 编译期安全护栏的中间上限，禁止手动修改。 */
+/* 位置/速度控制器系数。 */
+#define CTRL_KP_POS_Q8 (DSG_POS_BW_RADS * 256)                                                        /** 位置环P增益，Q8 */
+#define CTRL_KP_VEL_RAW ((int32_t)(((int64_t)DSG_VEL_BW_RADS * 65536 * 256) / PLANT_KA_Q8))           /** 速度环P增益原始值 */
+#define CTRL_KP_VEL_Q16 ((CTRL_KP_VEL_RAW > 0) ? CTRL_KP_VEL_RAW : 1)                                 /** 速度环P增益，Q16 */
+#define CTRL_KP_VEL_BRAKE_Q16 ((int32_t)(((int64_t)CTRL_KP_VEL_Q16 * MODEL_BRAKE_GAIN_Q8) >> 8))      /** 制动侧速度环P增益，Q16 */
+#define CTRL_KI_VEL_RAW ((int32_t)(((int64_t)DSG_VEL_I_RADS * CTRL_KP_VEL_Q16 * CFG_TICK_HZ) / 1000000))/** 速度环I增益原始值 */
+#define CTRL_KI_VEL_Q16 ((CTRL_KI_VEL_RAW > 0) ? CTRL_KI_VEL_RAW : 1)                                 /** 速度环I增益，Q16 */
+#define CTRL_INTEGRAL_MAX (CFG_PWM_FULL / 3)                                                          /** 积分限幅，PWM计数 */
+#define CTRL_INTEGRAL_ACC_GATE (PLANT_A0_CDPSS / 19)                                                  /** 大加速度时冻结积分的阈值 */
+#define CTRL_KVFF_Q16 CAL_SPEED_SLOPE_Q16                                                             /** 速度前馈增益，Q16 */
+#define CTRL_KA_Q20 ((int32_t)((1048576LL * 256) / PLANT_KA_Q8))                                      /** 加速度前馈增益，Q20 */
+#define CTRL_KA_BRAKE_Q20 ((int32_t)(((int64_t)CTRL_KA_Q20 * MODEL_BRAKE_GAIN_Q8) >> 8))              /** 制动侧加速度前馈增益，Q20 */
+#define CTRL_FRIC_DYN CAL_FRICTION_PWM                                                                /** 动摩擦前馈，PWM计数 */
+#define CTRL_FRIC_STATIC ((CAL_BREAKAWAY_PWM > CAL_FRICTION_PWM) ? CAL_BREAKAWAY_PWM : CAL_FRICTION_PWM) /** 静摩擦前馈，PWM计数 */
+#define CTRL_FRIC_MOVE_CDPS DSG_FRIC_MOVE_CDPS                                                        /** 判已挣脱静摩擦的速度门限，厘度/秒 */
+#define CTRL_FRIC_KICK_MAX ((int32_t)CTRL_FRIC_STATIC * DSGC_KICK_MAX_PCT / 100)                      /** 顶起值的自适应抬升上限，PWM计数 */
+#define CTRL_FRIC_KICK_STEP (((CTRL_FRIC_KICK_MAX / DSGC_KICK_RISE_MS) > 0) ? (CTRL_FRIC_KICK_MAX / DSGC_KICK_RISE_MS) : 1) /** 每拍抬升步长，PWM计数 */
+#define CTRL_STUCK_MS DSGC_STUCK_MS                                                                   /** 判定轴粘住所需的连续静止拍数 */
+#define CTRL_NUDGE_PWM ((CTRL_FRIC_STATIC > CTRL_FRIC_DYN) ? CTRL_FRIC_STATIC : 0)                    /** 静止时值得驱动的最小PWM，0=未标定起转 */
+#define CTRL_WCMD_MIN_CDPS DSG_WCMD_MIN_CDPS                                                          /** 最小速度指令，厘度/秒 */
+#define CTRL_MOTOR_SIGN CAL_MOTOR_SIGN                                                                /** 算法坐标到H桥物理方向的符号 */
+#define CTRL_VMAX_CDPS TRAJ_VMAX_CDPS                                                                 /** 最大速度，厘度/秒 */
+#define CTRL_WCORR_MAX ((int32_t)(((int64_t)TRAJ_VMAX_CDPS * DSG_WCORR_PCT) / 100))                   /** 位置环速度修正限幅 */
+#define CTRL_PREVIEW_Q16 ((int32_t)(((int64_t)MODEL_DELAY_TICKS * 65536) / CFG_TICK_HZ))              /** 速度指令的加速度预演时长，Q16秒 */
+#define CTRL_POS_LEAD_Q16 (65536 / CFG_TICK_HZ)                                                       /** 相对速度预测时长(本机取1拍纯执行延迟)，Q16秒 */
+#define CTRL_TARGET_DB_CDEG DSG_POS_DEADBAND_CDEG                                                     /** 目标死区，小于它不重新规划，厘度 */
+#define CTRL_POS_DEADBAND DSG_POS_DEADBAND_CDEG                                                       /** 位置死区，厘度 */
+#define CTRL_HOLD_DEADBAND DSG_HOLD_DEADBAND_CDEG                                                     /** 静音捕获窗，厘度 */
+#define CTRL_IN_WIN_CDEG DSG_IN_WIN_CDEG                                                              /** 到位窗，厘度 */
+#define CTRL_OUT_WIN_CDEG DSG_OUT_WIN_CDEG                                                            /** 退出窗，厘度 */
+#define CTRL_IN_VEL_CDPS DSG_IN_VEL_CDPS                                                              /** 到位零速阈值，厘度/秒 */
+#define CTRL_VEL_DB_CDPS DSG_VEL_DB_CDPS                                                              /** 保持态速度反馈死区，厘度/秒 */
+#define CTRL_IN_HOLD_MS DSG_IN_HOLD_MS                                                                /** 进入到位状态的连续拍数 */
+#define CTRL_PWM_LIMIT CFG_PWM_FULL                                                                   /** 控制器输出限幅 */
+
+/* ============================== 编译期护栏 ============================== */
+#define GUARD_2L_TICKS (2 * MODEL_DELAY_TICKS + 1)                                                       /** 延迟裕度对应的拍数 */
+#define GUARD_OBS_BW_DELAY ((int)((CFG_TICK_HZ * 10000L) / (62832L * GUARD_2L_TICKS)))                   /** 纯延迟允许的观测器带宽上限 */
+#define GUARD_OBS_BW_MAX (((MODEL_RESONANCE_HZ > 0) && ((MODEL_RESONANCE_HZ / 3) < GUARD_OBS_BW_DELAY)) ? (MODEL_RESONANCE_HZ / 3) : GUARD_OBS_BW_DELAY) /** 观测器带宽上限 */
+#define GUARD_FF_PWM (((long)TUNE_SPEED_PCT * PLANT_NET_PWM) / 100 + CAL_FRICTION_PWM)                   /** 巡航段前馈占用的PWM */
 typedef char guard_obs_bw_exceeds_delay_margin[(TUNE_OBS_BW_HZ <= GUARD_OBS_BW_MAX) ? 1 : -1];
 typedef char guard_observer_not_3x_faster_than_velocity_loop[(((long)DSG_VEL_BW_RADS * 30000L) <= (62832L * TUNE_OBS_BW_HZ)) ? 1 : -1];
 typedef char guard_velocity_loop_not_2x_faster_than_position_loop[(TUNE_DAMPING >= 20) ? 1 : -1];
@@ -154,4 +226,9 @@ typedef char guard_resolution_too_small[(TUNE_RESOLUTION_CDEG >= 1) ? 1 : -1];
 typedef char guard_speed_slope_invalid[(CAL_SPEED_SLOPE_Q16 > 0) ? 1 : -1];
 typedef char guard_tau_invalid[(MODEL_TAU_MS > 0) ? 1 : -1];
 typedef char guard_friction_exceeds_full[(CAL_FRICTION_PWM < CFG_PWM_FULL) ? 1 : -1];
+typedef char guard_breakaway_exceeds_full[(CAL_BREAKAWAY_PWM < CFG_PWM_FULL) ? 1 : -1];
 typedef char guard_motor_sign_invalid[((CAL_MOTOR_SIGN == 1) || (CAL_MOTOR_SIGN == -1)) ? 1 : -1];
+/* 前馈把输出占满，闭环就不存在了。见文件头第5条。 */
+typedef char guard_feedforward_leaves_no_headroom[((GUARD_FF_PWM + DSGC_FF_MARGIN_PWM) <= CFG_PWM_FULL) ? 1 : -1];
+/* 保持态死区至少等于最小可靠步长，否则修一个刚超死区的误差就会窜到对面死区之外。 */
+typedef char guard_hold_deadband_below_min_step[(DSGC_HOLD_DB_X2 >= 2) ? 1 : -1];

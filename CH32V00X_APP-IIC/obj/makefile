@@ -64,7 +64,7 @@ post-build:
 
 # Tool invocations
 CH32V00X_APP.elf: $(OBJS) $(USER_OBJS_ESCAPE)
-	@	riscv-wch-elf-gcc -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -T "c:\Users\Admin\Desktop\work\duoji\CH32V00X_APP\SRC\Ld\Link.ld" -nostartfiles -Xlinker --gc-sections -Wl,-Map,"CH32V00X_APP.map" --specs=nano.specs --specs=nosys.specs -o "CH32V00X_APP.elf" $(OBJS) $(LIBS)
+	@	riscv-wch-elf-gcc -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -T "c:\Users\Admin\Desktop\1\CH32V00X_APP-IIC\SRC\Ld\Link.ld" -nostartfiles -Xlinker --gc-sections -Wl,-Map,"CH32V00X_APP.map" --specs=nano.specs --specs=nosys.specs -o "CH32V00X_APP.elf" $(OBJS) $(LIBS)
 CH32V00X_APP.bin: CH32V00X_APP.elf
 	@	riscv-wch-elf-objcopy -O binary "CH32V00X_APP.elf" "CH32V00X_APP.bin"
 CH32V00X_APP.hex: CH32V00X_APP.elf
