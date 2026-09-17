@@ -3,7 +3,10 @@
 #include <stdint.h>
 #include "A_Parameter.h"
 
-#define SERVO_VERSION "Servo-V1(2026-09-10)" /** 固件版本号 */
+/* 固件版本 主.次.修订，各0~255，全工程只此一处；上电时存进参数记录开头，VER 回复 Servo-V主.次.修订 */
+#define SERVO_VERSION_MAJOR 1U
+#define SERVO_VERSION_MINOR 0U
+#define SERVO_VERSION_PATCH 0U
 
 /*
  * A_Config.h —— 掉电保存参数与访问接口
@@ -50,26 +53,27 @@ typedef enum {
     SERVO_BOOT_RELEASE         /* 上电小阻力释放，首条控制指令恢复 */
 } ServoBootMode_t;
 
-/* 新增字段只能追加在末尾：升级时按旧长度 CONFIG_LEGACY_LEN 兼容读取旧记录 */
+/* 前三项位置永久固定：version 占偏移0~2，servo_id 偏移3，baud_code 偏移4，任何版本的固件都能按偏移读回。
+ * 新增字段只能追加在末尾，旧记录按自身长度读回，缺的字段保持出厂值；
+ * 已有字段改了含义时，在 A_Config_Init 里按记录中的 version(写入它的固件版本)做迁移。 */
 typedef struct {
+    uint8_t  version[3];           /** 写入这份参数的固件版本 {主, 次, 修订} */
+    uint8_t  servo_id;             /** 总线ID，0~254 */
+    uint8_t  baud_code;            /** 1~8，默认5=115200 */
+    uint8_t  servo_mode;           /** ServoMode_t，1~11 */
+    uint8_t  boot_mode;            /** ServoBootMode_t，1~3 */
+    uint8_t  torque_limit;         /** 扭矩上限百分比，0~100，SP指令设置 */
+    uint8_t  custom_reverse;       /** 自定义模式方向(未经 CFG_DIR_INVERT 翻转的原始值) */
+    uint8_t  cal_kind;             /** ServoCalKind_t，0=未校准 */
     uint16_t startup_pwm;          /** 上电目标脉宽，500~2500 */
     uint16_t position_offset_cdeg; /** 标准模式零点偏移(厘度)；已校准时由锚点现推 */
     uint16_t custom_offset_cdeg;   /** 自定义行程零点对应的编码器角度，厘度 */
     uint16_t custom_span_cdeg;     /** 自定义行程标称长度，厘度，只由 AMI/AMX 写 */
-    uint8_t  servo_id;             /** 总线ID，0~254 */
-    uint8_t  servo_mode;           /** ServoMode_t，1~11 */
-    uint8_t  baud_code;            /** 1~8，默认5=115200 */
-    uint8_t  boot_mode;            /** ServoBootMode_t，1~3 */
-    uint8_t  torque_limit;         /** 扭矩上限百分比，0~100，SP指令设置 */
-    uint8_t  custom_reverse;       /** 自定义模式方向(未经 CFG_DIR_INVERT 翻转的原始值) */
-    /* ---- 以下为后加字段，只能继续往下追加 ---- */
     uint16_t pulse_lo;             /** SMI 标定的脉冲下界，500~2500 */
     uint16_t pulse_hi;             /** SMX 标定的脉冲上界，500~2500，须 > pulse_lo */
     uint16_t cal_anchor_cdeg;      /** 校准锚点的编码器原始角度，厘度 */
-    uint8_t  cal_kind;             /** ServoCalKind_t，0=未校准 */
+    /* ---- 新增字段从这里往下追加 ---- */
 } Config_t;
-
-#define CONFIG_LEGACY_LEN 14U /** 加入 pulse_lo 之前的 Config_t 长度，升级时按它兼容读取 */
 
 extern Config_t g_config; /** 全工程唯一的参数实例，各模块直接读，改完须MarkDirty */
 

@@ -205,6 +205,15 @@ static void check_power_query(void) {
     CHECK(strncmp(send("#000PRTV!"), "#000PDP", 7) == 0);
 }
 
+/* VER 回复 Servo-V主.次.修订；期望值由版本宏现拼，发版只改版本号不用改这里 */
+static void check_version_query(void) {
+    char expect[32];
+
+    snprintf(expect, sizeof(expect), "#000PServo-V%u.%u.%u!",
+             SERVO_VERSION_MAJOR, SERVO_VERSION_MINOR, SERVO_VERSION_PATCH);
+    CHECK(!strcmp(send("#000PVER!"), expect));
+}
+
 /* ==================== 组帧与寻址 ==================== */
 
 static void check_framing(void) {
@@ -236,6 +245,7 @@ int main(int argc, char **argv) {
     check_renamed_commands();
     check_calibration_commands();
     check_power_query();
+    check_version_query();
     check_framing();
 
     printf("proto failures=%d\n", failures);

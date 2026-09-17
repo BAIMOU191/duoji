@@ -20,9 +20,9 @@ MEMORY
 
 /* CH32V006_CH32V007_CH32M007 */
 /**/
-	/* 0x0000F500~0x0000F7FF保留给双参数页与IAP校验字，
-	 * Bootloader从0x0000F800开始。链接器不得把应用代码放入保留区。 */
-	FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 0xF500
+	/* 0x0000F400~0x0000F7FF保留：F400/F500双参数页，F600硬件信息页，F700 IAP标志页(见flash.h)。
+	 * Flash到0x0000F800为止，Bootloader在独立的BOOT区。链接器不得把应用代码放入保留区。 */
+	FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 0xF400
 	RAM (xrw)  : ORIGIN = 0x20000000, LENGTH = 8K
 
 

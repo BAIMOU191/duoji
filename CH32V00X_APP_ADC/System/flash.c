@@ -1,18 +1,19 @@
 #include "flash.h"
 #include <string.h>
 
-#define CONFIG_MAGIC       0x43464731UL
-#define CONFIG_VERSION     2U /* v2起模式编号改为：270、180、360、定圈、定时 */
+/* "CFG2"：记录头只管存取不看内容，版本号由载荷开头自带。
+ * 换魔术字后，分区调整前写下的 CFG1 记录一律判无效。 */
+#define CONFIG_MAGIC       0x43464732UL
 #define CONFIG_COMMITTED   0x5AA55AA5UL
 
 typedef struct {
     uint32_t magic;
     uint32_t sequence;
-    uint16_t version;
+    uint16_t reserved0; /* CFG1 在这里存参数格式版本，已废弃 */
     uint16_t length;
     uint8_t  payload[CONFIG_PAYLOAD_MAX];
     uint16_t crc;
-    uint16_t reserved;
+    uint16_t reserved1;
     uint32_t committed;
 } FlashRecord_t;
 
@@ -31,29 +32,29 @@ static uint16_t Flash_Crc16(const uint8_t *data, uint16_t length)
     return crc;
 }
 
-static uint8_t Flash_RecordValid(const FlashRecord_t *record, uint16_t length)
+/* 记录本身完整即有效；长度不必等于当前结构体，新旧长度的取舍交给 A_Config */
+static uint8_t Flash_RecordValid(const FlashRecord_t *record)
 {
     return record->magic == CONFIG_MAGIC
-        && record->version == CONFIG_VERSION
-        && record->length == length
-        && length <= CONFIG_PAYLOAD_MAX
         && record->committed == CONFIG_COMMITTED
-        && record->crc == Flash_Crc16(record->payload, length);
+        && record->length != 0U
+        && record->length <= CONFIG_PAYLOAD_MAX
+        && record->crc == Flash_Crc16(record->payload, record->length);
 }
 
-uint8_t FLASH_Config_Load(void *data, uint16_t length, uint32_t *sequence)
+uint16_t FLASH_Config_Load(void *data, uint16_t capacity, uint32_t *sequence)
 {
     const FlashRecord_t *a = (const FlashRecord_t *)CONFIG_SLOT_A_ADDR;
     const FlashRecord_t *b = (const FlashRecord_t *)CONFIG_SLOT_B_ADDR;
-    uint8_t va = Flash_RecordValid(a, length);
-    uint8_t vb = Flash_RecordValid(b, length);
+    uint8_t va = Flash_RecordValid(a);
+    uint8_t vb = Flash_RecordValid(b);
     const FlashRecord_t *latest;
 
     if (data == 0 || sequence == 0 || (!va && !vb)) return 0U;
     latest = (!vb || (va && (int32_t)(a->sequence - b->sequence) > 0)) ? a : b;
-    memcpy(data, latest->payload, length);
+    memcpy(data, latest->payload, (latest->length < capacity) ? latest->length : capacity);
     *sequence = latest->sequence;
-    return 1U;
+    return latest->length;
 }
 
 uint8_t FLASH_Config_Save(const void *data, uint16_t length, uint32_t sequence)
@@ -62,8 +63,8 @@ uint8_t FLASH_Config_Save(const void *data, uint16_t length, uint32_t sequence)
     uint32_t page[FLASH_PAGE_SIZE / sizeof(uint32_t)];
     const FlashRecord_t *a = (const FlashRecord_t *)CONFIG_SLOT_A_ADDR;
     const FlashRecord_t *b = (const FlashRecord_t *)CONFIG_SLOT_B_ADDR;
-    uint8_t va = Flash_RecordValid(a, length);
-    uint8_t vb = Flash_RecordValid(b, length);
+    uint8_t va = Flash_RecordValid(a);
+    uint8_t vb = Flash_RecordValid(b);
     uint32_t target;
 
     if (data == 0 || length == 0U || length > CONFIG_PAYLOAD_MAX) return 0U;
@@ -73,7 +74,6 @@ uint8_t FLASH_Config_Save(const void *data, uint16_t length, uint32_t sequence)
     memset(&record, 0xFF, sizeof(record));
     record.magic = CONFIG_MAGIC;
     record.sequence = sequence;
-    record.version = CONFIG_VERSION;
     record.length = length;
     memcpy(record.payload, data, length);
     record.crc = Flash_Crc16(record.payload, length);

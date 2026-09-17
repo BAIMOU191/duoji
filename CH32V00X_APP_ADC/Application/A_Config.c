@@ -9,15 +9,23 @@
 
 Config_t g_config; /** 全工程唯一的参数实例，各模块直接读，改完须MarkDirty */
 
-/* 编译期护栏：兼容旧记录的前提 */
-/* 第一个新增字段必须恰好落在旧长度处 */
-typedef char guard_config_legacy_prefix_moved
-    [(CONFIG_LEGACY_LEN == offsetof(Config_t, pulse_lo)) ? 1 : -1];
+/* 编译期护栏：版本、ID、波特率的偏移一旦变动，已出厂舵机的ID和波特率就读不回来 */
+typedef char guard_config_head_moved
+    [(offsetof(Config_t, version) == 0U && offsetof(Config_t, servo_id) == 3U
+      && offsetof(Config_t, baud_code) == 4U) ? 1 : -1];
+/* 末尾不许有填充字节：否则追加的字段会落进填充区，旧记录长度不变，新字段读到的是填充里的旧值。
+ * 追加字段后把这里换成新的最后一个字段 */
+typedef char guard_config_tail_padding
+    [(sizeof(Config_t) == offsetof(Config_t, cal_anchor_cdeg) + sizeof(uint16_t)) ? 1 : -1];
 /* 参数须放得进Flash记录载荷区 */
 typedef char guard_config_exceeds_flash_payload
     [(sizeof(Config_t) <= CONFIG_PAYLOAD_MAX) ? 1 : -1];
 
-static uint32_t s_sequence;            /** 已落盘记录的序号，双备份靠它判新旧 */
+static const uint8_t SERVO_VERSION[3] = {
+    SERVO_VERSION_MAJOR, SERVO_VERSION_MINOR, SERVO_VERSION_PATCH
+}; /** 当前固件版本，按参数记录里的字节顺序排好 */
+
+static uint32_t s_sequence;           /** 已落盘记录的序号，双备份靠它判新旧 */
 static uint8_t  s_dirty;               /** 1=内存里的参数比Flash新，待保存 */
 static volatile uint8_t *s_save_event; /** 指向保存任务的就绪标志，置1即触发调度 */
 
@@ -49,49 +57,64 @@ static uint8_t A_Config_Valid(const Config_t *cfg)
         && cfg->torque_limit <= PROT_TORQUE_MAX;
 }
 
+/* 把出厂值填进 g_config，不登记保存 */
+static void Config_FillDefaults(void)
+{
+    memcpy(g_config.version, SERVO_VERSION, sizeof(g_config.version));
+    g_config.servo_id             = 0U;
+    g_config.baud_code            = 5U;                /* 5 = 115200 */
+    g_config.servo_mode           = SERVO_MODE_270_CW;
+    g_config.boot_mode            = SERVO_BOOT_HOLD;
+    g_config.torque_limit         = PROT_TORQUE_DEFAULT;
+    g_config.custom_reverse       = 0U;
+    g_config.cal_kind             = SERVO_CAL_NONE;    /* 角度校准一并作废 */
+    g_config.startup_pwm          = SERVO_PWM_MID;
+    g_config.position_offset_cdeg = 0U;
+    g_config.custom_offset_cdeg   = 0U;  /* 自定义行程一并作废，回到标准270度 */
+    g_config.custom_span_cdeg     = 0U;
+    g_config.pulse_lo             = SERVO_PWM_MIN;     /* 脉冲边界回到整个协议量程 */
+    g_config.pulse_hi             = SERVO_PWM_MAX;
+    g_config.cal_anchor_cdeg      = 0U;
+}
+
 /* 恢复出厂参数，keep_id=1保留总线ID(CLE0)，0=连ID一起清零(CLE) */
 void A_Config_Default(uint8_t keep_id)
 {
     uint8_t id = g_config.servo_id; /** 先存下来，清空后再按需要写回 */
 
-    g_config.startup_pwm          = SERVO_PWM_MID;
-    g_config.position_offset_cdeg = 0U;
-    g_config.servo_id             = keep_id ? id : 0U;
-    g_config.servo_mode           = SERVO_MODE_270_CW;
-    g_config.custom_offset_cdeg   = 0U;  /* 自定义行程一并作废，回到标准270度 */
-    g_config.custom_span_cdeg     = 0U;
-    g_config.custom_reverse       = 0U;
-    g_config.baud_code            = 5U;                /* 5 = 115200 */
-    g_config.boot_mode            = SERVO_BOOT_HOLD;
-    g_config.torque_limit         = PROT_TORQUE_DEFAULT;
-    g_config.pulse_lo             = SERVO_PWM_MIN;     /* 脉冲边界回到整个协议量程 */
-    g_config.pulse_hi             = SERVO_PWM_MAX;
-    g_config.cal_anchor_cdeg      = 0U;
-    g_config.cal_kind             = SERVO_CAL_NONE;    /* 角度校准一并作废 */
+    Config_FillDefaults();
+    if (keep_id) g_config.servo_id = id;
 
     A_Config_MarkDirty();
 }
 
-/* 上电加载，Flash无效或越界写默认值；须在驱动初始化之前调用，此时调度器未运行故同步落盘 */
+/* 上电加载；须在驱动初始化之前调用，此时调度器未运行故同步落盘
+ *   内容合法：全部沿用(不论哪个版本的固件写的)，比当前结构短的部分保持出厂值(后加的字段)
+ *   内容越界：其余恢复出厂值，ID和波特率只要合法就保留，避免总线上失联
+ *   版本号始终改成当前固件；和Flash里不一致(空白、补过字段、越界、换过固件)就写回 */
 void A_Config_Init(void)
 {
-    if (!FLASH_Config_Load(&g_config, sizeof(g_config), &s_sequence))
+    Config_t stored; /** Flash 里的记录，先铺出厂值，短记录缺的尾部就是出厂值 */
+    uint16_t length; /** 记录实际长度，0=两页都无效 */
+
+    Config_FillDefaults();
+    stored = g_config;
+    length = FLASH_Config_Load(&stored, sizeof(stored), &s_sequence);
+
+    if (A_Config_Valid(&stored))
     {
-        /* 兼容旧记录：按旧长度再读一次、新字段补默认值并标脏，避免升级后ID/波特率被清导致失联 */
-        memset(&g_config, 0, sizeof(g_config));
-        if (FLASH_Config_Load(&g_config, CONFIG_LEGACY_LEN, &s_sequence))
-        {
-            g_config.pulse_lo        = SERVO_PWM_MIN;
-            g_config.pulse_hi        = SERVO_PWM_MAX;
-            g_config.cal_anchor_cdeg = 0U;
-            g_config.cal_kind        = SERVO_CAL_NONE;
-            s_dirty = 1U;
-        }
+        g_config = stored;
+        memcpy(g_config.version, SERVO_VERSION, sizeof(g_config.version));
+    }
+    else
+    {
+        if (stored.servo_id <= 254U) g_config.servo_id = stored.servo_id;
+        if (stored.baud_code >= 1U && stored.baud_code <= 8U) g_config.baud_code = stored.baud_code;
     }
 
-    if (!A_Config_Valid(&g_config))
+    if (length != sizeof(Config_t) || memcmp(&stored, &g_config, sizeof(Config_t)) != 0)
     {
-        A_Config_Default(0U);
+        s_dirty = 1U;
     }
     if (s_dirty) A_Config_SaveTask(); /* 调度器尚未运行，只能就地同步写入 */
 }

@@ -257,8 +257,12 @@ static void Uart_Execute(const Command_t *cmd)
         A_Servo_SubmitTurns(cmd->pwm, cmd->turns, cmd->value);
         break;
 
-    case CMD_VER:
-        Reply_Begin(); Reply_Text(SERVO_VERSION); Reply_Send(); break;
+    case CMD_VER: /* Servo-V主.次.修订 */
+        Reply_Begin(); Reply_Text("Servo-V");
+        Reply_UInt(SERVO_VERSION_MAJOR, 0U); Reply_Char('.');
+        Reply_UInt(SERVO_VERSION_MINOR, 0U); Reply_Char('.');
+        Reply_UInt(SERVO_VERSION_PATCH, 0U);
+        Reply_Send(); break;
 
     case CMD_ID_GET: /* 帧头本身就带ID，body留空即可 */
         Reply_Begin(); Reply_Send(); break;
