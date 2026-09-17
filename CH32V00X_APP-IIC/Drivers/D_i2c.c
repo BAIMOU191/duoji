@@ -10,12 +10,7 @@ static uint8_t s_i2c_initialized; /* 初始化完成标志 */
 #define I2C_SDA_PIN           GPIO_Pin_1
 #define I2C_SCL_PIN           GPIO_Pin_2
 
-/*
- * @fn      I2C_ApplyConfig
- * @brief   配置I2C时序，供初始化和软件复位恢复共用
- * @param   I2Cx I2C外设
- * @return  无
- */
+/* 配置I2C时序，初始化与软件复位恢复共用 */
 static void I2C_ApplyConfig(I2C_TypeDef *I2Cx)
 {
     I2C_InitTypeDef config = {0};
@@ -32,13 +27,7 @@ static void I2C_ApplyConfig(I2C_TypeDef *I2Cx)
     I2C_Cmd(I2Cx, ENABLE);
 }
 
-/*
- * @fn      I2C_WaitStar1
- * @brief   等待STAR1标志并检查总线错误和超时
- * @param   I2Cx I2C外设
- * @param   mask 等待的标志掩码
- * @return  0=成功，1=错误或超时
- */
+/* 等待STAR1标志并检查总线错误和超时，0=成功 */
 static uint8_t I2C_WaitStar1(I2C_TypeDef *I2Cx, uint16_t mask)
 {
     uint32_t timeout = I2C_TIMEOUT;
@@ -51,12 +40,7 @@ static uint8_t I2C_WaitStar1(I2C_TypeDef *I2Cx, uint16_t mask)
     return 0;
 }
 
-/*
- * @fn      I2C_ClearADDR
- * @brief   按硬件要求依次读取STAR1和STAR2清除ADDR
- * @param   I2Cx I2C外设
- * @return  无
- */
+/* 依次读STAR1、STAR2清除ADDR */
 static void I2C_ClearADDR(I2C_TypeDef *I2Cx)
 {
     volatile uint16_t dummy;
@@ -66,12 +50,7 @@ static void I2C_ClearADDR(I2C_TypeDef *I2Cx)
     (void)dummy;
 }
 
-/*
- * @fn      I2C_BusDelay
- * @brief   GPIO总线恢复使用的短延时
- * @param   无
- * @return  无
- */
+/* GPIO总线恢复用的短延时 */
 static void I2C_BusDelay(void)
 {
     volatile uint8_t count = 24U;
@@ -79,17 +58,12 @@ static void I2C_BusDelay(void)
     while (count-- != 0U) __NOP();
 }
 
-/*
- * @fn      I2C_ConfigPins
- * @brief   切换I2C引脚的复用或GPIO开漏模式
- * @param   mode GPIO工作模式
- * @return  无
- */
+/* 切换I2C引脚为复用或GPIO开漏 */
 static void I2C_ConfigPins(GPIOMode_TypeDef mode)
 {
     GPIO_InitTypeDef gpio = {0};
 
-    /* 开漏输出切换前先把输出锁存器置1，避免主动拉低总线。 */
+    /* 切换前先置输出锁存为1，避免主动拉低总线 */
     GPIOC->BSHR = I2C_BUS_PINS;
     gpio.GPIO_Pin   = I2C_BUS_PINS;
     gpio.GPIO_Mode  = mode;
@@ -97,12 +71,7 @@ static void I2C_ConfigPins(GPIOMode_TypeDef mode)
     GPIO_Init(GPIOC, &gpio);
 }
 
-/*
- * @fn      I2C_BusClear
- * @brief   输出最多9个SCL并生成STOP以释放卡住的从机
- * @param   无
- * @return  无
- */
+/* 输出最多9个SCL并生成STOP，释放卡住的从机 */
 static void I2C_BusClear(void)
 {
     uint8_t pulse;
@@ -133,12 +102,7 @@ static void I2C_BusClear(void)
     I2C_ConfigPins(GPIO_Mode_AF_OD);
 }
 
-/*
- * @fn      D_Bus_I2C_Init
- * @brief   初始化I2C1总线与GPIO，已初始化则直接返回
- * @param   无
- * @return  无
- */
+/* 初始化I2C1总线与GPIO，已初始化则直接返回 */
 void D_Bus_I2C_Init(void)
 {
     if (s_i2c_initialized) return;
@@ -148,7 +112,7 @@ void D_Bus_I2C_Init(void)
     RCC_PB2PeriphClockCmd(RCC_PB2Periph_GPIOC | RCC_PB2Periph_AFIO, ENABLE);
     RCC_PB1PeriphClockCmd(RCC_PB1Periph_I2C1, ENABLE);
 
-    /* 官方示例同样使用PC2=SCL、PC1=SDA、30MHz复用开漏。 */
+    /* PC2=SCL、PC1=SDA、30MHz复用开漏 */
     GPIO_InitStructure.GPIO_Pin   = I2C_BUS_PINS;
     GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AF_OD;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_30MHz;
@@ -158,12 +122,7 @@ void D_Bus_I2C_Init(void)
     s_i2c_initialized = 1;
 }
 
-/*
- * @fn      I2C_SoftReset
- * @brief   GPIO释放从机并完整重配主机，总线卡死时兜底恢复
- * @param   I2Cx I2C外设
- * @return  无
- */
+/* 总线卡死兜底：GPIO释放从机后完整重配主机 */
 static void I2C_SoftReset(I2C_TypeDef *I2Cx)
 {
     I2C_BusClear();
@@ -176,15 +135,7 @@ static void I2C_SoftReset(I2C_TypeDef *I2Cx)
     I2C_ApplyConfig(I2Cx);
 }
 
-/*
- * @fn      D_I2C_Write
- * @brief   向从机指定寄存器写入len字节
- * @param   devAddr 从机7位地址
- * @param   regAddr 寄存器地址
- * @param   pData   数据指针
- * @param   len     数据长度(字节)
- * @return  0=成功，1=总线错误或超时
- */
+/* 向从机寄存器写 len 字节，0=成功，1=总线错误或超时 */
 uint8_t D_I2C_Write(uint8_t devAddr, uint8_t regAddr, uint8_t *pData, uint8_t len)
 {
     uint32_t timeout;
@@ -235,15 +186,7 @@ uint8_t D_I2C_Write(uint8_t devAddr, uint8_t regAddr, uint8_t *pData, uint8_t le
     return 0;
 }
 
-/*
- * @fn      D_I2C_Read
- * @brief   从从机指定寄存器读取len字节
- * @param   devAddr 从机7位地址
- * @param   regAddr 寄存器地址
- * @param   pData   输出数据指针
- * @param   len     数据长度(字节)
- * @return  0=成功，1=总线错误或超时
- */
+/* 从从机寄存器读 len 字节，0=成功，1=总线错误或超时 */
 uint8_t D_I2C_Read(uint8_t devAddr, uint8_t regAddr, uint8_t *pData, uint8_t len)
 {
     uint32_t timeout;

@@ -1,10 +1,4 @@
-/*
- * A_Sensor.c —— 传感器聚合层
- *
- * 职责只有一条：把驱动返回的原始计数换算成业务单位(厘度/厘伏/0.1摄氏度/毫安)，
- * 让上层永远看不到ADC计数、分压比、运放增益这些电路细节。换硬件只需要改
- * A_Sensor.h 里的常量，A_Servo 和协议层一行都不用动。
- */
+/* A_Sensor.c —— 传感器聚合层：驱动原始计数换算为业务单位 */
 
 #include "A_Sensor.h"
 #include "D_mt6701.h"
@@ -29,14 +23,11 @@ int32_t A_Encoder_Read(void)
 
     if (!D_ADC_Encoder_Read(&raw_q4)) return ENCODER_ANGLE_ERROR;
 
-    /* 抽头悬空被下拉钳到地：这不是一个"很小的角度"，而是根本没有角度。
-     * 必须和读取失败同样对待，否则上层会拿着一个假位置去闭环。 */
+    /* 抽头悬空被下拉钳到地：没有角度，按读取失败处理 */
     if (raw_q4 < (uint16_t)(ENCODER_POT_ADC_FLOAT * D_ADC_ENCODER_SCALE))
         return ENCODER_ANGLE_ERROR;
 
-    /* 驱动层给的是Q4定点计数，标定常数在这里统一乘SCALE对齐，分母同样放大，
-     * Q4就地约掉，结果仍是整数厘度。分子最大 (4095-350)*16*27000 ≈ 1.62e9，
-     * 未越int32，A_Sensor.h 的护栏盯着这一条。 */
+    /* 标定常数乘SCALE与Q4对齐，分子最大约1.62e9，未越int32 */
     num = ((int32_t)raw_q4
          - (int32_t)(ENCODER_POT_ADC_MIN * D_ADC_ENCODER_SCALE))
         * (int32_t)ENCODER_POT_SPAN_CDEG;
@@ -70,20 +61,20 @@ int16_t A_Temperature_Read(void)
     return D_TMP112_Read_Temp();
 }
 
-/* 读PWM同步滤波后的绕组电流并换算为毫安；返回0表示当前没有有效采样窗口 */
+/* 读与PWM同步采到的绕组电流(mA)。值总是写出；返回值=是否采在驱动段(否则读到的0是测不到而非无电流) */
 uint8_t A_Current_Read(uint16_t *current_ma)
 {
     uint16_t raw_adc = 0; /* 已扣除零点偏置的ADC计数 */
     uint32_t ma;          /* 换算出的电流，毫安      */
+    uint8_t  in_window;   /* 本块是否采在驱动段内    */
 
-    if (current_ma == 0 || !D_ADC_Current_Read(&raw_adc)) return 0;
+    if (current_ma == 0) return 0;
+    in_window = D_ADC_Current_Read(&raw_adc);
 
-    /* 满量程电流在编译期算好(VDD*1000/(增益*R)=6875mA)，再按计数线性插值。
-     * 旧式的 125/(增益/8) 在增益取4倍时会整除为0导致除零，且 raw*VDD*1000
-     * 会溢出uint32；本式两个问题都不存在。 */
+    /* 满量程电流编译期算好，按计数线性插值，无溢出无除零 */
     ma = (uint32_t)raw_adc * CURRENT_FULL_SCALE_MA / ADC_FULL_SCALE;
     if (ma > 0xFFFFU) ma = 0xFFFFU;
 
     *current_ma = (uint16_t)ma;
-    return 1;
+    return in_window;
 }

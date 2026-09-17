@@ -4,49 +4,14 @@
 
 /*
  * A_Parameter.h —— 控制设计参数：标定输入、调参面板、派生系数、编译期护栏
+ * 只改"标定输入"和"调参面板"两段，DSGC_/DSG_/PLANT_/OBS_/TRAJ_/CTRL_ 均为派生量。
  *
- * 只允许改"标定输入"和"调参面板"两段。DSGC_/DSG_/PLANT_/OBS_/TRAJ_/CTRL_
- * 全是派生量，手改会与文件末尾的护栏冲突。
- *
- * ==================== 本机实测结论(MT6701 磁编码器) ====================
- *
- * 1) 传感器：MT6701 14位，1计数=2.197厘度，运动中噪声 sigma=0.76厘度，**静止时
- *    完全没有 dither**(2000拍原始计数一动不动)。没有 dither 意味着过采样平均无法
- *    恢复亚LSB分辨率——平均100次还是同一个数。
- *
- * 2) 因此编码器单源求速度被死死钉在这条曲线上(N点中心差分，厘度/秒)：
- *        N=5:235  N=7:143  N=11:72  N=15:45，滞后=(N-1)/2 拍
- *    降噪只能加窗，加窗就是加滞后：SG-11 在暂态反而比 SG-7 更差(梯形269 vs 190、
- *    换向560 vs 378)，省下的噪声被滞后吃光还倒亏。出路是引入第二个信息源(下发的
- *    PWM + 标定出来的电机模型)，即 C_Speed_Observer 的模型观测器。实测对比：
- *        工况        SG-7   SG-11   观测器
- *        爬行11度/s   115     60      34
- *        匀速99度/s    59     43      43
- *        梯形         190    269      37
- *        往复换向     378    560      62
- *
- * 3) 观测器带宽取舍：15Hz 稳态更干净但换向差，40Hz 反之，25Hz 最均衡。本机纯延迟
- *    3拍，护栏算出的上限是 22Hz，所以取 22——已经贴着上限，**再增大纯延迟必须同时
- *    降带宽**，否则编译期直接失败。
- *
- * 4) 摩擦：两方向动摩擦差 1%(87/88)、起转差 6%(188/200)，都在标定重复性(正向起转
- *    散布 22 计数)以内，所以不分方向标定，起转取较大值 200。动摩擦(速度直线截距)
- *    和静摩擦(起转)差 2~3 倍，末端修正工作在静摩擦工况，控制器按实测速度在两者间
- *    滞环切换(见 C_Pos_Ctrl.c 的 PosCtrl_Friction)。**CAL_BREAKAWAY_PWM 目前沿用旧标定记录的 200，尚未
- *    用 A_Calib_Min 的 T9 缓升法复测**，重测后按实测值替换。
- *
- * 5) 前馈余量：TUNE_SPEED_PCT 直接决定还剩多少输出留给反馈——前馈占用 =
- *    pct% * PLANT_NET_PWM + CAL_FRICTION_PWM。余量不足的后果不是"慢一点"而是
- *    **闭环彻底失去调节权限**：输出常驻饱和，反馈算多少都下不去。当前 89% ->
- *    0.89*2322+78 = 2144/2400，反馈余量 256，由 guard_feedforward_leaves_no_headroom
- *    在编译期挡住。
- *
- * 6) v_ss = 20470 厘度/秒 = 204.7 度/秒。
- *
- * ==================== 与电位器版(ADC)有意保留的差异 ====================
- * 标定输入、调参面板、DSGC_DEC_OF_ACC_Q8、CTRL_POS_LEAD_Q16 这四类量按机器各自
- * 取值，其余全部与电位器版一致。CTRL_POS_LEAD_Q16 本机取 1 拍(纯执行延迟)，
- * 电位器版取"延迟+tau/8"，是两台机器分别调出来的，不要互相同步。
+ * 本机实测要点(MT6701 磁编码器)：
+ *   1计数=2.197厘度，运动噪声 sigma=0.76厘度，静止无dither(过采样不能恢复亚LSB)，速度改用模型观测器。
+ *   观测器带宽受纯延迟3拍约束上限22Hz，已贴上限；加大纯延迟须同时降带宽(护栏会编译失败)。
+ *   两向摩擦差异在标定重复性以内，不分方向；CAL_BREAKAWAY_PWM 沿用旧记录200，尚未用T9缓升法复测。
+ *   前馈占用 = pct% * PLANT_NET_PWM + CAL_FRICTION_PWM，余量不足闭环失去调节权限(有护栏)。v_ss=204.7度/秒。
+ *   与电位器版有意不同：标定输入、调参面板、DSGC_DEC_OF_ACC_Q8、CTRL_POS_LEAD_Q16(本机取1拍)。
  */
 
 /* ============================== 基本量程 ============================== */
@@ -56,6 +21,9 @@
 #define SERVO_PWM_MAX 2500      /** 协议最大脉宽，也是电机模式正向满速指令 */
 #define SERVO_PWM_MID 1500      /** 电机模式零速指令，两侧线性映射到正负满PWM */
 #define CFG_PWM_FULL 2400       /** PWM满量程，必须与驱动层实际限制一致 */
+
+/* 整机旋向反转：1=同一脉宽转到镜像位置(模式1/3实际CCW，电机模式速度方向同翻)；只改协议映射，不动闭环 */
+#define CFG_DIR_INVERT 1        /** 本机(MT6701磁编码版)整机旋向反转 */
 
 /* ======================= 标定输入(A_Calib_Min 输出) ======================= */
 #define CAL_SPEED_SLOPE_Q16 7434 /** PWM-速度斜率，Q16 */
@@ -71,6 +39,8 @@
 #define TUNE_SMOOTH_ACC 0       /** 加速平滑度0~100，增大降低加速段jerk但延长反向响应 */
 #define TUNE_SMOOTH_DEC 25      /** 减速平滑度0~100，增大减小末端制动力突变 */
 #define TUNE_MOVE_MIN_MS 70     /** 小位移最短运动时间(ms)，0=关闭 */
+#define TUNE_REV_SLIDE_DIV 8    /** 带时间指令中途换向时，参考最多反向滑出 剩余行程/该值 来放缓刹车；0=关闭(按硬件极限急转) */
+#define TUNE_HOLD_STIFF 0       /** 保持刚度(PWM/厘度)：到位后被外力推开时按偏差直接回推，期间冻结积分；0=关闭。本机级联环本身够硬，关闭 */
 #define TUNE_ACCEL_MIN_MS 30    /** 小位移加速段最短时间(ms)，不得短于纯延迟 */
 #define TUNE_SPEED_PCT 89       /** 最大速度占物理稳态速度的百分比，受前馈余量护栏约束 */
 #define TUNE_ACCEL_PCT 95       /** 加速度百分比，仅在 Traj_AutoAmax 拿不到对象常数时兜底 */
@@ -109,6 +79,7 @@
 #define DSG_POS_DEADBAND_CDEG TUNE_RESOLUTION_CDEG                          /** 位置死区，厘度 */
 #define DSG_HOLD_DEADBAND_CDEG (TUNE_RESOLUTION_CDEG * DSGC_HOLD_DB_X2 / 2) /** 静音捕获窗，厘度 */
 #define DSG_IN_WIN_CDEG (TUNE_RESOLUTION_CDEG * DSGC_IN_WIN_X2 / 2)         /** 到位窗，厘度 */
+#define DSG_QUIET_EXIT_CDEG ((TUNE_HOLD_STIFF > 0) ? (TUNE_RESOLUTION_CDEG * 2) : DSG_IN_WIN_CDEG) /** 静音退出窗，开保持弹簧时提前退出以便尽早回推，厘度 */
 #define DSG_OUT_WIN_CDEG (TUNE_RESOLUTION_CDEG * DSGC_OUT_WIN_X)            /** 退出窗，厘度 */
 #define DSG_IN_VEL_CDPS (TUNE_RESOLUTION_CDEG * DSGC_IN_VEL_X)              /** 到位零速阈值，厘度/秒 */
 #define DSG_VEL_NOISE_CDPS (TUNE_OBS_BW_HZ * TUNE_RESOLUTION_CDEG * DSGC_VEL_NOISE_NUM / DSGC_VEL_NOISE_DEN) /** 观测速度噪声底，厘度/秒 */
@@ -200,6 +171,10 @@
 #define CTRL_HOLD_DEADBAND DSG_HOLD_DEADBAND_CDEG                                                     /** 静音捕获窗，厘度 */
 #define CTRL_IN_WIN_CDEG DSG_IN_WIN_CDEG                                                              /** 到位窗，厘度 */
 #define CTRL_OUT_WIN_CDEG DSG_OUT_WIN_CDEG                                                            /** 退出窗，厘度 */
+#define CTRL_QUIET_EXIT_CDEG DSG_QUIET_EXIT_CDEG                                                      /** 静音退出窗，厘度 */
+#define CTRL_HOLD_SPRING_Q8 ((int32_t)TUNE_HOLD_STIFF * 256)                                          /** 保持弹簧刚度，Q8 PWM/厘度 */
+#define CTRL_HOLD_SPRING_DB CTRL_POS_DEADBAND                                                        /** 保持弹簧死区，厘度 */
+#define CTRL_HOLD_SPRING_MAX (CFG_PWM_FULL / 2)                                                      /** 保持弹簧出力上限，PWM */
 #define CTRL_IN_VEL_CDPS DSG_IN_VEL_CDPS                                                              /** 到位零速阈值，厘度/秒 */
 #define CTRL_VEL_DB_CDPS DSG_VEL_DB_CDPS                                                              /** 保持态速度反馈死区，厘度/秒 */
 #define CTRL_IN_HOLD_MS DSG_IN_HOLD_MS                                                                /** 进入到位状态的连续拍数 */
@@ -221,6 +196,7 @@ typedef char guard_smooth_dec_out_of_range[((TUNE_SMOOTH_DEC >= 0) && (TUNE_SMOO
 typedef char guard_speed_pct_out_of_range[((TUNE_SPEED_PCT > 0) && (TUNE_SPEED_PCT <= 100)) ? 1 : -1];
 typedef char guard_accel_pct_out_of_range[((TUNE_ACCEL_PCT > 0) && (TUNE_ACCEL_PCT <= 100)) ? 1 : -1];
 typedef char guard_accel_min_ms_below_pure_delay[((TUNE_ACCEL_MIN_MS * 2) >= (2 * MODEL_DELAY_TICKS + 1)) ? 1 : -1];
+typedef char guard_rev_slide_div_out_of_range[((TUNE_REV_SLIDE_DIV >= 0) && (TUNE_REV_SLIDE_DIV <= 64)) ? 1 : -1];
 typedef char guard_move_min_ms_out_of_range[((TUNE_MOVE_MIN_MS >= 0) && (TUNE_MOVE_MIN_MS <= 1000)) ? 1 : -1];
 typedef char guard_resolution_too_small[(TUNE_RESOLUTION_CDEG >= 1) ? 1 : -1];
 typedef char guard_speed_slope_invalid[(CAL_SPEED_SLOPE_Q16 > 0) ? 1 : -1];
@@ -228,7 +204,10 @@ typedef char guard_tau_invalid[(MODEL_TAU_MS > 0) ? 1 : -1];
 typedef char guard_friction_exceeds_full[(CAL_FRICTION_PWM < CFG_PWM_FULL) ? 1 : -1];
 typedef char guard_breakaway_exceeds_full[(CAL_BREAKAWAY_PWM < CFG_PWM_FULL) ? 1 : -1];
 typedef char guard_motor_sign_invalid[((CAL_MOTOR_SIGN == 1) || (CAL_MOTOR_SIGN == -1)) ? 1 : -1];
-/* 前馈把输出占满，闭环就不存在了。见文件头第5条。 */
+/* 前馈把输出占满，闭环就不存在了 */
 typedef char guard_feedforward_leaves_no_headroom[((GUARD_FF_PWM + DSGC_FF_MARGIN_PWM) <= CFG_PWM_FULL) ? 1 : -1];
 /* 保持态死区至少等于最小可靠步长，否则修一个刚超死区的误差就会窜到对面死区之外。 */
+typedef char guard_hold_stiff_out_of_range[((TUNE_HOLD_STIFF >= 0) && (TUNE_HOLD_STIFF <= 32)) ? 1 : -1];
+/* 静音退出窗必须大于进入窗(捕获窗)，两者之间的回差挡住静止噪声，否则静音反复进出 */
+typedef char guard_quiet_exit_no_hysteresis[(DSG_QUIET_EXIT_CDEG > DSG_HOLD_DEADBAND_CDEG) ? 1 : -1];
 typedef char guard_hold_deadband_below_min_step[(DSGC_HOLD_DB_X2 >= 2) ? 1 : -1];

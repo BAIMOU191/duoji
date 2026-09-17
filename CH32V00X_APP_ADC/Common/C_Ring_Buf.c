@@ -2,12 +2,7 @@
 
 #include "C_Ring_Buf.h"
 
-/*
- * @fn      C_Ring_Buf_Init
- * @brief   初始化缓冲区，头尾指针清零
- * @param   rb 缓冲区实例
- * @return  无
- */
+/* 初始化，头尾指针清零 */
 void C_Ring_Buf_Init(RingBuf_t *rb)
 {
     if (rb == 0) return;
@@ -15,13 +10,7 @@ void C_Ring_Buf_Init(RingBuf_t *rb)
     rb->tail = 0;
 }
 
-/*
- * @fn      C_Ring_Buf_Put
- * @brief   写入1字节，缓冲区满时拒绝写入
- * @param   rb   缓冲区实例
- * @param   data 待写入字节
- * @return  true=写入成功，false=参数无效或缓冲区已满
- */
+/* 写1字节，满时拒绝(不覆盖旧数据)，返回false */
 bool C_Ring_Buf_Put(RingBuf_t *rb, uint8_t data)
 {
     uint8_t next;
@@ -29,7 +18,7 @@ bool C_Ring_Buf_Put(RingBuf_t *rb, uint8_t data)
     if (rb == 0) return false;
     next = (uint8_t)(((uint16_t)rb->head + 1U) % RING_BUF_SIZE);
 
-    /* ISR生产者不能改任务消费者拥有的tail，否则两端会发生读写竞争。 */
+    /* 生产者只写head，不碰消费者拥有的tail */
     if (next == rb->tail) return false;
 
     rb->buf[rb->head] = data;
@@ -37,13 +26,7 @@ bool C_Ring_Buf_Put(RingBuf_t *rb, uint8_t data)
     return true;
 }
 
-/*
- * @fn      C_Ring_Buf_Get
- * @brief   读出1字节，缓冲区空时返回false
- * @param   rb   缓冲区实例
- * @param   data 输出数据指针
- * @return  true=成功，false=缓冲区空
- */
+/* 读1字节，空时返回false */
 bool C_Ring_Buf_Get(RingBuf_t *rb, uint8_t *data)
 {
     if (rb == 0 || data == 0) return false;
@@ -55,12 +38,7 @@ bool C_Ring_Buf_Get(RingBuf_t *rb, uint8_t *data)
     return true;
 }
 
-/*
- * @fn      C_Ring_Buf_Get_Count
- * @brief   获取当前已存字节数
- * @param   rb 缓冲区实例
- * @return  已存字节数
- */
+/* 当前已存字节数 */
 uint8_t C_Ring_Buf_Get_Count(RingBuf_t *rb)
 {
     if (rb == 0) return 0;

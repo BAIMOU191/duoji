@@ -4,24 +4,14 @@
 
 #define SPI_WAIT_TIMEOUT  10000U  /* 发送/忙等待超时计数 */
 
-/*
- * @fn      SPI1_Recover
- * @brief   外设异常时关闭重开，兜底恢复
- * @param   无
- * @return  无
- */
+/* 外设异常时关闭重开 */
 static void SPI1_Recover(void)
 {
     SPI_Cmd(SPI1, DISABLE);
     SPI_Cmd(SPI1, ENABLE);
 }
 
-/*
- * @fn      D_SPI1_Init
- * @brief   初始化SPI1外设，配置GPIO及通信参数
- * @param   无
- * @return  无
- */
+/* 初始化SPI1外设与GPIO */
 void D_SPI1_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure = {0};
@@ -53,13 +43,7 @@ void D_SPI1_Init(void)
     SPI_Cmd(SPI1, ENABLE);
 }
 
-/*
- * @fn      D_SPI1_Send_Buf
- * @brief   阻塞式发送len字节，含超时保护
- * @param   buf 数据指针
- * @param   len 数据长度(字节)
- * @return  无
- */
+/* 阻塞式发送 len 字节，带超时保护 */
 void D_SPI1_Send_Buf(uint8_t *buf, uint16_t len)
 {
     uint16_t i;

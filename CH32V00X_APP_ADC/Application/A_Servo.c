@@ -1,19 +1,8 @@
 /*
- * A_Servo.c —— 舵机编排层
- *
- * 本文件是整个工程里唯一知道"一个控制拍该按什么顺序做事"的地方：
+ * A_Servo.c —— 舵机编排层：唯一决定一个控制拍顺序的地方
  *     读编码器 -> 观测器 -> 轨迹规划器 -> 位置控制器 -> H桥
- * 上面四个算法模块(C_*)都不知道彼此存在，也不碰硬件；下面的驱动(D_*)只认
- * 寄存器。中间的粘合、模式切换、卸力/暂停/停止这些状态机全部收在这里。
- *
- * 十一种工作模式分成两大类，判据只有 Servo_IsPosition() 一个：
- *     位置模式(1~6, 11) 270/180/360度和自定义行程，走完整的闭环链路
- *     电机模式(7~10)    定圈/定时，开环给固定PWM，只用编码器数圈数
- * 自定义模式(11)与1~6的唯一差别是行程、方向和坐标零点从配置里取，进了
- * Servo_SetModeFields 之后下游逻辑完全共用。
- *
- * 编码器差异集中在三处，全部由 A_Sensor.h 的 ENCODER_MODE 派生：反馈坐标是
- * 圆周还是带符号线性、有没有"测不到角度"的死区、以及360度模式可不可用。
+ * 模式分两类(判据 Servo_IsPosition)：位置模式(1~6, 11)走闭环；电机模式(7~10)开环给PWM、只用编码器数圈。
+ * 编码器差异(圆周/线性坐标、有无死区、360度可用性)全部由 A_Sensor.h 的 ENCODER_MODE 派生。
  */
 
 #include "A_Servo.h"
@@ -32,10 +21,36 @@
 
 #define SERVO_ENC_FAIL_MAX    5U   /** 连续读编码器失败达到该次数才停机，滤掉偶发读取错误 */
 #define SERVO_INPUT_DETECT_MS 60U  /** 上电嗅探PWM的时间窗，覆盖最坏相位下至少两个50Hz周期 */
-#define SERVO_PWM_INPUT_DB_US 6U   /** 仅PWM输入：目标死区额外覆盖静止时±3us的峰峰抖动 */
 
-/* 下面四项只对有死区的编码器有意义，见 A_Sensor.h 的 ENCODER_HAS_DEADZONE。 */
-#define SERVO_TRAVEL_GUARD_CDEG 200U        /** 行程两端各留2度禁入，见 Servo_SetTrajRange */
+/* 多圈指令只在整圈可测的编码器上成立(电位器转过死区就数不清圈)；为0时 A_Servo_SubmitTurns 静默丢弃 */
+#if ENCODER_IS_CIRCULAR
+#define SERVO_MULTITURN 1
+#else
+#define SERVO_MULTITURN 0
+#endif
+#define SERVO_MT_MAX_TURNS 9U      /** 协议里 N 只有一位十进制 */
+#define SERVO_MT_TURN_CDEG CDEG_RANGE /** 一圈 = 360度 */
+/* C_Traj_Plan 时间参数只有16位，超过此值按时间比例分段，每段角速度不变 */
+#define SERVO_MT_SEG_MAX_MS 60000UL
+
+/* PWM输入：脉宽在入口升到 1/8us(Q3)，给一阶跟随滤波留工作精度，下游全程用 Q3 */
+#define SERVO_PULSE_Q3_SHIFT 3U
+#define SERVO_PULSE_Q3(us)  ((uint16_t)((uint16_t)(us) << SERVO_PULSE_Q3_SHIFT))
+#define SERVO_PULSE_Q3_MIN  SERVO_PULSE_Q3(SERVO_PWM_MIN)
+#define SERVO_PULSE_Q3_MID  SERVO_PULSE_Q3(SERVO_PWM_MID)
+#define SERVO_PULSE_Q3_MAX  SERVO_PULSE_Q3(SERVO_PWM_MAX)
+#define SERVO_PULSE_Q3_SPAN (SERVO_PULSE_Q3_MAX - SERVO_PULSE_Q3_MIN)
+
+/* 三帧中值去孤立毛刺，再 1/8 一阶跟随压随机抖动；偏差超过 SERVO_PWM_SNAP_Q3 判为真动作直接跳过去。
+ * 两个常数由仿真 jitter 场景扫出：1/8 + 7us 对 ±5us 线上抖动保持静止。 */
+#define SERVO_PWM_IIR_SHIFT 3U
+#define SERVO_PWM_SNAP_Q3   SERVO_PULSE_Q3(7U)
+
+/* 仅PWM输入：目标死区额外留给滤波残差的余量(us) */
+#define SERVO_PWM_INPUT_DB_US 2U
+
+/* 以下四项只对有死区的编码器有意义 */
+#define SERVO_ESCAPE_DEPTH_CDEG 200U        /** 读数回到可读范围内至少这么深才开始计内推，见 Servo_EscapeTick */
 #define SERVO_ESCAPE_PWM (CFG_PWM_FULL / 4) /** 脱困开环幅值：够克服摩擦，又不会甩过头 */
 #define SERVO_ESCAPE_TICKS  1500U           /** 单方向最长脱困时间，控制拍=ms */
 #define SERVO_ESCAPE_SETTLE  120U           /** 读数恢复后继续内推的控制拍 */
@@ -65,11 +80,13 @@ typedef struct {
     uint16_t angle;             /** 行程坐标[0,span]，死区里的位置已投影到端点，只给目标和上报用 */
     int32_t  angle_circ;        /** 未截断反馈坐标，闭环只能用它，理由见 Servo_ClampToTravel */
     int32_t  raw_angle;         /** 编码器原始角度(保留负值)，用于定圈累计位移 */
-    uint16_t span_cdeg;         /** 位置模式行程，厘度；0=电机模式 */
+    uint16_t span_cdeg;         /** 位置模式**有效**行程，厘度；0=电机模式。校准后可能小于标称量程 */
+    int32_t  offset_cdeg;       /** 行程坐标0对应的编码器原始角度；已校准时由锚点现推 */
     uint16_t target_angle;      /** 当前目标位置，暂停后继续时按它重新规划 */
     uint16_t traj_lo, traj_hi;  /** 与规划器一致的有效目标范围 */
-    uint16_t pulse_prev[2];     /** PWM输入的前两帧脉宽，三帧中值过滤孤立毛刺 */
-    uint8_t  pulse_ready;       /** 1=中值滤波器已有历史 */
+    uint16_t pulse_prev[2];     /** PWM输入的前两帧脉宽(1/8us)，三帧中值过滤孤立毛刺 */
+    uint16_t pulse_filt;        /** 中值之后的一阶跟随输出(1/8us)，真正下发的就是它 */
+    uint8_t  pulse_ready;       /** 1=中值/跟随滤波器已有历史 */
     uint8_t  range_valid;       /** 1=当前行程与物理可测范围有交集 */
     uint8_t  reverse;           /** 1=脉宽增大对应角度减小(偶数模式) */
     uint8_t  enc_fail;          /** 连续读编码器失败次数 */
@@ -89,12 +106,17 @@ typedef struct {
     uint8_t  motion_valid;      /** 1=上次运动采样时正在跑轨迹，位移可做差 */
     int32_t  motion_ref;        /** 上次运动采样的参考位置 */
     int32_t  motion_act;        /** 上次运动采样的实测位置 */
-    uint16_t boot_pwm;          /** 待执行的上电脉宽，0=按boot_mode */
+    uint16_t boot_pwm;          /** 待执行的上电脉宽(1/8us)，0=按boot_mode */
     uint16_t boot_value;        /** 脱困期间收到的最新指令的时间参数 */
     uint32_t remaining;         /** 剩余量：定圈=厘度，定时/位置=控制拍，UINT32_MAX=无限 */
     int16_t  motor_pwm;         /** 电机模式下的固定输出PWM(含方向符号) */
     int16_t  out_limit;         /** 对称PWM上限，由保护模块的功率限制回路设定 */
     int16_t  last_pwm;          /** 上一拍实际施加的PWM，观测器要用它做模型预测 */
+    uint8_t  mt_active;         /** 1=正在执行多圈指令，参考位于未回绕的扩展坐标 */
+    uint8_t  mt_final;          /** 1=当前这段轨迹的终点就是多圈指令的最终目标 */
+    uint16_t mt_turn_ms;        /** 多圈指令每转一圈的时间(ms)，0=最快 */
+    int32_t  mt_target;         /** 多圈指令的最终目标，扩展坐标，厘度 */
+    int32_t  mt_fold;           /** 交给位置环之前要从参考里扣掉的整圈数，见 Servo_RefForCtrl */
     TrajRef_t     ref;          /** 本拍参考位置/速度/加速度 */
     SpeedObsOut_t obs;          /** 本拍观测器输出 */
     PosCtrlDbg_t  dbg;          /** 控制器遥测，同时给轨迹冻结判据提供饱和信息 */
@@ -118,10 +140,7 @@ static uint8_t Servo_IsTurns(void)
                   && s_servo.mode <= SERVO_MODE_TURNS_CCW);
 }
 
-/* 把角度折回 [0, CDEG_RANGE)，入参允许落在 (-CDEG_RANGE, 3*CDEG_RANGE)。
- * 用条件减代替取模：RV32EC 没有硬件除法，一个 % 会展开成 __umodsi3 调用。
- * 三次条件减不是冗余：SMI/SMX 那条路径传进来的是 零点+行程坐标+CDEG_RANGE，
- * 零点接近满量程时可以到 3 倍量程，只减一次会留下一个超出量程的假零点。 */
+/* 角度折回 [0, CDEG_RANGE)，入参允许 (-CDEG_RANGE, 3*CDEG_RANGE)；用条件减代替取模(无硬件除法) */
 static uint16_t Servo_WrapAngle(int32_t angle)
 {
     if (angle < 0)           angle += CDEG_RANGE;
@@ -130,8 +149,7 @@ static uint16_t Servo_WrapAngle(int32_t angle)
     return (uint16_t)angle;
 }
 
-/* 角度差折算到最短路径。圆周坐标跨0点(359.99->0)的原始差值会是一整圈，不折算
- * 会让定圈计数瞬间少算/多算一圈；线性坐标不折算，那条捷径要穿过测不到的死区。 */
+/* 角度差折算最短路径：圆周坐标跨0点需折算；线性坐标不折(捷径要穿过死区) */
 static int32_t Servo_WrapDiff(int32_t delta)
 {
 #if ENCODER_IS_CIRCULAR
@@ -141,49 +159,140 @@ static int32_t Servo_WrapDiff(int32_t delta)
     return delta;
 }
 
-/* 按模式号展开出行程、方向等派生字段，越界或本板不支持时退回270度正向。
- * 奇数=正向(脉宽增大角度增大)，偶数=反向；1/2->270度，3/4->180度，5/6->360度，
- * 7~10是电机模式(行程为0)；11是自定义模式，行程和方向直接取 SMI/SMX 标定的配置。 */
-static void Servo_SetModeFields(ServoMode_t mode)
+/* 当前模式的标称行程(未经校准收缩)，0=电机模式；校准永远以它为基准 */
+static uint16_t Servo_NominalSpan(void)
 {
-    /* 第三格(360度)已经取不到了，留着只是让下标 (mode-1)/2 保持原样 */
+    /* 第三格(360度)已不可选，保留以维持下标 (mode-1)/2 */
     static const uint16_t span[] = {27000U, 18000U, 0U}; /* 270/180度行程 */
 
-    if (!SERVO_MODE_IS_SUPPORTED(mode))
-        mode = SERVO_MODE_270_CW;
-
-    s_servo.mode = mode;
-
-    if (mode == SERVO_MODE_CUSTOM)
-    {
-        s_servo.reverse   = g_config.custom_reverse;
-        s_servo.span_cdeg = g_config.custom_span_cdeg;
-        return;
-    }
-
-    s_servo.reverse   = (uint8_t)(((uint8_t)mode & 1U) == 0U);
-    s_servo.span_cdeg = (mode <= SERVO_MODE_360_CCW)
-                      ? span[((uint8_t)mode - 1U) / 2U] : 0U;
+    if (s_servo.mode == SERVO_MODE_CUSTOM) return g_config.custom_span_cdeg;
+    if (s_servo.mode <= SERVO_MODE_360_CCW)
+        return span[((uint8_t)s_servo.mode - 1U) / 2U];
+    return 0U; /* 电机模式没有行程 */
 }
 
-/* 取当前模式的坐标零点(行程坐标0对应的编码器原始角度)。标准模式用SCK标出来的中值
- * 偏移，自定义模式用SMI/SMX标出来的行程零点，两套分开存，切模式时互不覆盖。 */
-static int32_t Servo_Offset(void)
+/* 未校准时的坐标零点：直接取Flash里存的历史偏移。 */
+static int32_t Servo_StoredOffset(void)
 {
     int32_t offset = (s_servo.mode == SERVO_MODE_CUSTOM) ? g_config.custom_offset_cdeg
                                                        : g_config.position_offset_cdeg;
 #if !ENCODER_IS_CIRCULAR
-    /* Flash仍沿用[0,36000)编码，负零点以36000+offset保存，避免破坏已有配置。 */
+    /* Flash 沿用[0,36000)编码，负零点存成 36000+offset */
     if (offset > ENCODER_POT_ANGLE_MAX) offset -= CDEG_RANGE;
 #endif
     return offset;
 }
 
-/* 写当前模式的坐标零点 */
-static void Servo_SetOffset(uint16_t offset)
+/* 由校准锚点现推有效行程与零点。kind=SERVO_CAL_MID 锚点为行程中点(1500us)，SERVO_CAL_ZERO 为500us端
+ * (正向在低端，反向在高端)。整圈可测只平移零点；有死区时可转入区只有 [ENCODER_TRAVEL_LO, HI]，
+ * 放不下标称行程就围绕锚点收缩(如50度校中位得0~100度)。每次从标称行程重算，不叠加。 */
+static void Servo_DeriveCal(uint8_t kind, int32_t anchor, uint16_t nominal,
+                            uint16_t *span_out, int32_t *offset_out)
 {
-    if (s_servo.mode == SERVO_MODE_CUSTOM) g_config.custom_offset_cdeg = offset;
-    else                                   g_config.position_offset_cdeg = offset;
+    int32_t span = (int32_t)nominal;
+
+#if !ENCODER_IS_CIRCULAR
+    /* 锚点可能来自旧版参数换算，先夹进可转入区，免得推出一段转不进去的行程 */
+    if (anchor < ENCODER_TRAVEL_LO) anchor = ENCODER_TRAVEL_LO;
+    if (anchor > ENCODER_TRAVEL_HI) anchor = ENCODER_TRAVEL_HI;
+#endif
+
+#if ENCODER_IS_CIRCULAR
+    if (kind == SERVO_CAL_MID)
+        *offset_out = (int32_t)Servo_WrapAngle(anchor - span / 2 + CDEG_RANGE);
+    else
+        *offset_out = (int32_t)Servo_WrapAngle(
+                          anchor - (s_servo.reverse ? span : 0) + CDEG_RANGE);
+#else
+    {
+        int32_t room; /* 锚点到受限那一端还剩多少角度 */
+
+        if (kind == SERVO_CAL_MID)
+        {
+            int32_t lo_room = anchor - ENCODER_TRAVEL_LO;
+            int32_t hi_room = ENCODER_TRAVEL_HI - anchor;
+            room = 2 * ((lo_room < hi_room) ? lo_room : hi_room);
+            if (span > room) span = room;
+            if (span < 0) span = 0;
+            *offset_out = anchor - span / 2;
+        }
+        else
+        {
+            room = s_servo.reverse ? (anchor - ENCODER_TRAVEL_LO)
+                                   : (ENCODER_TRAVEL_HI - anchor);
+            if (span > room) span = room;
+            if (span < 0) span = 0;
+            *offset_out = s_servo.reverse ? (anchor - span) : anchor;
+        }
+    }
+#endif
+    *span_out = (uint16_t)span;
+}
+
+/* 从未校准时的默认中点锚点：整圈可测取半个标称量程(零点即编码器零点)；有死区时取可转入区中点，使180度模式居中 */
+static int32_t Servo_DefaultAnchor(uint16_t nominal)
+{
+#if ENCODER_IS_CIRCULAR
+    return (int32_t)nominal / 2;
+#else
+    (void)nominal;
+    return (ENCODER_TRAVEL_LO + ENCODER_TRAVEL_HI) / 2;
+#endif
+}
+
+/* 按模式号展开行程、方向、零点，不支持时退回270度正向。奇数正向、偶数反向；CFG_DIR_INVERT 在此整体翻转旋向 */
+static void Servo_SetModeFields(ServoMode_t mode)
+{
+    uint16_t nominal; /* 本模式的标称行程     */
+    uint8_t  kind;    /* 实际生效的校准种类   */
+    int32_t  anchor;  /* 实际生效的校准锚点   */
+
+    if (!SERVO_MODE_IS_SUPPORTED(mode))
+        mode = SERVO_MODE_270_CW;
+
+    s_servo.mode = mode;
+    s_servo.reverse = (mode == SERVO_MODE_CUSTOM)
+                    ? (uint8_t)(g_config.custom_reverse ^ CFG_DIR_INVERT)
+                    : (uint8_t)((((uint8_t)mode & 1U) == 0U) ^ CFG_DIR_INVERT);
+
+    nominal = Servo_NominalSpan();
+    s_servo.span_cdeg   = nominal;
+    s_servo.offset_cdeg = Servo_StoredOffset();
+    if (nominal == 0U) return;                    /* 电机模式没有行程 */
+
+    kind   = g_config.cal_kind;
+    anchor = (int32_t)g_config.cal_anchor_cdeg;
+    if (kind == SERVO_CAL_NONE)
+    {
+        /* 自定义模式的窗口由 AMI/AMX 标出，不套默认锚点 */
+        if (mode == SERVO_MODE_CUSTOM) return;
+
+        {
+            int32_t legacy = Servo_StoredOffset();
+
+            kind = SERVO_CAL_MID;
+            /* 旧版 SCK 把零点存在 position_offset_cdeg，加半个标称量程即还原为中点锚点，升级不丢中位；0=从未校准 */
+            anchor = (legacy != 0) ? (legacy + (int32_t)nominal / 2)
+                                   : Servo_DefaultAnchor(nominal);
+        }
+    }
+
+    {
+        uint16_t derived; /* 推出来的有效行程 */
+        int32_t  offset;  /* 推出来的坐标零点 */
+
+        Servo_DeriveCal(kind, anchor, nominal, &derived, &offset);
+        /* 推出的行程短到无意义时保留标称行程，好过变成几乎动不了的舵机 */
+        if (derived < SERVO_CUSTOM_SPAN_MIN) return;
+        s_servo.span_cdeg   = derived;
+        s_servo.offset_cdeg = offset;
+    }
+}
+
+/* 当前模式的坐标零点，由 Servo_SetModeFields 算好缓存 */
+static int32_t Servo_Offset(void)
+{
+    return s_servo.offset_cdeg;
 }
 
 /* 编码器原始角度 -> 零点校正后的反馈坐标，不做任何截断、不丢符号 */
@@ -196,10 +305,7 @@ static int32_t Servo_RawToCircular(int32_t raw)
 #endif
 }
 
-/* 行程坐标投影，**只给轨迹目标和协议上报用**。线性坐标直接夹在[0,span]，圆周坐标
- * 投影到最近的那一端。闭环反馈一律走未截断、未丢符号的 angle_circ：轴被外力推到
- * 端点之外时，投影会把测量值钉在端点上，位置误差恒为0，控制器于是判定"已到位"、
- * 关掉摩擦前馈、泄放积分——舵机在最该顶住的位置反而彻底松手，一推就能推穿死区。 */
+/* 行程坐标投影，只给轨迹目标和上报用。闭环必须用未截断的 angle_circ：投影会把推出端点的误差抹成0，舵机在最该顶住时松手 */
 static uint16_t Servo_ClampToTravel(int32_t pos)
 {
 #if !ENCODER_IS_CIRCULAR
@@ -229,24 +335,23 @@ static uint8_t Servo_ReadPosition(void)
     return 1U;
 }
 
-/* 协议脉宽[500,2500] -> 行程坐标，反向模式下再翻一次 */
-static uint16_t Servo_PwmToAngle(uint16_t pwm)
+/* 脉宽(1/8us) -> 行程坐标，反向模式再翻转；就近取整以与 Servo_PositionToPwm 往返一致 */
+static uint16_t Servo_PulseToAngle(uint16_t pulse_q3)
 {
     uint32_t angle; /* 换算结果，厘度 */
 
-    if (pwm < SERVO_PWM_MIN) pwm = SERVO_PWM_MIN;
-    if (pwm > SERVO_PWM_MAX) pwm = SERVO_PWM_MAX;
+    if (pulse_q3 < SERVO_PULSE_Q3_MIN) pulse_q3 = SERVO_PULSE_Q3_MIN;
+    if (pulse_q3 > SERVO_PULSE_Q3_MAX) pulse_q3 = SERVO_PULSE_Q3_MAX;
 
-    angle = (uint32_t)(pwm - SERVO_PWM_MIN) * s_servo.span_cdeg
-          / (SERVO_PWM_MAX - SERVO_PWM_MIN);
+    angle = ((uint32_t)(pulse_q3 - SERVO_PULSE_Q3_MIN) * s_servo.span_cdeg
+             + SERVO_PULSE_Q3_SPAN / 2U) / SERVO_PULSE_Q3_SPAN;
     if (s_servo.reverse) angle = (uint32_t)s_servo.span_cdeg - angle;
     return (uint16_t)angle;
 }
 
 /* ======================== 公共动作：输出与环路复位 ======================== */
 
-/* 按当前扭矩状态把H桥摆到静止态：有扭矩就刹车(两路全高)，卸力就按阻力档释放。
- * 停止、模式切换、参数生效三条路径的收尾动作完全一样，集中在这里避免三份拷贝。 */
+/* 按扭矩状态把H桥摆到静止态：有扭矩刹车，卸力按阻力档释放 */
 static void Servo_ApplyTorqueOutput(void)
 {
     if (s_servo.torque == SERVO_TORQUE_ON)
@@ -260,48 +365,39 @@ static void Servo_ApplyTorqueOutput(void)
     }
 }
 
-/* 让轨迹和控制器以当前实测位置为新起点并清掉历史状态，reinit_obs=1时连观测器一起重置。
- * 调用前必须已刷新过位置。轨迹目标用截断后的 angle，观测器用未截断的 angle_circ。
- * 位置坐标跳变(中位校正)或刚从卸力恢复时必须重置观测器，否则模型预测已完全脱节。 */
-static void Servo_ResyncLoops(uint8_t reinit_obs)
+/* 以 anchor 为新起点重建轨迹与控制器，reinit_obs=1 时重置观测器(坐标跳变或卸力恢复后必须)；调用前须已刷新位置 */
+static void Servo_ResyncLoopsAt(int32_t anchor, uint8_t reinit_obs)
 {
     if (reinit_obs) C_SpeedObs_Init(s_servo.angle_circ);
-    C_Traj_Hold(s_servo.angle); /* 轨迹立即停在这里，不再产生新的参考速度 */
+    C_Traj_Hold(anchor);        /* 轨迹立即停在这里，不再产生新的参考速度 */
     C_PosCtrl_Reset();          /* 清速度环积分和到位状态机               */
     C_Traj_Step(&s_servo.ref, 0U); /* Hold后的静止参考，避免沿用重规划前的饱和判据 */
     memset(&s_servo.dbg, 0, sizeof(s_servo.dbg));
-    /* 目标死区的比较基准必须跟着一起重锚。停止/暂停/换模式/恢复扭矩/脱困完成
-     * 这几条路径都会把轨迹拉回当前位置，如果基准还停在旧目标上，紧接着发来的
-     * 那条"回到旧目标"的指令就会被死区当成"没变化"吃掉。 */
+    /* 目标死区的比较基准一起重锚，否则紧接着"回到旧目标"的指令会被死区吃掉 */
     s_servo.target_angle = s_servo.angle;
 }
 
-/* ==================== 编码器死区：禁入余量与脱困状态机 ====================
- * 传感器有死区时(电位器抽头转出碳膜)，那一段完全没有反馈，读到的不是"很小的
- * 角度"而是"没有角度"。两道防线：
- *   进不去：轨迹范围两端各收 SERVO_TRAVEL_GUARD_CDEG，闭环永远不往那儿走；
- *   出得来：万一还是进去了(上电就在里面、被外力推进去)，开环转出来。
- * 整圈可测的编码器不需要，两道防线在编译期被 ENCODER_HAS_DEADZONE 关掉。 */
+/* 常用形式：以当前实测的行程坐标为新起点 */
+static void Servo_ResyncLoops(uint8_t reinit_obs)
+{
+    Servo_ResyncLoopsAt((int32_t)s_servo.angle, reinit_obs);
+}
 
-/* 按当前模式设置轨迹可用范围，有死区的编码器在两端各留一段禁入余量。
- * 收的是轨迹范围而不是 span：span 还决定协议脉宽到角度的映射，改了会让500~2500us
- * 的含义跟着变。这里只让参考走不到最后那一小段，上报和映射都保持原样。 */
+/* ==================== 编码器死区：禁入余量与脱困状态机 ==================== */
+
+/* 设置轨迹可用范围：只收轨迹范围不改 span(span 决定脉宽到角度的映射) */
 static void Servo_SetTrajRange(void)
 {
     int32_t lo = 0;
     int32_t hi = (int32_t)s_servo.span_cdeg;
 
-    if (ENCODER_HAS_DEADZONE && hi > (int32_t)(2U * SERVO_TRAVEL_GUARD_CDEG))
-    {
-        lo += (int32_t)SERVO_TRAVEL_GUARD_CDEG;
-        hi -= (int32_t)SERVO_TRAVEL_GUARD_CDEG;
-    }
 #if !ENCODER_IS_CIRCULAR
-    /* 标定/换模式会移动坐标零点，逻辑行程仍须与真实碳膜安全区求交。 */
+    /* 与可转入区[0, 270度]求交，端点本身可达：两端外扩的可读余量(各10度)就是兜超调的安全带，
+     * 在区内再收一道余量只会让 P0500/P2500 停在差2度(约15us)的地方。 */
     {
         int32_t offset = Servo_Offset();
-        int32_t physical_lo = ENCODER_POT_ANGLE_MIN + (int32_t)SERVO_TRAVEL_GUARD_CDEG - offset;
-        int32_t physical_hi = ENCODER_POT_ANGLE_MAX - (int32_t)SERVO_TRAVEL_GUARD_CDEG - offset;
+        int32_t physical_lo = ENCODER_TRAVEL_LO - offset;
+        int32_t physical_hi = ENCODER_TRAVEL_HI - offset;
         if (lo < physical_lo) lo = physical_lo;
         if (hi > physical_hi) hi = physical_hi;
     }
@@ -317,30 +413,67 @@ static void Servo_SetTrajRange(void)
     C_Traj_Set_Range(lo, hi);
 }
 
-/* 三帧中值：PWM输入线上偶发的孤立毛刺不该变成一条运动指令 */
+/* 捕获脉宽唯一入口：先夹进协议量程再升Q3，避免越界值进入滤波器状态 */
+static uint16_t Servo_PulseIn(uint16_t pulse_us)
+{
+    if (pulse_us < SERVO_PWM_MIN) pulse_us = SERVO_PWM_MIN;
+    if (pulse_us > SERVO_PWM_MAX) pulse_us = SERVO_PWM_MAX;
+    return SERVO_PULSE_Q3(pulse_us);
+}
+
+/* 可响应的脉冲窗口 = 协议量程 ∩ SMI/SMX 边界。越界指令整条不响应而不是夹到边界：夹会掩盖上位机的配置错误 */
+static uint8_t Servo_PulseAllowedQ3(uint16_t pulse_q3)
+{
+    uint16_t lo = SERVO_PULSE_Q3(g_config.pulse_lo);
+    uint16_t hi = SERVO_PULSE_Q3(g_config.pulse_hi);
+
+    if (lo < SERVO_PULSE_Q3_MIN) lo = SERVO_PULSE_Q3_MIN;
+    if (hi > SERVO_PULSE_Q3_MAX) hi = SERVO_PULSE_Q3_MAX;
+    return (uint8_t)(lo <= hi && pulse_q3 >= lo && pulse_q3 <= hi);
+}
+
+/* PWM输入两级滤波(1/8us)：三帧中值去毛刺 + 一阶跟随压抖动；|偏差|<1us 时自然停住，残差在目标死区内 */
 static uint16_t Servo_FilterPulse(uint16_t pulse)
 {
     uint16_t a, b, c, temp;
+    int32_t  err;
+
     if (!s_servo.pulse_ready)
     {
         s_servo.pulse_prev[0] = s_servo.pulse_prev[1] = pulse;
-        s_servo.pulse_ready = 1U;
+        s_servo.pulse_filt    = pulse;
+        s_servo.pulse_ready   = 1U;
     }
     a = s_servo.pulse_prev[0]; b = s_servo.pulse_prev[1]; c = pulse;
     s_servo.pulse_prev[0] = b; s_servo.pulse_prev[1] = c;
     if (a > b) { temp = a; a = b; b = temp; }
     if (b > c) { b = c; }
-    return (a > b) ? a : b;
+    c = (a > b) ? a : b;   /* 三帧中值 */
+
+    err = (int32_t)c - (int32_t)s_servo.pulse_filt;
+    if (err >= (int32_t)SERVO_PWM_SNAP_Q3 || err <= -(int32_t)SERVO_PWM_SNAP_Q3)
+        s_servo.pulse_filt = c;
+    else
+        s_servo.pulse_filt = (uint16_t)((int32_t)s_servo.pulse_filt
+                                        + err / (int32_t)(1 << SERVO_PWM_IIR_SHIFT));
+    return s_servo.pulse_filt;
 }
 
-/* 执行上电动作，优先级：外部PWM指令 > 配置的上电模式。
- * 单独成函数是因为上电时轴可能就停在死区里，那时读到的位置是假的，必须先脱困。 */
+static void Servo_SubmitQ3(uint16_t pulse_q3, uint16_t value); /* 见"运动指令"一节 */
+
+/* 执行上电动作，优先级：外部PWM指令 > 配置的上电模式；轴在死区里时须先脱困 */
 static void Servo_ApplyBootAction(void)
 {
     if (s_servo.boot_pwm != 0U)
-        A_Servo_Submit(s_servo.boot_pwm, s_servo.boot_value);
+        Servo_SubmitQ3(s_servo.boot_pwm, s_servo.boot_value);
     else if (g_config.boot_mode == SERVO_BOOT_GOTO_START)
-        A_Servo_Submit(g_config.startup_pwm, 0U);
+    {
+        /* 上电目标夹进脉冲边界照常执行，边界只用来拒收越界指令 */
+        uint16_t pwm = g_config.startup_pwm;
+        if (pwm < g_config.pulse_lo) pwm = g_config.pulse_lo;
+        if (pwm > g_config.pulse_hi) pwm = g_config.pulse_hi;
+        A_Servo_Submit(pwm, 0U);
+    }
     else if (g_config.boot_mode == SERVO_BOOT_RELEASE)
         A_Servo_Release(0U);
     else if (Servo_IsPosition())
@@ -358,8 +491,7 @@ static void Servo_EscapeStart(void)
     s_servo.enc_fail       = 0U;
 }
 
-/* 两个方向都没转出来：卸力停下等人处理。到这一步说明机构卡死或传感器/接线坏了，
- * 继续转只会顶着障碍发热，不如松手把问题暴露出来。 */
+/* 两个方向都没转出来：卸力等人处理(机构卡死或传感器/接线坏) */
 static void Servo_EscapeFail(void)
 {
     s_servo.enc_state    = SERVO_ENC_FAULT;
@@ -409,12 +541,11 @@ static void Servo_EscapeTick(void)
 
     if (Servo_ReadPosition())
     {
-        /* 读数回来了还不能立刻交回闭环：此刻抽头就贴在碳膜边缘，一点回弹
-         * 就掉回死区。同方向再推一小段，进到行程里面再说。 */
+        /* 读数刚回来时抽头贴着碳膜边缘，同方向再推一小段进到行程里再交回闭环 */
         /* 有反馈后按实测所在的物理端选择内推方向，不能继续赌旧方向。 */
         s_servo.escape_dir = (uint8_t)(s_servo.raw_angle < ENCODER_ANGLE_MID);
-        if (s_servo.raw_angle >= ENCODER_ANGLE_LO + (int32_t)SERVO_TRAVEL_GUARD_CDEG
-            && s_servo.raw_angle <= ENCODER_ANGLE_HI - (int32_t)SERVO_TRAVEL_GUARD_CDEG)
+        if (s_servo.raw_angle >= ENCODER_ANGLE_LO + (int32_t)SERVO_ESCAPE_DEPTH_CDEG
+            && s_servo.raw_angle <= ENCODER_ANGLE_HI - (int32_t)SERVO_ESCAPE_DEPTH_CDEG)
             s_servo.escape_settle++;
         else s_servo.escape_settle = 0U;
         if (s_servo.escape_settle >= SERVO_ESCAPE_SETTLE)
@@ -437,9 +568,7 @@ static void Servo_EscapeTick(void)
     s_servo.last_pwm = D_Motor_Set(pwm);
 }
 
-/* 上电嗅探信号线上是不是PWM，返回捕获到的脉宽(us)，0=没有PWM走串口总线。
- * PA1(TIM1输入捕获)和PC0(USART1半双工)接的是同一根信号线，两者必须独占；嗅探期间
- * 先把串口完全释放。判定结果上电后不再改变，进了PWM模式串口就保持关闭到下次上电。 */
+/* 上电嗅探信号线是否有PWM，返回脉宽(1/8us)，0=走串口。PA1与PC0共线须独占，结果上电定终身 */
 static uint16_t Servo_DetectInput(void)
 {
     uint8_t  elapsed;    /* 已等待的毫秒数   */
@@ -457,6 +586,11 @@ static uint16_t Servo_DetectInput(void)
     if (pulse != 0U)
     {
         s_servo.input_source = SERVO_INPUT_PWM; /* 捕获保持开启，串口保持释放 */
+        /* 嗅探到的帧直接作为滤波器初值，避免从0起步的开机抖动 */
+        pulse = Servo_PulseIn(pulse);
+        s_servo.pulse_prev[0] = s_servo.pulse_prev[1] = pulse;
+        s_servo.pulse_filt    = pulse;
+        s_servo.pulse_ready   = 1U;
     }
     else
     {
@@ -473,10 +607,9 @@ uint8_t A_Servo_InputSource(void)
     return s_servo.input_source;
 }
 
-/* ========================= 对保护模块的几个接口 ========================= */
+/* ========================= 对保护模块的接口 ========================= */
 
-/* 设置对称PWM输出上限，越界自动夹到[1, CFG_PWM_FULL]。位置模式转发给控制器(抗积分
- * 饱和会跟着走)；电机模式是开环直给，还要在 Servo_MotorControl 里自己夹一次。 */
+/* 设置对称PWM上限，夹到[1, CFG_PWM_FULL]；电机模式开环直给，在 Servo_MotorControl 里另夹 */
 void A_Servo_SetOutputLimit(int16_t limit)
 {
     if (limit < 1) limit = 1;
@@ -486,19 +619,14 @@ void A_Servo_SetOutputLimit(int16_t limit)
     C_PosCtrl_Set_Output_Limit(limit);
 }
 
-/* 当前是否带扭矩输出，1=正常输出(闭环或开环)，0=卸力中。
- * 保护模块每拍靠它复检：故障期间上位机发来的指令若把扭矩恢复，要能立刻发现并压回去。 */
+/* 1=有扭矩输出，0=卸力中；保护模块每拍据此复检 */
 uint8_t A_Servo_TorqueOn(void)
 {
     return (uint8_t)(s_servo.torque == SERVO_TORQUE_ON);
 }
 
-/* 取一次运动采样：上次采样到现在，参考走了多少、机构走了多少，同时把基准推到本拍。
- * 位移在这里做差而不是把坐标抛出去——跨0折算只有本模块知道怎么算，而保护模块自己
- * 攒基准的话，中位校正或换模式那一拍的坐标跳变就会被当成一次真实位移。
- * valid 要求区间**两端**都在跑同一条未走完的轨迹，否则指令刚下发的第一个区间会把
- * 上一条轨迹结束到这条开始之间的静止段算进来。hold_ticks 每次采样后清零，所以调用
- * 周期就是它的统计窗口，漏调一次下次拿到的是两个周期的累计值。 */
+/* 取一次运动采样并把基准推到本拍：参考与机构各走了多少(跨0折算只有本模块知道)。
+ * valid 要求区间两端都在跑同一条未走完的轨迹；hold_ticks 每次采样后清零。 */
 void A_Servo_SampleMotion(ServoMotion_t *out)
 {
     uint8_t driving; /* 本拍是否正在跑一条未走完的位置轨迹 */
@@ -523,9 +651,7 @@ void A_Servo_SampleMotion(ServoMotion_t *out)
     s_servo.traj_hold    = 0U;
 }
 
-/* 堵转处理：放弃当前动作，把目标改成此刻的实际位置并保持。要的正是 A_Servo_Stop 的
- * 语义(重读位置、把轨迹和目标锚到实测位置、清速度环积分)，扭矩不动——堵转不卸力，
- * 下一个控制拍立刻以新目标闭环保持。resume_valid 一并清掉：这条动作是被放弃的。 */
+/* 堵转处理：放弃当前动作，就地保持，不卸力 */
 void A_Servo_HoldHere(void)
 {
     if (!Servo_IsPosition() || s_servo.torque != SERVO_TORQUE_ON) return;
@@ -548,6 +674,10 @@ void A_Servo_ApplyConfig(void)
     s_servo.boot_pwm     = 0U;
     s_servo.boot_value   = 0U;
     s_servo.timed_position = 0U;
+    s_servo.mt_active      = 0U; /* 换模式/换参数，正在跑的多圈一律作废 */
+#if SERVO_MULTITURN
+    s_servo.mt_fold        = 0;
+#endif
 
     if (Servo_IsPosition())
     {
@@ -577,8 +707,7 @@ void A_Servo_Init(void)
     enc_ok = Servo_ReadPosition();
     if (!enc_ok)
         s_servo.angle = s_servo.angle_circ = s_servo.raw_angle = 0U;
-    /* memset 之后 target_angle 是 0，而 0 正好是行程低端——不初始化的话上电
-     * 第一条 #000P0500! 会被目标死区当成"目标没变"吃掉。 */
+    /* 目标死区基准初始化为当前位置，否则上电第一条 P0500 可能被吃掉 */
     s_servo.target_angle = s_servo.angle;
 
     C_SpeedObs_Init(s_servo.angle_circ); /* 反馈坐标类型由CFG_WRAP_RANGE_CDEG确定 */
@@ -588,10 +717,10 @@ void A_Servo_Init(void)
 
     s_servo.torque   = SERVO_TORQUE_ON;
     s_servo.last_pwm = D_Motor_Set(0);
+    /* 补一次采样，否则上电第一拍前读 s_servo.ref 拿到的都是0 */
+    C_Traj_Step(&s_servo.ref, 0U);
 
-    /* 上电就落在死区：读到的0度是假的，此时执行任何上电动作都会朝着一个
-     * 编造出来的位置使劲。先开环脱困，转出来再执行——包括"上电释放"，
-     * 它也得等轴回到碳膜上才有意义，否则一松手就再也不知道自己在哪。 */
+    /* 上电就在死区：读到的位置是假的，先开环脱困再执行上电动作 */
     if (!enc_ok && ENCODER_HAS_DEADZONE)
     {
         s_servo.boot_pending = 1U;
@@ -603,24 +732,120 @@ void A_Servo_Init(void)
     }
 }
 
+/* ============================== 多圈指令 ==============================
+ * 目标用未回绕的扩展坐标表示(3圈即参考涨到 +108000 厘度)，规划器位移直线计算，放开行程范围就会转满整圈。
+ * 反馈仍是回绕的，交给位置环前由 Servo_RefForCtrl 把参考折回实测所在那一圈；结束时参考折回行程坐标。 */
+#if SERVO_MULTITURN
+
+/* 把回绕坐标折算到离 near 不超过半圈的那一圈上；循环有硬上限，不卡控制拍 */
+static int32_t Servo_Unwrap(int32_t wrapped, int32_t near)
+{
+    uint8_t n;
+
+    for (n = 0U; n < 16U && wrapped - near > CDEG_RANGE / 2; n++)
+        wrapped -= CDEG_RANGE;
+    for (n = 0U; n < 16U && near - wrapped > CDEG_RANGE / 2; n++)
+        wrapped += CDEG_RANGE;
+    return wrapped;
+}
+
+/* 规划(或续规划)多圈轨迹的一段，起点取规划器自身状态，续段时位置速度不跳变。
+ * turn_ms 为每圈时间，剩余时间由剩余位移现算，暂停/继续后角速度不变；超长指令按 SERVO_MT_SEG_MAX_MS 分段。 */
+static void Servo_PlanMultiTurn(void)
+{
+    /* 起点问规划器本人：s_servo.ref 是上一拍快照，刚Hold完时是陈的 */
+    int32_t  here  = C_Traj_Get_Pos();
+    int32_t  dist  = s_servo.mt_target - here;   /* 扩展坐标下的剩余位移 */
+    int32_t  adist = (dist >= 0) ? dist : -dist;
+    int32_t  waypoint = s_servo.mt_target;
+    uint32_t ms;      /* 本段请求时间(ms)，0=最快 */
+
+    s_servo.mt_final = 1U;
+    if (s_servo.mt_turn_ms == 0U) { C_Traj_Plan(waypoint, 0U); return; }
+
+    ms = (uint32_t)(((int64_t)s_servo.mt_turn_ms * adist) / SERVO_MT_TURN_CDEG);
+    if (ms == 0U) ms = 1U;
+    if (ms > SERVO_MT_SEG_MAX_MS)
+    {
+        int32_t seg = (int32_t)(((int64_t)adist * (int32_t)SERVO_MT_SEG_MAX_MS)
+                                / (int32_t)ms);
+        waypoint = here + ((dist >= 0) ? seg : -seg);
+        ms = SERVO_MT_SEG_MAX_MS;
+        s_servo.mt_final = 0U;
+    }
+    C_Traj_Plan(waypoint, (uint16_t)ms);
+}
+
+/* 交给位置环之前的参考折算，漏掉会在第二圈开始飞车：C_Pos_Ctrl 的折算只能消一圈。
+ * 每拍位移远小于半圈，一次条件加减即可。只折交给控制器的副本，规划器仍留在扩展坐标上。 */
+static int32_t Servo_RefForCtrl(void)
+{
+    int32_t pos = s_servo.ref.pos - s_servo.mt_fold;
+    int32_t err = pos - s_servo.obs.pos; /* 位置环真正要相减的就是这两个量 */
+
+    if (err > CDEG_RANGE / 2)
+    {
+        s_servo.mt_fold += CDEG_RANGE;
+        pos -= CDEG_RANGE;
+    }
+    else if (err < -CDEG_RANGE / 2)
+    {
+        s_servo.mt_fold -= CDEG_RANGE;
+        pos += CDEG_RANGE;
+    }
+    return pos;
+}
+
+/* 全部圈数走完：参考折回行程坐标(差整数圈，无扰动)并恢复行程范围 */
+static void Servo_MultiTurnFinish(void)
+{
+    uint16_t target = s_servo.target_angle;
+
+    s_servo.mt_active = 0U;
+    s_servo.mt_fold   = 0;
+    (void)Servo_ReadPosition();
+    C_Traj_Hold((int32_t)target); /* 先折回行程坐标，再恢复范围才不会被夹错 */
+    Servo_SetTrajRange();
+    C_Traj_Step(&s_servo.ref, 0U);
+    s_servo.target_angle = target;
+}
+
+/* 中止多圈：把参考和行程范围换回行程坐标，停在哪由调用者重锚决定 */
+static void Servo_MultiTurnAbort(void)
+{
+    if (!s_servo.mt_active) return;
+    s_servo.mt_active = 0U;
+    s_servo.mt_fold   = 0;
+    (void)Servo_ReadPosition();
+    C_Traj_Hold((int32_t)s_servo.angle);
+    Servo_SetTrajRange();
+    C_Traj_Step(&s_servo.ref, 0U);
+    /* 目标死区基准一起重锚，否则打断后再发同一目标会被吃掉 */
+    s_servo.target_angle = s_servo.angle;
+}
+#else
+#define Servo_MultiTurnAbort() ((void)0)
+#endif /* SERVO_MULTITURN */
+
 /* ============================== 运动指令 ============================== */
 
-/* 下发一条运动指令。pwm=目标脉宽(位置模式=目标角度，电机模式=速度与方向)，
- * value=时间参数(位置/定时模式为毫秒，定圈模式为圈数，0=最快/无限) */
-void A_Servo_Submit(uint16_t pwm, uint16_t value)
+/* 下发运动指令内核，脉宽以 1/8us 计；协议与PWM输入共用，差别只在入口分辨率 */
+static void Servo_SubmitQ3(uint16_t pulse_q3, uint16_t value)
 {
     int32_t raw; /* 定圈模式建立累计基准时读到的原始角度 */
     uint8_t was_paused = s_servo.paused;
 
-    if (pwm < SERVO_PWM_MIN) pwm = SERVO_PWM_MIN;
-    if (pwm > SERVO_PWM_MAX) pwm = SERVO_PWM_MAX;
+    /* 越界整条丢弃 */
+    if (!Servo_PulseAllowedQ3(pulse_q3)) return;
 
     if (s_servo.enc_state == SERVO_ENC_FAULT || A_Protect_Fault() != PROT_FAULT_NONE
         || (Servo_IsPosition() && !s_servo.range_valid)) return;
     if (s_servo.torque != SERVO_TORQUE_ON) A_Servo_RestoreTorque();
+    /* 普通指令打断正在执行的多圈，先换回行程坐标 */
+    Servo_MultiTurnAbort();
     if (s_servo.enc_state == SERVO_ENC_ESCAPING)
     {
-        s_servo.boot_pwm = pwm;
+        s_servo.boot_pwm = pulse_q3;
         s_servo.boot_value = value;
         s_servo.boot_pending = 1U;
         s_servo.paused = 0U;
@@ -630,17 +855,17 @@ void A_Servo_Submit(uint16_t pwm, uint16_t value)
 
     if (was_paused && Servo_IsPosition())
     {
-        /* 暂停后的新目标也须从停稳位置起步，不能沿用暂停瞬间的旧起点。 */
+        /* 暂停后的新目标从停稳位置起步 */
         if (!Servo_ReadPosition()) return;
         Servo_ResyncLoops(1U);
     }
     s_servo.paused       = 0U;
     s_servo.resume_valid = 1U;
 
-    /* ---- 位置模式：交给轨迹规划器，闭环跟随 ---- */
+    /* ---- 位置模式：交给轨迹规划器 ---- */
     if (Servo_IsPosition())
     {
-        uint16_t target = Servo_PwmToAngle(pwm);
+        uint16_t target = Servo_PulseToAngle(pulse_q3);
         int32_t delta, target_db = CTRL_TARGET_DB_CDEG;
         if (target < s_servo.traj_lo) target = s_servo.traj_lo;
         if (target > s_servo.traj_hi) target = s_servo.traj_hi;
@@ -653,23 +878,9 @@ void A_Servo_Submit(uint16_t pwm, uint16_t value)
             if (pwm_db > target_db) target_db = pwm_db;
         }
 
-        /* ==================== 目标死区 ====================
-         * 目标变化不超过 CTRL_TARGET_DB_CDEG(最小可靠步长)时不重新规划，PWM输入
-         * 再额外覆盖 SERVO_PWM_INPUT_DB_US 的脉宽抖动。比较前先夹到实际轨迹范围，
-         * 端点附近同一有效目标不会反复重规划。
-         *
-         * 这不是"顺手加的滤波"，而是 PWM 输入模式的必需品：那条路径每收到一个
-         * 输入脉冲(50Hz)就调一次本函数，而 Traj_VelCap 会把几厘度的小位移按
-         * TUNE_MOVE_MIN_MS 规划成上百拍的慢动作，20ms 走不完就被下一次重规划
-         * 打断。后果是连锁的：轨迹永远 done=0 -> 控制器永远进不了 HOLD ->
-         * 保持态静音和速度死区全部失效 -> 静止时持续输出上百计数，而且参考永远
-         * 追不上目标，留一个固定偏差。
-         *
-         * 比较基准是**上一次被接受的目标**而不是当前位置，所以连续的小幅指令会
-         * 累积：十次 +2us 累计 +20us，一旦超过死区就正常响应，不会被吃掉。
-         *
-         * 带时间参数的指令(value != 0)一律放行：那是明确的"用这么长时间走过去"
-         * 的意图，即使目标没变也应该重新规划。 */
+        /* 目标死区：变化不超过最小可靠步长时不重规划，PWM输入再加滤波残差余量。PWM输入每20ms调一次，
+         * 小位移轨迹走不完就被打断会导致永远进不了保持态、静止时持续出力，所以必需。
+         * 基准是上一次被接受的目标，连续小步会累积生效；带时间参数的指令一律放行。 */
         if (!was_paused && value == 0U && delta <= target_db && delta >= -target_db)
             return;
 
@@ -681,12 +892,12 @@ void A_Servo_Submit(uint16_t pwm, uint16_t value)
     }
 
     /* ---- 电机模式：以中位为零速，两侧线性映射到正负满PWM ---- */
-    if (pwm >= SERVO_PWM_MID)
-        s_servo.motor_pwm = (int16_t)((uint32_t)(pwm - SERVO_PWM_MID)
-                * MOTOR_PWM_MAX / (SERVO_PWM_MAX - SERVO_PWM_MID));
+    if (pulse_q3 >= SERVO_PULSE_Q3_MID)
+        s_servo.motor_pwm = (int16_t)((uint32_t)(pulse_q3 - SERVO_PULSE_Q3_MID)
+                * MOTOR_PWM_MAX / (SERVO_PULSE_Q3_MAX - SERVO_PULSE_Q3_MID));
     else
-        s_servo.motor_pwm = (int16_t)-(int32_t)((uint32_t)(SERVO_PWM_MID - pwm)
-                * MOTOR_PWM_MAX / (SERVO_PWM_MID - SERVO_PWM_MIN));
+        s_servo.motor_pwm = (int16_t)-(int32_t)((uint32_t)(SERVO_PULSE_Q3_MID - pulse_q3)
+                * MOTOR_PWM_MAX / (SERVO_PULSE_Q3_MID - SERVO_PULSE_Q3_MIN));
 
     if (s_servo.reverse) s_servo.motor_pwm = (int16_t)-s_servo.motor_pwm;
     s_servo.motor_pwm = (int16_t)(s_servo.motor_pwm * CTRL_MOTOR_SIGN); /* 换到H桥物理方向 */
@@ -705,6 +916,78 @@ void A_Servo_Submit(uint16_t pwm, uint16_t value)
     }
 }
 
+/* 协议入口：pwm=目标脉宽(位置模式为角度，电机模式为速度与方向)，value=时间参数(ms；定圈模式为圈数；0=最快/无限) */
+void A_Servo_Submit(uint16_t pwm, uint16_t value)
+{
+    /* 越界不响应；须先拦再升Q3，9999<<3 会溢出16位 */
+    if (pwm < SERVO_PWM_MIN || pwm > SERVO_PWM_MAX) return;
+    Servo_SubmitQ3(SERVO_PULSE_Q3(pwm), value);
+}
+
+/* 多圈运动指令：先转 turns 整圈再到 pwm 位置，turn_ms 为每圈时间(0=最快)。方向同普通指令，重合时取正方向 */
+void A_Servo_SubmitTurns(uint16_t pwm, uint8_t turns, uint16_t turn_ms)
+{
+#if SERVO_MULTITURN
+    uint16_t target;     /* 目标的行程坐标           */
+    int32_t  here;       /* 规划器当前的参考位置     */
+    int32_t  delta;      /* 到目标的行程位移，定方向 */
+    int32_t  total;      /* 整条指令的总位移(带符号) */
+    int32_t  lo, hi;     /* 放开后的轨迹范围         */
+    uint8_t  was_paused = s_servo.paused;
+
+    if (turns > SERVO_MT_MAX_TURNS) return;
+    if (!Servo_PulseAllowedQ3(SERVO_PULSE_Q3(pwm))) return;
+    if (pwm < SERVO_PWM_MIN || pwm > SERVO_PWM_MAX) return;
+    if (!Servo_IsPosition() || !s_servo.range_valid) return;
+    if (s_servo.enc_state != SERVO_ENC_OK
+        || A_Protect_Fault() != PROT_FAULT_NONE) return;
+
+    if (s_servo.torque != SERVO_TORQUE_ON) A_Servo_RestoreTorque();
+
+    /* 打断未走完的多圈或暂停后重发：换回行程坐标并以实测位置重建起点(等同DST打断) */
+    if (s_servo.mt_active || was_paused)
+    {
+        Servo_MultiTurnAbort();
+        if (!Servo_ReadPosition()) return;
+        Servo_ResyncLoops(1U);
+    }
+    s_servo.paused       = 0U;
+    s_servo.resume_valid = 1U;
+
+    target = Servo_PulseToAngle(SERVO_PULSE_Q3(pwm));
+    if (target < s_servo.traj_lo) target = s_servo.traj_lo;
+    if (target > s_servo.traj_hi) target = s_servo.traj_hi;
+
+    /* 方向与总位移以规划器当前参考为准 */
+    here  = C_Traj_Get_Pos();
+    delta = (int32_t)target - here;
+    total = (int32_t)turns * SERVO_MT_TURN_CDEG + ((delta >= 0) ? delta : -delta);
+    if (delta < 0) total = -total;
+    /* 已在目标上且0圈：按普通指令处理 */
+    if (total == 0)
+    {
+        Servo_SubmitQ3(SERVO_PULSE_Q3(pwm), 0U);
+        return;
+    }
+
+    s_servo.mt_target      = here + total;
+    s_servo.mt_turn_ms     = turn_ms;
+    s_servo.mt_active      = 1U;
+    s_servo.mt_fold        = 0;
+    s_servo.target_angle   = target;
+    s_servo.timed_position = 0U;
+    s_servo.remaining      = 0U;
+
+    /* 行程范围放开到整段扩展坐标，否则目标会被夹回行程里 */
+    lo = (total < 0) ? s_servo.mt_target : here;
+    hi = (total < 0) ? here               : s_servo.mt_target;
+    C_Traj_Set_Range_Open(lo, hi); /* 放开范围但不打断已有轨迹，见规划器同名函数 */
+    Servo_PlanMultiTurn();
+#else
+    (void)pwm; (void)turns; (void)turn_ms;
+#endif
+}
+
 /* 暂停：输出刹车，但保留目标以便继续 */
 void A_Servo_Pause(void)
 {
@@ -717,6 +1000,12 @@ void A_Servo_Pause(void)
     {
         uint16_t saved_target = s_servo.target_angle;
         (void)Servo_ReadPosition();
+#if SERVO_MULTITURN
+        /* 多圈进行中：参考停在扩展坐标的实测位置，行程范围保留(用行程坐标重锚会倒转回去) */
+        if (s_servo.mt_active)
+            Servo_ResyncLoopsAt(Servo_Unwrap(s_servo.angle_circ, s_servo.ref.pos), 0U);
+        else
+#endif
         Servo_ResyncLoops(0U);
         s_servo.target_angle = saved_target; /* 暂停不能丢掉继续时的目的地 */
     }
@@ -732,10 +1021,20 @@ void A_Servo_Resume(void)
     if (!s_servo.paused || !s_servo.resume_valid) return;
     if (Servo_IsPosition() && s_servo.enc_state != SERVO_ENC_ESCAPING)
     {
-        /* 刹车后仍可能滑行，且暂停期间观测器未更新。用最新反馈重建起点，
-         * 清除旧速度、负载估计及驱动延迟历史，防止继续时先追回暂停位置。 */
+        /* 刹车后可能滑行且暂停期间观测器未更新，以最新反馈重建起点 */
         if (!Servo_ReadPosition()) return; /* 无有效反馈时保持暂停，允许重发继续。 */
         target = s_servo.target_angle;
+#if SERVO_MULTITURN
+        if (s_servo.mt_active)
+        {
+            /* 多圈继续：以扩展坐标实测位置为起点，角速度与原指令一致 */
+            Servo_ResyncLoopsAt(Servo_Unwrap(s_servo.angle_circ, s_servo.ref.pos), 1U);
+            s_servo.target_angle = target;
+            s_servo.paused = 0U;
+            Servo_PlanMultiTurn();
+            return;
+        }
+#endif
         Servo_ResyncLoops(1U);
         s_servo.target_angle = target;
     }
@@ -750,7 +1049,9 @@ void A_Servo_Resume(void)
 /* 停止：丢弃目标，按当前扭矩状态收尾(不可继续) */
 void A_Servo_Stop(void)
 {
-    /* 无反馈时无法闭环保持，停止必须挂起脱困，直到新的运动指令到来。 */
+    Servo_MultiTurnAbort(); /* 先把坐标系从扩展坐标换回来，再按行程坐标收尾 */
+
+    /* 无反馈时停止须挂起脱困，等新运动指令 */
     s_servo.paused       = (uint8_t)(s_servo.enc_state == SERVO_ENC_ESCAPING);
     s_servo.resume_valid = 0U;
     s_servo.remaining    = 0U;
@@ -768,16 +1069,14 @@ void A_Servo_Stop(void)
     Servo_ApplyTorqueOutput();
 }
 
-/* 卸力，high_resistance: 0=低阻力自由转，1=高阻力短路制动阻尼。
- * 先改扭矩状态再调Stop，让Stop末尾的收尾动作直接落到释放上；反过来写会先刹一下车。 */
+/* 卸力，0=低阻力自由转，1=高阻力短路制动；先改扭矩状态再Stop，避免先刹一下车 */
 void A_Servo_Release(uint8_t high_resistance)
 {
     s_servo.torque = high_resistance ? SERVO_RELEASE_HIGH : SERVO_RELEASE_LOW;
     A_Servo_Stop();
 }
 
-/* 从卸力恢复扭矩，并以当前实际位置重建全部环路。卸力期间轴可能被外力转到任意位置，
- * 观测器的模型预测已经完全脱节，所以必须连观测器一起重置。 */
+/* 从卸力恢复扭矩，并以当前位置重建全部环路(连观测器一起重置) */
 void A_Servo_RestoreTorque(void)
 {
     if (A_Protect_Fault() != PROT_FAULT_NONE) return;
@@ -791,13 +1090,10 @@ void A_Servo_RestoreTorque(void)
 
 /* ============================ 参数类指令 ============================ */
 
-/* 切换工作模式并落盘，返回0=模式号非法。上限卡在10而不是11：自定义模式的行程要现场
- * 标定，手动切进去只会得到上次遗留的(甚至为0的)行程，想进11只有 SMI/SMX 一条路。 */
+/* 切换工作模式并落盘，返回0=模式号非法 */
 uint8_t A_Servo_SetMode(uint8_t mode)
 {
-    /* 上限卡在10而不是11：自定义模式的行程要现场标定，手动切进去只会
-     * 得到一个上次遗留的(甚至是0的)行程。想进11只有 SMI/SMX 一条路。
-     * 5/6(360度)已停用，由 SERVO_MODE_IS_SUPPORTED 一并挡掉。 */
+    /* 不能手动切入11(自定义行程只能由 AMI/AMX 标定进入)；5/6由 SERVO_MODE_IS_SUPPORTED 挡掉 */
     if (!SERVO_MODE_IS_SUPPORTED(mode) || mode > SERVO_MODE_TIMED_CCW)
         return 0U;
 
@@ -830,39 +1126,59 @@ uint16_t A_Servo_GetPositionPwm(void)
     return Servo_PositionToPwm();
 }
 
-/* SCK：把当前物理位置标定为行程中点，返回0=电机模式/读失败/标定后会超出可测范围。
- * 自定义模式下语义不变，只是改写自定义行程的零点：行程长度和方向都不动，整段行程
- * 平移到"当前位置落在1500us"的位置上。1500us无论正反向都映射到中点，公式是同一条。 */
-uint8_t A_Servo_CalibrateMid(void)
+/* 角度校准共同实现：记下锚点，有效行程与零点由 Servo_SetModeFields 现推。
+ * kind=SERVO_CAL_MID(SCK，1500us) / SERVO_CAL_ZERO(SCZ，500us)；返回0=电机模式/读失败/锚点不可转入/推不出可用行程 */
+static uint8_t Servo_Calibrate(uint8_t kind)
 {
-    uint16_t center;                 /* 行程中点，厘度       */
-    int32_t raw = A_Encoder_Read();  /* 当前编码器原始角度   */
+    int32_t  raw = A_Encoder_Read(); /* 当前编码器原始角度 */
+    uint16_t nominal;                /* 本模式标称行程     */
+    uint16_t derived;                /* 推出来的有效行程   */
+    int32_t  offset;                 /* 推出来的坐标零点   */
+    uint8_t  saved_kind   = g_config.cal_kind;
+    uint16_t saved_anchor = g_config.cal_anchor_cdeg;
 
     if (!Servo_IsPosition() || raw == ENCODER_ANGLE_ERROR) return 0U;
 
-    center = (uint16_t)(s_servo.span_cdeg / 2U);
-#if !ENCODER_IS_CIRCULAR
-    if (raw - center < ENCODER_POT_ANGLE_MIN
-        || raw - center + s_servo.span_cdeg > ENCODER_POT_ANGLE_MAX) return 0U;
-#endif
-    Servo_SetOffset(Servo_WrapAngle(raw + CDEG_RANGE - center));
-    A_Config_MarkDirty();
+    /* 锚点须在可主动转入区内，外扩段只用来兜超调 */
+    if (raw < ENCODER_TRAVEL_LO || raw > ENCODER_TRAVEL_HI) return 0U;
 
-    /* 坐标系整体平移了，所有环路都要按新坐标重来 */
-    s_servo.raw_angle  = raw;
-    s_servo.angle_circ = center; /* 偏移刚按center标定，两个坐标此刻相等 */
-    s_servo.angle      = center;
+    nominal = Servo_NominalSpan();
+    if (nominal == 0U) return 0U; /* 电机模式没有行程可校 */
+
+    g_config.cal_kind        = kind;
+    g_config.cal_anchor_cdeg = (uint16_t)raw;
+    Servo_DeriveCal(kind, raw, nominal, &derived, &offset);
+    if (derived < SERVO_CUSTOM_SPAN_MIN)
+    {
+        /* 推出的行程不足1度：原样退回，本次校准失败 */
+        g_config.cal_kind        = saved_kind;
+        g_config.cal_anchor_cdeg = saved_anchor;
+        return 0U;
+    }
+
+    A_Servo_Stop();                    /* 用旧坐标系干净收尾，再换坐标系 */
+    A_Config_MarkDirty();
+    Servo_SetModeFields(s_servo.mode); /* 有效行程与零点按新锚点现推 */
+    (void)Servo_ReadPosition();        /* 坐标系整体变了，三个角度全部重算 */
     Servo_SetTrajRange();
     Servo_ResyncLoops(1U);
     return 1U;
 }
 
-/* SMI/SMX：把行程的一端收到当前位置，进入(或更新)自定义模式。is_min=1为SMI(500us端)，
- * 0为SMX(2500us端)；返回0=电机模式/读失败/剩下的行程太短。
- * 只动指定的那一端，另一端和方向都不变，所以每发一次行程只会向内收窄，基准是当前
- * 模式的行程，于是可以连着发几次逐步收窄。
- * "500us端"在行程坐标里是哪一头由方向决定：正向时在低端，反向时在高端，所以真正要
- * 动的是低端还是高端要把指令和方向异或起来看(见 raise_low)，直接映射会把两条指令对调。 */
+/* SCK：当前位置标定为行程中点；有死区时按两端余量对称收缩行程 */
+uint8_t A_Servo_CalibrateMid(void)
+{
+    return Servo_Calibrate((uint8_t)SERVO_CAL_MID);
+}
+
+/* SCZ：当前位置标定为500us端("0度")；反向模式下500us在行程高端 */
+uint8_t A_Servo_CalibrateZero(void)
+{
+    return Servo_Calibrate((uint8_t)SERVO_CAL_ZERO);
+}
+
+/* AMI/AMX：把行程一端收到当前位置并进入自定义模式，is_min=1为500us端；返回0=电机模式/读失败/行程太短。
+ * 只动指定一端，可连续逐步收窄；500us端在行程哪头由方向决定，见 raise_low。 */
 uint8_t A_Servo_SetTravelEnd(uint8_t is_min)
 {
     int32_t  raw;       /* 当前编码器原始角度               */
@@ -876,8 +1192,7 @@ uint8_t A_Servo_SetTravelEnd(uint8_t is_min)
     raw = A_Encoder_Read();
     if (raw == ENCODER_ANGLE_ERROR) return 0U;
 
-    /* 端点必须落在现有行程之内，所以用截断后的行程坐标：轴被推到死区里
-     * 时投影到最近的端点，收出来的行程要么不变要么为0，由下面的下限兜住。 */
+    /* 用截断后的行程坐标，端点必须落在现有行程内 */
     pos = Servo_ClampToTravel(Servo_RawToCircular(raw));
 
     raise_low = (uint8_t)(is_min != s_servo.reverse);
@@ -895,18 +1210,45 @@ uint8_t A_Servo_SetTravelEnd(uint8_t is_min)
         span   = pos;
     }
 
-    /* 先验证再动手：被拒的指令不该把舵机停下来，更不该写进Flash */
+    /* 先验证再动手：被拒的指令不停舵机、不写Flash */
     if (span < SERVO_CUSTOM_SPAN_MIN) return 0U;
 
     A_Servo_Stop(); /* 用旧行程干净收尾，再换坐标系 */
 
     g_config.custom_offset_cdeg = offset;
     g_config.custom_span_cdeg   = span;
-    g_config.custom_reverse     = s_servo.reverse; /* 收窄不改方向 */
+    /* 存未经 CFG_DIR_INVERT 翻转的原始方向，读出时再异或 */
+    g_config.custom_reverse     = (uint8_t)(s_servo.reverse ^ CFG_DIR_INVERT);
     g_config.servo_mode         = SERVO_MODE_CUSTOM;
+    /* 行程窗口刚被显式标定，旧校准锚点作废 */
+    g_config.cal_kind           = (uint8_t)SERVO_CAL_NONE;
     A_Config_MarkDirty();
 
     A_Servo_ApplyConfig(); /* 按新行程重建轨迹范围、观测器和控制器 */
+    return 1U;
+}
+
+/* SMI/SMX：把当前角度对应的脉宽设为可响应边界，is_min=1为下界；返回0=电机模式/读失败/两端交叉。
+ * 只限制可用脉宽，不改行程映射(改行程用 AMI/AMX)；不允许交叉，否则窗口为空、拒收一切指令。 */
+uint8_t A_Servo_SetPulseLimit(uint8_t is_min)
+{
+    uint16_t pulse; /* 当前位置换算回来的协议脉宽 */
+
+    if (!Servo_IsPosition() || s_servo.span_cdeg == 0U) return 0U;
+    if (!Servo_ReadPosition()) return 0U;
+
+    pulse = Servo_PositionToPwm();
+    if (is_min)
+    {
+        if (pulse >= g_config.pulse_hi) return 0U;
+        g_config.pulse_lo = pulse;
+    }
+    else
+    {
+        if (pulse <= g_config.pulse_lo) return 0U;
+        g_config.pulse_hi = pulse;
+    }
+    A_Config_MarkDirty();
     return 1U;
 }
 
@@ -921,37 +1263,8 @@ uint8_t A_Servo_SaveStartup(void)
 }
 
 /* ============================== 遥测输出 ==============================
- *
- * FireWater(VOFA+ 的明文协议)：ASCII，逗号分隔，'\n' 结帧，上位机按浮点解析。
- *
- * 两个实现约束，都不是随便选的：
- *
- * 1) **不用 printf**。正常固件根本没链接它(只有 APP_MODE_CALIB 那版用)，为
- *    一条调试输出把 newlib 的格式化拖进来要多花好几 KB。这里自己转整数，
- *    和 A_UartCmd.c 的 Reply_UInt 是同一套做法。反正遥测量全是整数(厘度、
- *    厘度/秒、PWM计数)，上位机当浮点读一样画。
- *
- * 2) **必须走 D_UART1_Tx_Write，不能直写 USART**。这条线是半双工的，收发
- *    方向切换、TXE中断搬字节、TC中断确认末字节移出——整套都在 D_uart.c 里
- *    闭环。绕过它直写 DR 会和 TXE 中断抢寄存器，还会把自己发的字节当成收到
- *    的数据。顺带一个好处：PWM输入模式下 PC0 已经交还给共线信号，那时
- *    D_UART1_Tx_Write 自己会拒发(s_enabled=0)，这里不需要再判一次。
- *
- * 通道顺序(改了记得同步改上位机的图例)：
- *     1 ref_pos   规划位置    厘度
- *     2 meas_pos  实测位置    厘度，未滤波，看量化和噪声就看它
- *     3 ref_vel   规划速度    厘度/秒
- *     4 obs_vel   观测速度    厘度/秒
- *     5 pwm       实际输出    PWM计数(含方向符号，已限幅)
- *     6 u_vel     速度前馈    PWM
- *     7 u_fb      速度环P反馈 PWM
- *     8 u_i       速度环积分  PWM
- *     9 u_fric    摩擦前馈    PWM
- *    10 sat       本拍是否饱和 0/1
- *
- * 分项而不是只看总输出：整机纹波可能来自完全不同的地方——前馈跟着 ref_vel 走
- * (规划的问题)、P反馈跟着速度估计噪声走(传感器的问题)、积分自己爬升(静摩擦顶
- * 不动)，只看总输出这三种长得一模一样。 */
+ * FireWater(VOFA+)明文：逗号分隔，换行结帧。不用 printf(省代码)；必须走 D_UART1_Tx_Write(半双工方向切换在驱动内)。
+ * 通道：ref_pos, meas_pos, ref_vel, obs_vel, pwm, u_vel, u_fb, u_i, u_fric, sat */
 
 #define SERVO_PLOT_CH  10U   /* 通道数 */
 #define SERVO_PLOT_MAX 96U   /* 帧缓冲上限：10通道最坏约 70 字节 */
@@ -980,9 +1293,7 @@ static uint8_t Plot_SInt(uint8_t *buf, uint8_t pos, int32_t value)
     return pos;
 }
 
-/* 按 FireWater 格式发一帧遥测，供上位机实时绘图。调度器是协作式的，本函数只被 State
- * 任务调用，与1ms控制拍不会互相抢占，所以直接读 s_servo 不需要临界区。
- * 队列放不下就整帧丢弃，绝不阻塞——这是调试输出，不值得为它拖慢控制拍。 */
+/* 发一帧遥测，只被State任务调用(协作式，无需临界区)；队列满整帧丢弃 */
 void A_Servo_printf(void)
 {
     uint8_t buf[SERVO_PLOT_MAX];
@@ -1033,14 +1344,10 @@ static void Servo_MotorControl(void)
         raw = A_Encoder_Read();
         if (raw == ENCODER_ANGLE_ERROR)
         {
-            /* 缺口两侧的两个读数之间隔着一段没测到的位移，不是连续量，
-             * 基准必须作废，否则下一拍会把整段缺口当成一次跳变算进去。 */
+            /* 读数缺口前后不连续，累计基准作废 */
             s_servo.turn_sample_valid = 0U;
 
-            /* 电位器模式下这多半只是转过了死区那段缺口，**必须继续驱动**：
-             * 停在缺口里就再没有反馈能把自己转出来了。代价是缺口那一段不
-             * 计数，定圈每转会少算这个角度——电位器的物理限制，不是bug。
-             * 磁编码器没有缺口，读失败就是真失败，连续到阈值照旧停机。 */
+            /* 电位器多半只是转过死区缺口，必须继续驱动(缺口段不计数)；磁编码器读失败连续到阈值才停机 */
             if (!ENCODER_HAS_DEADZONE)
             {
                 if (s_servo.enc_fail < SERVO_ENC_FAIL_MAX) s_servo.enc_fail++;
@@ -1086,12 +1393,10 @@ static void Servo_MotorControl(void)
     }
 }
 
-/* 1ms控制拍入口，由调度器最高优先级任务调用。位置模式的一拍固定是这条链，顺序不能换：
- *     读编码器 -> 观测器更新 -> 轨迹推进 -> 控制器计算 -> 下发H桥
- * 观测器要用上一拍实际施加的PWM做模型预测，所以必须先更新观测器再算新的PWM。 */
+/* 1ms控制拍入口，位置模式固定顺序：读编码器 -> 观测器 -> 轨迹 -> 控制器 -> H桥(观测器要用上一拍PWM) */
 void A_Servo_Control(void)
 {
-    uint16_t pulse; /* PWM输入模式下捕获到的脉宽 */
+    uint16_t pulse; /* PWM输入模式下捕获到的脉宽(us) */
     int16_t  pwm;   /* 本拍控制器输出            */
     uint8_t  hold;  /* 1=本拍冻结轨迹时钟        */
 
@@ -1099,11 +1404,11 @@ void A_Servo_Control(void)
     if (s_servo.input_source == SERVO_INPUT_PWM)
     {
         pulse = D_PWM_Read();
-        if (pulse != 0U) A_Servo_Submit(Servo_FilterPulse(pulse), 0U);
+        if (pulse != 0U)
+            Servo_SubmitQ3(Servo_FilterPulse(Servo_PulseIn(pulse)), 0U);
     }
 
-    /* 脱困失败后停在这里：不再自己动，但有人把轴拨回碳膜上就自动解除。
-     * 扭矩保持卸力，等下一条运动指令按正常路径恢复。 */
+    /* 脱困失败后不再自己动，轴被拨回可测范围即自动解除，扭矩保持卸力 */
     if (s_servo.enc_state == SERVO_ENC_FAULT)
     {
         if (Servo_ReadPosition())
@@ -1141,9 +1446,7 @@ void A_Servo_Control(void)
         if (s_servo.enc_fail < SERVO_ENC_FAIL_MAX) s_servo.enc_fail++;
         if (s_servo.enc_fail == SERVO_ENC_FAIL_MAX)
         {
-            /* 编码器彻底失效：先停，带着错误反馈继续跑最危险。
-             * 电位器模式下这通常是抽头被推出了碳膜，交给脱困状态机转回来；
-             * 磁编码器没有死区，失效就是器件坏了，停着等下一次读成功。 */
+            /* 编码器彻底失效先停：有死区交给脱困，无死区停着等读成功 */
             s_servo.last_pwm = D_Motor_Set(0);
             C_PosCtrl_Reset();
             if (ENCODER_HAS_DEADZONE) Servo_EscapeStart();
@@ -1151,22 +1454,39 @@ void A_Servo_Control(void)
         }
     }
 
-    /* 反馈必须用未截断的实际坐标：轴被推到行程端点之外时，截断值会把误差
-     * 抹成0，舵机反而在最该顶住的位置松手。详见 Servo_ClampToTravel。 */
+    /* 反馈用未截断坐标，见 Servo_ClampToTravel */
     C_SpeedObs_Update(s_servo.angle_circ, s_servo.last_pwm, &s_servo.obs);
 
-    /* 输出饱和且实际落后于参考时冻结轨迹时钟(参考调节器)，
-     * 避免轨迹一路跑远、误差越积越大。判据要求误差和参考速度同号，
-     * 也就是"确实是跟不上"，而不是刚换向的正常瞬态。 */
+    /* 输出饱和且误差与参考速度同号(确实跟不上)时冻结轨迹时钟 */
     hold = (uint8_t)(s_servo.dbg.sat
                   && (int64_t)s_servo.dbg.e_pos * s_servo.ref.vel > 0);
 
-    /* 冻结的拍数要留给堵转检测。顶死的时候正是这条支路一直成立，参考被钉在
-     * 原地不动，"参考在变"的判据反而看不见最典型的堵转，见 A_Protect.c。 */
+    /* 冻结拍数留给堵转检测(顶死时参考不动，只看位移会漏判) */
     if (hold && s_servo.traj_hold < 0xFFFFU) s_servo.traj_hold++;
 
     C_Traj_Step(&s_servo.ref, hold);
 
+#if SERVO_MULTITURN
+    /* 多圈续段与收尾：分段走完续下一段，最后一段走完再折回行程坐标；用 mt_final 判断，不比较定点位置 */
+    if (s_servo.mt_active && C_Traj_Is_Done())
+    {
+        if (s_servo.mt_final) Servo_MultiTurnFinish();
+        else                  Servo_PlanMultiTurn();
+        C_Traj_Step(&s_servo.ref, 0U); /* 用新段的参考算本拍输出，不空等一拍 */
+    }
+#endif
+
+#if SERVO_MULTITURN
+    if (s_servo.mt_active)
+    {
+        /* 多圈：参考在扩展坐标上，交给位置环之前必须折回实测所在的那一圈 */
+        TrajRef_t ref_ctrl = s_servo.ref;
+        ref_ctrl.pos = Servo_RefForCtrl();
+        pwm = C_PosCtrl_Update(&ref_ctrl, &s_servo.obs,
+                               C_Traj_Is_Done(), &s_servo.dbg);
+    }
+    else
+#endif
     pwm = C_PosCtrl_Update(&s_servo.ref, &s_servo.obs,
                            C_Traj_Is_Done(), &s_servo.dbg);
     s_servo.last_pwm = D_Motor_Set(pwm);

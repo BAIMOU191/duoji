@@ -13,11 +13,11 @@
 #define UART_FRAME_MAX 32U /** 单帧最大字节数，超长直接丢弃 */
 #define UART_REPLY_MAX 48U /** 回复缓冲上限，最长的是版本号 */
 
-/* 指令集。新增指令只需在这里加一项、在Uart_Decode加一条匹配、
- * 在Uart_Execute加一个case，三处一一对应，不会漏。 */
+/* 指令集：新增指令在此加一项、Uart_Decode 加匹配、Uart_Execute 加 case */
 typedef enum {
     CMD_NONE = 0,      /* 未识别，静默丢弃            */
     CMD_MOVE,          /* nnnnTnnnn 位置/时间指令     */
+    CMD_MOVE_TURNS,    /* nnnnNnTnnnn 多圈指令        */
     CMD_VER,           /* VER   读固件版本            */
     CMD_ID_GET,        /* ID    读总线ID              */
     CMD_ID_SET,        /* IDnnn 写总线ID              */
@@ -32,7 +32,8 @@ typedef enum {
     CMD_STOP,          /* DST   停止                  */
     CMD_BAUD_GET,      /* BD    读波特率              */
     CMD_BAUD_SET,      /* BDn   写波特率              */
-    CMD_MID_CAL,       /* SCK   中位校正              */
+    CMD_MID_CAL,       /* SCK   中位校正(1500us)      */
+    CMD_ZERO_CAL,      /* SCZ   零点校正(500us)       */
     CMD_START_SAVE,    /* CSD   保存当前位置为上电位  */
     CMD_BOOT_GET,      /* CSM   读上电动作            */
     CMD_BOOT_SET,      /* CSMn  写上电动作            */
@@ -41,14 +42,18 @@ typedef enum {
     CMD_RUNTIME_GET,   /* RTV   读位置/温度/电压      */
     CMD_TORQUE_GET,    /* SP    读扭矩上限            */
     CMD_TORQUE_SET,    /* SPnnn 写扭矩上限            */
-    CMD_TRAVEL_MIN,    /* SMI   当前位置设为500us端   */
-    CMD_TRAVEL_MAX     /* SMX   当前位置设为2500us端  */
+    CMD_TRAVEL_MIN,    /* AMI   当前位置设为500us端   */
+    CMD_TRAVEL_MAX,    /* AMX   当前位置设为2500us端  */
+    CMD_PULSE_MIN,     /* SMI   当前位置的脉宽设为下界 */
+    CMD_PULSE_MAX,     /* SMX   当前位置的脉宽设为上界 */
+    CMD_POWER_GET      /* RIV   读电流与电压          */
 } CommandType_t;
 
 typedef struct {
     CommandType_t type;  /* 指令种类                                */
     uint16_t      pwm;   /* CMD_MOVE的目标脉宽(us)                  */
     uint16_t      value; /* CMD_MOVE的时间参数；其余指令的整数参数  */
+    uint8_t       turns; /* CMD_MOVE_TURNS的圈数，0~9               */
 } Command_t;
 
 typedef struct {
@@ -87,17 +92,27 @@ static bool Uart_BodyIs(const uint8_t *body, uint8_t len, const char *text)
     return len == n && memcmp(body, text, n) == 0;
 }
 
-/* 把指令体翻译成 Command_t，返回0=无法识别
- *
- * 顺序有讲究：同前缀的指令必须靠长度区分，且长的先判。
- * 例如 CLE0 若排在 CLE 之后就会被当成 CLE 执行，把ID一起清掉。 */
+/* 指令体翻译成 Command_t，返回false=无法识别。同前缀的指令靠长度区分，长的先判(如 CLE0 在 CLE 之前) */
 static bool Uart_Decode(const uint8_t *body, uint8_t len, Command_t *cmd)
 {
     uint16_t arg; /* 指令携带的整数参数 */
 
     memset(cmd, 0, sizeof(*cmd));
 
-    /* 运动指令 nnnnTnnnn 是唯一的定长格式，先单独匹配 */
+    /* 两条定长运动指令，长的先判：
+     *   nnnnTnnnn    T = 走到目标的时间(ms)
+     *   nnnnNnTnnnn  N = 额外整圈数(0~9)，T = 每转一圈的时间(ms) */
+    if (len == 11U && body[4] == 'N' && body[6] == 'T'
+        && Uart_ParseDigits(body, 4U, &cmd->pwm)
+        && Uart_ParseDigits(body + 5U, 1U, &arg)
+        && Uart_ParseDigits(body + 7U, 4U, &cmd->value))
+    {
+        if (cmd->pwm < SERVO_PWM_MIN || cmd->pwm > SERVO_PWM_MAX) return false;
+        cmd->turns = (uint8_t)arg;
+        cmd->type  = CMD_MOVE_TURNS;
+        return true;
+    }
+
     if (len == 9U && body[4] == 'T'
         && Uart_ParseDigits(body, 4U, &cmd->pwm)
         && Uart_ParseDigits(body + 5U, 4U, &cmd->value))
@@ -133,9 +148,13 @@ static bool Uart_Decode(const uint8_t *body, uint8_t len, Command_t *cmd)
     else if (len == 5U && memcmp(body, "SP", 2U) == 0
              && Uart_ParseDigits(body + 2U, 3U, &arg) && arg <= PROT_TORQUE_MAX)
         cmd->type = CMD_TORQUE_SET, cmd->value = arg;
-    else if (Uart_BodyIs(body, len, "SMI"))  cmd->type = CMD_TRAVEL_MIN;
-    else if (Uart_BodyIs(body, len, "SMX"))  cmd->type = CMD_TRAVEL_MAX;
+    else if (Uart_BodyIs(body, len, "AMI"))  cmd->type = CMD_TRAVEL_MIN;
+    else if (Uart_BodyIs(body, len, "AMX"))  cmd->type = CMD_TRAVEL_MAX;
+    else if (Uart_BodyIs(body, len, "SMI"))  cmd->type = CMD_PULSE_MIN;
+    else if (Uart_BodyIs(body, len, "SMX"))  cmd->type = CMD_PULSE_MAX;
     else if (Uart_BodyIs(body, len, "SCK"))  cmd->type = CMD_MID_CAL;
+    else if (Uart_BodyIs(body, len, "SCZ"))  cmd->type = CMD_ZERO_CAL;
+    else if (Uart_BodyIs(body, len, "RIV"))  cmd->type = CMD_POWER_GET;
     else if (Uart_BodyIs(body, len, "CSD"))  cmd->type = CMD_START_SAVE;
     else if (Uart_BodyIs(body, len, "CSM"))  cmd->type = CMD_BOOT_GET;
     else if (len == 4U && memcmp(body, "CSM", 3U) == 0
@@ -149,9 +168,7 @@ static bool Uart_Decode(const uint8_t *body, uint8_t len, Command_t *cmd)
     return cmd->type != CMD_NONE;
 }
 
-/* ============================ 回复组装 ============================
- * 统一构造器：新增回读指令只需组合 Text/UInt/SInt，不必再拼一遍帧头帧尾。
- * 全部写入唯一的 s_reply，只在任务上下文调用，不需要互斥。 */
+/* ============================ 回复组装 ============================ */
 
 /* 写入回复帧头：井号 + 3位本机ID + P */
 static void Reply_Begin(void)
@@ -205,16 +222,14 @@ static void Reply_SInt(int32_t value)
     Reply_UInt((uint32_t)value, 0U);
 }
 
-/* 补上帧尾感叹号并整帧交给串口驱动
- *
- * 队列放不下时整帧丢弃：宁可不回复，也不能回半条让上位机解析出错帧。 */
+/* 补帧尾'!'整帧交给串口驱动，队列放不下整帧丢弃 */
 static void Reply_Send(void)
 {
     Reply_Char('!');
     (void)D_UART1_Tx_Write(s_reply.data, s_reply.len);
 }
 
-/* 最常见的两种回复，避免每个case重复三行 */
+/* 最常见的回复 */
 static void Reply_OK(void)
 {
     Reply_Begin(); Reply_Text("OK"); Reply_Send();
@@ -228,11 +243,7 @@ static void Reply_Value(const char *tag, uint32_t value, uint8_t width)
 
 /* ============================== 执行 ============================== */
 
-/* 执行一条已解码指令并组织回复
- *
- * 不回复的三种情况都是协议规定而非遗漏：
- *   CMD_MOVE / CMD_STOP        —— 连续下发的运动指令，回复会挤占总线；
- *   MODE_SET/MID_CAL/START_SAVE 失败 —— 当前模式不支持该操作，静默忽略。 */
+/* 执行已解码指令并组织回复；运动/停止指令及失败的设置类指令按协议不回复 */
 static void Uart_Execute(const Command_t *cmd)
 {
     int16_t  temp;     /* 温度，0.1摄氏度，-32768=传感器读取失败 */
@@ -242,6 +253,9 @@ static void Uart_Execute(const Command_t *cmd)
     switch (cmd->type)
     {
     case CMD_MOVE: A_Servo_Submit(cmd->pwm, cmd->value); break;
+    case CMD_MOVE_TURNS:
+        A_Servo_SubmitTurns(cmd->pwm, cmd->turns, cmd->value);
+        break;
 
     case CMD_VER:
         Reply_Begin(); Reply_Text(SERVO_VERSION); Reply_Send(); break;
@@ -266,15 +280,19 @@ static void Uart_Execute(const Command_t *cmd)
     case CMD_BOOT_GET:     Reply_Value("CSM",  g_config.boot_mode,  0U); break;
     case CMD_BAUD_GET:     Reply_Value("BAUD", A_Config_Baudrate(), 0U); break;
     case CMD_POSITION_GET: Reply_Value("",     A_Servo_GetPositionPwm(), 4U); break;
-    /* 回复格式与设置指令完全一致：收到 #000PSP050! 就照原样答一条回去 */
+    /* 回复格式与设置指令一致 */
     case CMD_TORQUE_GET:   Reply_Value("SP",   A_Protect_GetTorque(), 3U); break;
 
     case CMD_MODE_SET:     if (A_Servo_SetMode((uint8_t)cmd->value)) Reply_OK(); break;
     case CMD_TORQUE_SET:   if (A_Protect_SetTorque((uint8_t)cmd->value)) Reply_OK(); break;
     case CMD_MID_CAL:      if (A_Servo_CalibrateMid())               Reply_OK(); break;
-    /* 失败(电机模式/编码器读失败/剩余行程不足1度)一律静默，与SCK一致 */
+    case CMD_ZERO_CAL:     if (A_Servo_CalibrateZero())              Reply_OK(); break;
+    /* 失败(电机模式/读失败/剩余行程不足1度)一律静默 */
     case CMD_TRAVEL_MIN:   if (A_Servo_SetTravelEnd(1U))              Reply_OK(); break;
     case CMD_TRAVEL_MAX:   if (A_Servo_SetTravelEnd(0U))              Reply_OK(); break;
+    /* 失败(电机模式/读失败/两端交叉)同样静默 */
+    case CMD_PULSE_MIN:    if (A_Servo_SetPulseLimit(1U))             Reply_OK(); break;
+    case CMD_PULSE_MAX:    if (A_Servo_SetPulseLimit(0U))             Reply_OK(); break;
     case CMD_START_SAVE:   if (A_Servo_SaveStartup())                Reply_OK(); break;
 
     case CMD_BOOT_SET:
@@ -298,6 +316,18 @@ static void Uart_Execute(const Command_t *cmd)
         A_Servo_ApplyConfig();
         Reply_OK();
         D_UART_SetBaud_Deferred(A_Config_Baudrate()); /* 默认值可能改了波特率 */
+        break;
+
+    /* RIV：I+4位毫安 + V+1位小数电压，例 #000PI0103V7.0!；电流取保护模块最近一块读数 */
+    case CMD_POWER_GET:
+        voltage  = A_Voltage_Read();
+        decivolt = (uint16_t)((voltage + 5U) / 10U); /* 厘伏四舍五入到0.1V */
+
+        Reply_Begin();
+        Reply_Char('I'); Reply_UInt(A_Protect_GetCurrent(), 4U);
+        Reply_Char('V'); Reply_UInt(decivolt / 10U, 0U);
+        Reply_Char('.'); Reply_UInt(decivolt % 10U, 1U);
+        Reply_Send();
         break;
 
     case CMD_RUNTIME_GET:
@@ -332,9 +362,7 @@ static void Uart_ParseFrame(const uint8_t *frame, uint8_t len)
     if (Uart_Decode(frame + 5U, (uint8_t)(len - 6U), &cmd)) Uart_Execute(&cmd);
 }
 
-/* 把1个接收字节喂进组帧状态机，收满一帧就解析
- *
- * 帧头无条件重启组帧：总线上丢字节或串进别的从机回复时，下一帧照样能同步。 */
+/* 接收字节喂进组帧状态机，收满一帧就解析；'#' 无条件重启组帧 */
 static void Uart_Frame_Byte(uint8_t byte)
 {
     if (byte == '#')
@@ -356,10 +384,7 @@ static void Uart_Frame_Byte(uint8_t byte)
     }
 }
 
-/* 串口任务入口：排空接收队列 -> 组帧执行 -> 回复入队 -> 驱动收尾
- *
- * 不再判断输入源：PWM模式下 D_UART_Enable(0) 已关掉接收中断，队列自然是空的，
- * D_UART1_Tx_Write 也会直接拒绝——硬件状态就是唯一真相，不需要第二处开关。 */
+/* 串口任务：排空接收队列 -> 组帧执行 -> 回复入队 -> 驱动收尾(PWM输入模式下队列自然为空) */
 void A_Uart_Process(void)
 {
     uint8_t byte; /* 本轮取出的接收字节 */

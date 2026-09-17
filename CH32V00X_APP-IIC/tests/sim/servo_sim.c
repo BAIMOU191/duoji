@@ -75,7 +75,20 @@ int16_t  D_TMP112_Read_Temp(void) { return 250; }
 int16_t  D_Motor_Set(int16_t p) { applied = p; return p; }
 void     D_Motor_Release(uint8_t h) { (void)h; applied = 0; }
 void     D_PWM_Input_Enable(uint8_t en) { (void)en; }
-uint16_t D_PWM_Read(void) { uint16_t p = input; input = 0; return p; }
+/* 桩必须照搬 D_tim.c 的捕获窗口：窗口外的脉宽在驱动层就整帧丢掉、上层根本
+ * 收不到，容差带内的则夹进协议量程再上报。不模拟这一层，仿真就会把板子上
+ * 永远不会出现的值喂给控制链。三个常数与 D_tim.c 一一对应。 */
+#define SIM_PULSE_MIN_US 500
+#define SIM_PULSE_MAX_US 2500
+#define SIM_PULSE_TOL_US 50
+uint16_t D_PWM_Read(void) {
+    uint16_t p = input; input = 0;
+    if (p < SIM_PULSE_MIN_US - SIM_PULSE_TOL_US) return 0;
+    if (p > SIM_PULSE_MAX_US + SIM_PULSE_TOL_US) return 0;
+    if (p < SIM_PULSE_MIN_US) p = SIM_PULSE_MIN_US;
+    if (p > SIM_PULSE_MAX_US) p = SIM_PULSE_MAX_US;
+    return p;
+}
 void     D_UART_Enable(uint8_t en) { (void)en; }
 uint8_t  D_UART1_Tx_Write(const uint8_t *b, uint8_t n) { (void)b; (void)n; return 1; }
 void     Delay_Ms(uint32_t ms) { (void)ms; }
@@ -87,6 +100,15 @@ uint8_t  A_Protect_Fault(void) { return simulated_fault; }
 #define SIM_MICRO_US 5    /* micro 场景每级的脉宽增量(us)，约67厘度 */
 #define SIM_MICRO_MS 600  /* 每级停留时间(ms)，足够走完并停稳 */
 
+/* pwm-micro：与 micro 同样的阶梯，但走 PWM 输入这条路(50Hz 帧 + 线上抖动)，
+ * 用来量"PWM 输入模式的最小步距"到底比总线粗多少。台阶取 1us，只有真正被
+ * 目标死区放行的那些级才会产生位移，未放行的级会并到下一级里。 */
+#define SIM_PWM_MICRO_US 1    /* 每级脉宽增量(us) */
+#define SIM_PWM_MICRO_MS 600  /* 每级停留时间(ms) */
+#define SIM_PWM_FRAME_MS 20   /* 输入帧周期(ms)，50Hz */
+static int pwm_jitter;        /* 注入到线上的脉宽抖动幅度(±us)，0=干净信号 */
+#define SIM_JITTER_US 3       /* jitter 场景的默认抖动幅度(±us)，可由命令行覆盖 */
+
 /* 行程中点，两种模式的270度行程都落在这里 */
 #define SIM_MID   ((int)(SIM_SPAN_CDEG / 2))
 #define SIM_LOW   (SIM_TRAVEL_LO - 100)   /* 行程下端之外，电位器模式下即死区 */
@@ -96,6 +118,10 @@ static void setup(double p, int pwm_mode) {
     simulated_fault = 0;
     memset(&g_config, 0, sizeof(g_config));
     g_config.servo_mode = 1; g_config.boot_mode = SERVO_BOOT_HOLD;
+    /* 出厂默认的脉冲边界。留成0会让 Servo_PulseAllowedQ3 判出一个空窗口，
+     * 舵机拒收一切运动指令——这不是被测行为，是仿真自己没初始化。 */
+    g_config.pulse_lo = SERVO_PWM_MIN; g_config.pulse_hi = SERVO_PWM_MAX;
+    g_config.cal_kind = SERVO_CAL_NONE;
     plant_pos = p; plant_vel = 0; applied = 0; tick = 0; input = pwm_mode ? 1500 : 0;
     hist_idx = 0; memset(history, 0, sizeof(history)); A_Servo_Init();
 }
@@ -124,10 +150,29 @@ static void step(void) {
 static int failures;
 #define CHECK(test) do { if (!(test)) { fprintf(stderr,"FAIL line %d: %s\n",__LINE__,#test); failures++; } } while(0)
 
-/* 目标脉宽 -> 行程坐标，与 Servo_PwmToAngle 同式，供用例写期望值 */
+/* 目标脉宽 -> 行程坐标，与 Servo_PulseToAngle 同式(含就近取整和方向翻转)，
+ * 供用例写期望值。必须跟着 s_servo.reverse 走：CFG_DIR_INVERT 把整机旋向翻过来
+ * 之后，同一个脉宽对应的是行程另一头，期望值写死就会整片用例假失败。 */
 static int target_of(int pwm) {
-    return (int)((long)(pwm - SERVO_PWM_MIN) * SIM_SPAN_CDEG / (SERVO_PWM_MAX - SERVO_PWM_MIN));
+    long q3 = (long)(pwm - SERVO_PWM_MIN) * 8;
+    long span_q3 = (long)(SERVO_PWM_MAX - SERVO_PWM_MIN) * 8;
+    long span = s_servo.span_cdeg;   /* 有效行程，校准后可能小于标称量程 */
+    int a = (int)((q3 * span + span_q3 / 2) / span_q3);
+    return s_servo.reverse ? (int)(span - a) : a;
 }
+
+/* target_of 的反函数：给定行程坐标，求能走到那儿的脉宽。用例想表达"往行程低端
+ * 走"这类与方向无关的意图时用它，而不是写死某个脉宽。 */
+static int pulse_for(int cdeg) {
+    long span = s_servo.span_cdeg;
+    if (span <= 0) return SERVO_PWM_MID; /* 电机模式没有行程，别在用例里除零 */
+    if (s_servo.reverse) cdeg = (int)(span - cdeg);
+    return SERVO_PWM_MIN + (int)(((long)cdeg * (SERVO_PWM_MAX - SERVO_PWM_MIN)
+                                  + span / 2) / span);
+}
+
+/* 沿"脉宽增大"方向的符号，供方向无关的断言用 */
+static inline int dir_sign(void) { return s_servo.reverse ? -1 : 1; }
 
 static int regression(void) {
     noise = 0;
@@ -162,16 +207,27 @@ static int regression(void) {
     CHECK(!C_Traj_Is_Done());
     A_Servo_Pause(); A_Servo_Submit(2000, 0); CHECK(!C_Traj_Is_Done());
 
-    /* ---- 中值校正与行程收窄 ---- */
+    /* ---- 中值校正与行程收窄 ----
+     * 校准的对外契约只有一条：校完之后，脚下这个位置就是 1500us 对应的行程中点。
+     * 有效行程可能因此收缩(电位器版量程被物理卡死，见 Servo_DeriveCal)，所以
+     * 期望值按 span_cdeg 写，不写死标称量程。 */
     setup(SIM_MID, 0); plant_pos = SIM_MID - 100; CHECK(A_Servo_CalibrateMid());
+    CHECK(labs((long)s_servo.angle_circ - s_servo.span_cdeg / 2) <= 3);
+    CHECK(labs((long)A_Servo_GetPositionPwm() - SERVO_PWM_MID) <= 2);
 #if ENCODER_IS_CIRCULAR
-    CHECK(labs((long)Servo_Offset() - (CDEG_RANGE - 100)) <= 3); /* 负零点在圆周坐标里存成 36000-100 */
+    CHECK(s_servo.span_cdeg == SIM_SPAN_CDEG);          /* 整圈可测：不收缩 */
+    CHECK(labs((long)Servo_Offset() - (CDEG_RANGE - 100)) <= 3);
 #else
-    CHECK(labs((long)Servo_Offset() + 100) <= 3);
+    /* 锚点偏低 100 厘度，对称收缩后行程 = 2*(13400-0) = 26800 */
+    CHECK(s_servo.span_cdeg == 26800);
+    CHECK(labs((long)Servo_Offset()) <= 3);
 #endif
-    CHECK(labs((long)s_servo.angle_circ - SIM_MID) <= 3);
+    /* AMI 把 500us 端收到当前位置。500us 在行程坐标里是哪一头由方向决定：
+     * 正向时是低端(0)，反向时是高端(span)，所以期望值要跟着方向走。 */
     plant_pos = SIM_MID - 3500; CHECK(A_Servo_SetTravelEnd(1));
-    CHECK(Servo_ReadPosition()); CHECK(labs((long)s_servo.angle_circ) <= 3);
+    CHECK(Servo_ReadPosition());
+    CHECK(labs((long)s_servo.angle_circ
+               - (s_servo.reverse ? s_servo.span_cdeg : 0)) <= 3);
 
     /* ---- 大角度往复：必须到位、停稳、静止时不再通电 ---- */
     setup(SIM_MID, 0); A_Servo_Submit(2000, 1000);
@@ -187,6 +243,21 @@ static int regression(void) {
     int mid_target = s_servo.target_angle;
     input = 2000; step(); CHECK(s_servo.target_angle == mid_target);
     input = 1500; step(); input = 1500; step(); CHECK(s_servo.target_angle == mid_target);
+    input = 2000; step(); input = 2000; step(); CHECK(s_servo.target_angle == target_of(2000));
+
+    /* ---- PWM输入：窗口外整帧丢掉，容差带内夹回协议量程 ---- */
+    setup(SIM_MID, 1);
+    input = 1500; step(); input = 1500; step();
+    int keep = s_servo.target_angle;
+    /* 窗口之外(±50us 以外)：丢帧，目标一动不动 */
+    input = 2600; step(); input = 2600; step(); CHECK(s_servo.target_angle == keep);
+    input =  400; step(); input =  400; step(); CHECK(s_servo.target_angle == keep);
+    /* 容差带之内：不丢，但夹到端点，绝不允许越过行程 */
+    input = 2540; step(); input = 2540; step();
+    CHECK(s_servo.target_angle == (s_servo.reverse ? s_servo.traj_lo : s_servo.traj_hi));
+    input =  460; step(); input =  460; step();
+    CHECK(s_servo.target_angle == (s_servo.reverse ? s_servo.traj_hi : s_servo.traj_lo));
+    /* 这一串之后合法脉宽仍须立刻生效——滤波器不能被越界值带偏 */
     input = 2000; step(); input = 2000; step(); CHECK(s_servo.target_angle == target_of(2000));
 
     /* ---- 扭矩上限对闭环链路生效 ---- */
@@ -222,14 +293,15 @@ static int regression(void) {
     /* ---- 跨0点：轴停在0点下方一点(圆周坐标读出来接近36000)，目标在0点上方。
      * 位置误差必须按最短路径算成一个小的正值；直接相减会得到 -35900，位置环
      * 立刻朝反方向满舵，实测表现是转速恒定在 -wcorr_max 再也停不下来。 ---- */
-    setup(-100, 0); A_Servo_Submit(600, 0);
-    for (int k = 0; k < 2000; k++) { step(); CHECK(plant_pos > -2000); } /* 不能反向飞车 */
-    CHECK(fabs(plant_pos - target_of(600)) < 100);
+    setup(-100, 0);
+    { int pwm = pulse_for(1350); A_Servo_Submit(pwm, 0);
+      for (int k = 0; k < 2000; k++) { step(); CHECK(plant_pos > -2000); } /* 不能反向飞车 */
+      CHECK(fabs(plant_pos - target_of(pwm)) < 100); }
 #endif
 
     /* ---- 轴被外力按在行程低端之外：必须朝行程内推，不能朝反方向满舵。
      * 上报坐标在死区里会被投影到端点、误差被抹成0，所以闭环用的必须是未截断反馈。 ---- */
-    setup(SIM_MID, 0); A_Servo_Submit(500, 0);
+    setup(SIM_MID, 0); A_Servo_Submit(pulse_for(0), 0);
     for (int k = 0; k < 2000; k++) step();          /* 先让轨迹走完，排除跟踪瞬态 */
     CHECK(C_Traj_Is_Done());
     for (int k = 0; k < 300; k++) { plant_pos = -100; plant_vel = 0; A_Servo_Control(); }
@@ -248,7 +320,10 @@ int main(int argc, char **argv) {
     if (argc > 6) delay_ticks = atoi(argv[6]);
     setup(strcmp(mode, "boot-low") == 0 ? SIM_LOW
         : strcmp(mode, "boot-high") == 0 ? SIM_HIGH : SIM_MID,
-          strcmp(mode, "jitter") == 0);
+          strcmp(mode, "jitter") == 0 || strncmp(mode, "pwm-micro", 9) == 0);
+    if (strcmp(mode, "pwm-micro-jit") == 0 || strcmp(mode, "jitter") == 0)
+        pwm_jitter = SIM_JITTER_US;
+    if (argc > 8) pwm_jitter = atoi(argv[8]);   /* 抖动幅度扫描 */
     if (argc > 7) { g_config.servo_mode = (uint8_t)atoi(argv[7]); A_Servo_ApplyConfig(); }
 
     puts("ms,pwm_target,pos,vel,ref_pos,ref_vel,ref_acc,obs_pos,obs_vel,pwm,done,state,enc_state,error,integral,acc_ff,fric,velff,fb,sat");
@@ -265,7 +340,28 @@ int main(int argc, char **argv) {
             cmd = 1500 + SIM_MICRO_US * (i <= 10 ? i : 20 - i);
             A_Servo_Submit((uint16_t)cmd, 0);
         }
-        if (strcmp(mode, "jitter") == 0 && k % 20 == 0) input = (uint16_t)(1500 + (int)(random_unit() * 7) - 3);
+        if (strcmp(mode, "jitter") == 0 && k % 20 == 0)
+            input = (uint16_t)(1500 + (int)(random_unit() * (2 * pwm_jitter + 1)) - pwm_jitter);
+        /* bus-micro：同样的 1us 阶梯，但走总线路径，作为 PWM 路径的对照组 */
+        if (strcmp(mode, "bus-micro") == 0 && k % SIM_PWM_MICRO_MS == 0) {
+            int i = (k / SIM_PWM_MICRO_MS) % 20;
+            cmd = 1500 + SIM_PWM_MICRO_US * (i <= 10 ? i : 20 - i);
+            A_Servo_Submit((uint16_t)cmd, 0);
+        }
+        if (strncmp(mode, "pwm-micro", 9) == 0 && k % SIM_PWM_FRAME_MS == 0) {
+            int i = (k / SIM_PWM_MICRO_MS) % 20;
+            int j = pwm_jitter ? (int)(random_unit() * (2 * pwm_jitter + 1)) - pwm_jitter : 0;
+            cmd   = 1500 + SIM_PWM_MICRO_US * (i <= 10 ? i : 20 - i);
+            input = (uint16_t)(cmd + j);
+        }
+        /* flip：先停到P2000，再以T2000在P2500/P1500间每300ms反向，舵机总在两目标中间换向 */
+        if (strcmp(mode, "flip") == 0) {
+            if (k == 0) A_Servo_Submit(cmd = 2000, 0);
+            else if (k >= 1500 && k < 9000 && k % 300 == 0) {
+                cmd = ((k - 1500) / 300) % 2 ? 1500 : 2500;
+                A_Servo_Submit((uint16_t)cmd, 2000);
+            }
+        }
         if (strcmp(mode, "disturb") == 0 && k == 3000) plant_pos += 300;
         if (strcmp(mode, "load") == 0 && k == 3000) load_pwm = 300;
         if (strcmp(mode, "unload") == 0 && k == 3000) load_pwm = 300;

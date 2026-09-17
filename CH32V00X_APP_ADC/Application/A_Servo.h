@@ -7,8 +7,7 @@
 #define SERVO_INPUT_TX  0U /** 输入源：串口总线 */
 #define SERVO_INPUT_PWM 1U /** 输入源：PWM脉宽捕获 */
 
-/* 一个检测区间内的运动量，供保护模块判堵转。位移由本模块自己做差：圆周坐标的
- * 跨0折算只有这里知道怎么算，而保护模块本来就不该碰坐标。 */
+/* 一个检测区间内的运动量，供保护模块判堵转(位移在本模块做差，跨0折算只有这里知道) */
 typedef struct {
     int32_t  ref_delta;  /** 区间内参考位置的位移，厘度(已折算最短路径) */
     int32_t  act_delta;  /** 区间内实测位置的位移，厘度 */
@@ -19,12 +18,16 @@ typedef struct {
 void    A_Servo_Init(void);                       /* 上电初始化：选输入源、建环路、执行上电动作 */
 uint8_t A_Servo_InputSource(void);                /* 读本次上电选定的输入源 */
 void    A_Servo_Submit(uint16_t pwm, uint16_t value); /* 下发一条运动指令 */
+/* 多圈：先转 turns 整圈再到 pwm 位置，turn_ms 为每圈时间(0=最快)；仅整圈可测的编码器支持 */
+void    A_Servo_SubmitTurns(uint16_t pwm, uint8_t turns, uint16_t turn_ms);
 void    A_Servo_Control(void);                    /* 1ms控制拍入口 */
 
 uint8_t  A_Servo_SetMode(uint8_t mode);           /* 切换工作模式并落盘 */
 uint16_t A_Servo_GetPositionPwm(void);            /* 读当前位置并换算回协议脉宽 */
-uint8_t  A_Servo_CalibrateMid(void);              /* SCK：把当前位置标定为行程中点 */
-uint8_t  A_Servo_SetTravelEnd(uint8_t is_min);    /* SMI/SMX：把行程一端收到当前位置 */
+uint8_t  A_Servo_CalibrateMid(void);              /* SCK：把当前位置标定为行程中点(1500us) */
+uint8_t  A_Servo_CalibrateZero(void);             /* SCZ：把当前位置标定为行程起点(500us) */
+uint8_t  A_Servo_SetTravelEnd(uint8_t is_min);    /* AMI/AMX：把行程一端收到当前位置 */
+uint8_t  A_Servo_SetPulseLimit(uint8_t is_min);   /* SMI/SMX：把当前位置的脉宽设为可响应边界 */
 uint8_t  A_Servo_SaveStartup(void);               /* 把当前位置存为上电目标 */
 void     A_Servo_ApplyConfig(void);               /* 让新的模式/中位参数立即生效 */
 

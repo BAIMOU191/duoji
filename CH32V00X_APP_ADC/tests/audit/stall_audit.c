@@ -80,12 +80,13 @@ static void check_hold_against_load(void) {
 static void check_jam_midmove(void) {
     begin(SIM_MID);
     A_Servo_Submit(2000, 0); run_ms(60);
-    CHECK(plant_pos > SIM_MID + 100);                      /* it really was moving */
+    /* it really was moving — 朝目标那一侧，方向由当前旋向决定 */
+    CHECK(dir_sign() * (plant_pos - SIM_MID) > 100);
     friction_scale = JAM_FRICTION;
     int ms = 0; while (ms < 1000 && !A_Protect_Stalled()) { run_ms(1); ms++; }
     CHECK(A_Protect_Stalled());
     CHECK(A_Servo_TorqueOn());
-    CHECK(plant_pos < target_of(2000) - 200);                      /* nowhere near the target */
+    CHECK(dir_sign() * (target_of(2000) - plant_pos) > 200);       /* nowhere near the target */
     double stuck = plant_pos;                      /* wherever it came to rest */
     run_ms(200);
     CHECK(fabs((double)s_servo.target_angle - stuck) < 100);

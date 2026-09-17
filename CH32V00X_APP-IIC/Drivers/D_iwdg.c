@@ -2,12 +2,7 @@
 
 #include "D_iwdg.h"
 
-/*
- * @fn      D_IWDG_Init
- * @brief   使能LSI时钟并初始化启动独立看门狗，LSI就绪超时则放弃
- * @param   无
- * @return  无
- */
+/* 使能LSI并启动独立看门狗，LSI就绪超时则放弃 */
 void D_IWDG_Init(void)
 {
     uint32_t timeout = 100000U;
@@ -23,12 +18,7 @@ void D_IWDG_Init(void)
     IWDG_Enable();
 }
 
-/*
- * @fn      D_IWDG_Feed
- * @brief   重装看门狗计数器，由应用层最低优先级任务周期调用
- * @param   无
- * @return  无
- */
+/* 喂狗，由最低优先级任务周期调用 */
 void D_IWDG_Feed(void)
 {
     IWDG_ReloadCounter();

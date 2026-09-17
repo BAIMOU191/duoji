@@ -101,10 +101,6 @@ Discarded input sections
  .text          0x0000000000000000        0x0 ./System/iap.o
  .data          0x0000000000000000        0x0 ./System/iap.o
  .bss           0x0000000000000000        0x0 ./System/iap.o
- .text.APP_2_IAP
-                0x0000000000000000       0x30 ./System/iap.o
- .text.IAP_Check
-                0x0000000000000000       0x28 ./System/iap.o
  .bss.End_Flag  0x0000000000000000        0x1 ./System/iap.o
  .bss.CodeLen   0x0000000000000000        0x2 ./System/iap.o
  .bss.Fast_Program_Buf
@@ -206,7 +202,7 @@ Discarded input sections
  .debug_line    0x0000000000000000      0x190 ./SRC/Peripheral/src/ch32v00X_dbgmcu.o
  .debug_str     0x0000000000000000      0x21a ./SRC/Peripheral/src/ch32v00X_dbgmcu.o
  .debug_line_str
-                0x0000000000000000      0x23b ./SRC/Peripheral/src/ch32v00X_dbgmcu.o
+                0x0000000000000000      0x247 ./SRC/Peripheral/src/ch32v00X_dbgmcu.o
  .comment       0x0000000000000000       0x32 ./SRC/Peripheral/src/ch32v00X_dbgmcu.o
  .debug_frame   0x0000000000000000       0x70 ./SRC/Peripheral/src/ch32v00X_dbgmcu.o
  .riscv.attributes
@@ -250,7 +246,7 @@ Discarded input sections
  .debug_line    0x0000000000000000      0x408 ./SRC/Peripheral/src/ch32v00X_exti.o
  .debug_str     0x0000000000000000      0x363 ./SRC/Peripheral/src/ch32v00X_exti.o
  .debug_line_str
-                0x0000000000000000      0x28d ./SRC/Peripheral/src/ch32v00X_exti.o
+                0x0000000000000000      0x29d ./SRC/Peripheral/src/ch32v00X_exti.o
  .comment       0x0000000000000000       0x32 ./SRC/Peripheral/src/ch32v00X_exti.o
  .debug_frame   0x0000000000000000       0x90 ./SRC/Peripheral/src/ch32v00X_exti.o
  .riscv.attributes
@@ -261,10 +257,6 @@ Discarded input sections
  .text.FLASH_ProgramPage_Fast.part.0
                 0x0000000000000000       0x34 ./SRC/Peripheral/src/ch32v00X_flash.o
  .text.FLASH_SetLatency
-                0x0000000000000000        0xe ./SRC/Peripheral/src/ch32v00X_flash.o
- .text.FLASH_Unlock
-                0x0000000000000000       0x1a ./SRC/Peripheral/src/ch32v00X_flash.o
- .text.FLASH_Lock
                 0x0000000000000000        0xe ./SRC/Peripheral/src/ch32v00X_flash.o
  .text.FLASH_GetUserOptionByte
                 0x0000000000000000        0xa ./SRC/Peripheral/src/ch32v00X_flash.o
@@ -310,8 +302,6 @@ Discarded input sections
                 0x0000000000000000       0x3c ./SRC/Peripheral/src/ch32v00X_flash.o
  .text.FLASH_ProgramPage_Fast
                 0x0000000000000000       0x26 ./SRC/Peripheral/src/ch32v00X_flash.o
- .text.SystemReset_StartMode
-                0x0000000000000000       0x50 ./SRC/Peripheral/src/ch32v00X_flash.o
  .text          0x0000000000000000        0x0 ./SRC/Peripheral/src/ch32v00X_gpio.o
  .data          0x0000000000000000        0x0 ./SRC/Peripheral/src/ch32v00X_gpio.o
  .bss           0x0000000000000000        0x0 ./SRC/Peripheral/src/ch32v00X_gpio.o
@@ -457,7 +447,7 @@ Discarded input sections
  .debug_line    0x0000000000000000      0x531 ./SRC/Peripheral/src/ch32v00X_pwr.o
  .debug_str     0x0000000000000000      0x3dd ./SRC/Peripheral/src/ch32v00X_pwr.o
  .debug_line_str
-                0x0000000000000000      0x289 ./SRC/Peripheral/src/ch32v00X_pwr.o
+                0x0000000000000000      0x299 ./SRC/Peripheral/src/ch32v00X_pwr.o
  .comment       0x0000000000000000       0x32 ./SRC/Peripheral/src/ch32v00X_pwr.o
  .debug_frame   0x0000000000000000       0xb4 ./SRC/Peripheral/src/ch32v00X_pwr.o
  .riscv.attributes
@@ -726,7 +716,7 @@ Discarded input sections
  .debug_line    0x0000000000000000      0x267 ./SRC/Peripheral/src/ch32v00X_wwdg.o
  .debug_str     0x0000000000000000      0x297 ./SRC/Peripheral/src/ch32v00X_wwdg.o
  .debug_line_str
-                0x0000000000000000      0x28c ./SRC/Peripheral/src/ch32v00X_wwdg.o
+                0x0000000000000000      0x29c ./SRC/Peripheral/src/ch32v00X_wwdg.o
  .comment       0x0000000000000000       0x32 ./SRC/Peripheral/src/ch32v00X_wwdg.o
  .debug_frame   0x0000000000000000       0xa4 ./SRC/Peripheral/src/ch32v00X_wwdg.o
  .riscv.attributes
@@ -837,6 +827,10 @@ Discarded input sections
  .text          0x0000000000000000        0x0 ./Common/C_Traj_Planner.o
  .data          0x0000000000000000        0x0 ./Common/C_Traj_Planner.o
  .bss           0x0000000000000000        0x0 ./Common/C_Traj_Planner.o
+ .text.C_Traj_Get_Pos
+                0x0000000000000000        0xa ./Common/C_Traj_Planner.o
+ .text.C_Traj_Set_Range_Open
+                0x0000000000000000       0x28 ./Common/C_Traj_Planner.o
  .text          0x0000000000000000        0x0 ./Application/A_Calib_Min.o
  .data          0x0000000000000000        0x0 ./Application/A_Calib_Min.o
  .bss           0x0000000000000000        0x0 ./Application/A_Calib_Min.o
@@ -890,18 +884,18 @@ Discarded input sections
                 0x0000000000000000       0x16 ./Application/A_Calib_Min.o
  .rodata.CM_PWM
                 0x0000000000000000        0xa ./Application/A_Calib_Min.o
- .debug_info    0x0000000000000000     0x3524 ./Application/A_Calib_Min.o
- .debug_abbrev  0x0000000000000000      0x3d6 ./Application/A_Calib_Min.o
+ .debug_info    0x0000000000000000     0x3504 ./Application/A_Calib_Min.o
+ .debug_abbrev  0x0000000000000000      0x426 ./Application/A_Calib_Min.o
  .debug_loclists
                 0x0000000000000000     0x1f54 ./Application/A_Calib_Min.o
  .debug_aranges
                 0x0000000000000000       0xb0 ./Application/A_Calib_Min.o
  .debug_rnglists
                 0x0000000000000000      0x7d9 ./Application/A_Calib_Min.o
- .debug_line    0x0000000000000000     0x41a1 ./Application/A_Calib_Min.o
+ .debug_line    0x0000000000000000     0x419e ./Application/A_Calib_Min.o
  .debug_str     0x0000000000000000      0x9cf ./Application/A_Calib_Min.o
  .debug_line_str
-                0x0000000000000000      0x3bc ./Application/A_Calib_Min.o
+                0x0000000000000000      0x3cc ./Application/A_Calib_Min.o
  .comment       0x0000000000000000       0x32 ./Application/A_Calib_Min.o
  .debug_frame   0x0000000000000000      0x1e0 ./Application/A_Calib_Min.o
  .riscv.attributes
@@ -1416,7 +1410,7 @@ END GROUP
  *fill*         0x00000000000000a6        0x2 
                 0x00000000000000a8                _einit = .
 
-.text           0x00000000000000a8     0x6fbc
+.text           0x00000000000000a8     0x7554
                 0x00000000000000a8                . = ALIGN (0x4)
  *(.text)
  .text          0x00000000000000a8       0x14 d:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(save-restore.o)
@@ -1469,805 +1463,838 @@ END GROUP
                 0x000000000000033a       0xe4 ./System/flash.o
                 0x000000000000033a                FLASH_Config_Save
  .text.RecData_Deal
-                0x000000000000041e       0x3c ./System/iap.o
+                0x000000000000041e       0x40 ./System/iap.o
                 0x000000000000041e                RecData_Deal
  .text.IAP_Rx_Deal
-                0x000000000000045a      0x190 ./System/iap.o
-                0x000000000000045a                IAP_Rx_Deal
+                0x000000000000045e      0x190 ./System/iap.o
+                0x000000000000045e                IAP_Rx_Deal
+ .text.APP_2_IAP
+                0x00000000000005ee       0x1c ./System/iap.o
+                0x00000000000005ee                APP_2_IAP
+ .text.IAP_Check
+                0x000000000000060a       0x1e ./System/iap.o
+                0x000000000000060a                IAP_Check
  .text.SystemInit
-                0x00000000000005ea       0xc2 ./System/system_ch32v00X.o
-                0x00000000000005ea                SystemInit
+                0x0000000000000628       0xc2 ./System/system_ch32v00X.o
+                0x0000000000000628                SystemInit
  .text.SystemCoreClockUpdate
-                0x00000000000006ac       0x62 ./System/system_ch32v00X.o
-                0x00000000000006ac                SystemCoreClockUpdate
+                0x00000000000006ea       0x62 ./System/system_ch32v00X.o
+                0x00000000000006ea                SystemCoreClockUpdate
  .text.vector_handler
-                0x000000000000070e        0x2 ./SRC/Startup/startup_ch32v00X.o
-                0x000000000000070e                OPCM_IRQHandler
-                0x000000000000070e                SysTick_Handler
-                0x000000000000070e                PVD_IRQHandler
-                0x000000000000070e                SPI1_IRQHandler
-                0x000000000000070e                AWU_IRQHandler
-                0x000000000000070e                EXTI7_0_IRQHandler
-                0x000000000000070e                DMA1_Channel4_IRQHandler
-                0x000000000000070e                ADC1_IRQHandler
-                0x000000000000070e                DMA1_Channel7_IRQHandler
-                0x000000000000070e                I2C1_EV_IRQHandler
-                0x000000000000070e                DMA1_Channel6_IRQHandler
-                0x000000000000070e                RCC_IRQHandler
-                0x000000000000070e                TIM1_TRG_COM_IRQHandler
-                0x000000000000070e                DMA1_Channel5_IRQHandler
-                0x000000000000070e                DMA1_Channel3_IRQHandler
-                0x000000000000070e                WWDG_IRQHandler
-                0x000000000000070e                TIM2_IRQHandler
-                0x000000000000070e                SW_Handler
-                0x000000000000070e                TIM1_BRK_IRQHandler
-                0x000000000000070e                USART2_IRQHandler
-                0x000000000000070e                DMA1_Channel2_IRQHandler
-                0x000000000000070e                FLASH_IRQHandler
-                0x000000000000070e                I2C1_ER_IRQHandler
+                0x000000000000074c        0x2 ./SRC/Startup/startup_ch32v00X.o
+                0x000000000000074c                OPCM_IRQHandler
+                0x000000000000074c                SysTick_Handler
+                0x000000000000074c                PVD_IRQHandler
+                0x000000000000074c                SPI1_IRQHandler
+                0x000000000000074c                AWU_IRQHandler
+                0x000000000000074c                EXTI7_0_IRQHandler
+                0x000000000000074c                DMA1_Channel4_IRQHandler
+                0x000000000000074c                ADC1_IRQHandler
+                0x000000000000074c                DMA1_Channel7_IRQHandler
+                0x000000000000074c                I2C1_EV_IRQHandler
+                0x000000000000074c                DMA1_Channel6_IRQHandler
+                0x000000000000074c                RCC_IRQHandler
+                0x000000000000074c                TIM1_TRG_COM_IRQHandler
+                0x000000000000074c                DMA1_Channel5_IRQHandler
+                0x000000000000074c                DMA1_Channel3_IRQHandler
+                0x000000000000074c                WWDG_IRQHandler
+                0x000000000000074c                TIM2_IRQHandler
+                0x000000000000074c                SW_Handler
+                0x000000000000074c                TIM1_BRK_IRQHandler
+                0x000000000000074c                USART2_IRQHandler
+                0x000000000000074c                DMA1_Channel2_IRQHandler
+                0x000000000000074c                FLASH_IRQHandler
+                0x000000000000074c                I2C1_ER_IRQHandler
  .text.handle_reset
-                0x0000000000000710       0x8a ./SRC/Startup/startup_ch32v00X.o
-                0x0000000000000710                handle_reset
+                0x000000000000074e       0x8a ./SRC/Startup/startup_ch32v00X.o
+                0x000000000000074e                handle_reset
  .text.ADC_DeInit
-                0x000000000000079a       0x2a ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x000000000000079a                ADC_DeInit
+                0x00000000000007d8       0x2a ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x00000000000007d8                ADC_DeInit
  .text.ADC_Init
-                0x00000000000007c4       0x4e ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x00000000000007c4                ADC_Init
- .text.ADC_Cmd  0x0000000000000812       0x10 ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x0000000000000812                ADC_Cmd
+                0x0000000000000802       0x4e ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x0000000000000802                ADC_Init
+ .text.ADC_Cmd  0x0000000000000850       0x10 ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x0000000000000850                ADC_Cmd
  .text.ADC_DMACmd
-                0x0000000000000822       0x12 ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x0000000000000822                ADC_DMACmd
+                0x0000000000000860       0x12 ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x0000000000000860                ADC_DMACmd
  .text.ADC_RegularChannelConfig
-                0x0000000000000834       0x8c ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x0000000000000834                ADC_RegularChannelConfig
+                0x0000000000000872       0x8c ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x0000000000000872                ADC_RegularChannelConfig
  .text.ADC_ExternalTrigConvCmd
-                0x00000000000008c0       0x18 ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x00000000000008c0                ADC_ExternalTrigConvCmd
+                0x00000000000008fe       0x18 ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x00000000000008fe                ADC_ExternalTrigConvCmd
  .text.ADC_AutoInjectedConvCmd
-                0x00000000000008d8       0x12 ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x00000000000008d8                ADC_AutoInjectedConvCmd
+                0x0000000000000916       0x12 ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x0000000000000916                ADC_AutoInjectedConvCmd
  .text.ADC_ExternalTrigInjectedConvConfig
-                0x00000000000008ea        0xe ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x00000000000008ea                ADC_ExternalTrigInjectedConvConfig
+                0x0000000000000928        0xe ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x0000000000000928                ADC_ExternalTrigInjectedConvConfig
  .text.ADC_ExternalTrigInjectedConvCmd
-                0x00000000000008f8       0x14 ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x00000000000008f8                ADC_ExternalTrigInjectedConvCmd
+                0x0000000000000936       0x14 ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x0000000000000936                ADC_ExternalTrigInjectedConvCmd
  .text.ADC_SoftwareStartInjectedConvCmd
-                0x000000000000090c       0x18 ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x000000000000090c                ADC_SoftwareStartInjectedConvCmd
+                0x000000000000094a       0x18 ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x000000000000094a                ADC_SoftwareStartInjectedConvCmd
  .text.ADC_InjectedChannelConfig
-                0x0000000000000924       0x4e ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x0000000000000924                ADC_InjectedChannelConfig
+                0x0000000000000962       0x4e ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x0000000000000962                ADC_InjectedChannelConfig
  .text.ADC_InjectedSequencerLengthConfig
-                0x0000000000000972       0x14 ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x0000000000000972                ADC_InjectedSequencerLengthConfig
+                0x00000000000009b0       0x14 ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x00000000000009b0                ADC_InjectedSequencerLengthConfig
  .text.ADC_GetInjectedConversionValue
-                0x0000000000000986       0x1c ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x0000000000000986                ADC_GetInjectedConversionValue
+                0x00000000000009c4       0x1c ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x00000000000009c4                ADC_GetInjectedConversionValue
  .text.ADC_GetFlagStatus
-                0x00000000000009a2        0xc ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x00000000000009a2                ADC_GetFlagStatus
+                0x00000000000009e0        0xc ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x00000000000009e0                ADC_GetFlagStatus
  .text.ADC_ClearFlag
-                0x00000000000009ae        0x8 ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x00000000000009ae                ADC_ClearFlag
+                0x00000000000009ec        0x8 ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x00000000000009ec                ADC_ClearFlag
  .text.ADC_BufferCmd
-                0x00000000000009b6       0x18 ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x00000000000009b6                ADC_BufferCmd
+                0x00000000000009f4       0x18 ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x00000000000009f4                ADC_BufferCmd
  .text.ADC_Sample_ModeConfig
-                0x00000000000009ce        0xe ./SRC/Peripheral/src/ch32v00X_adc.o
-                0x00000000000009ce                ADC_Sample_ModeConfig
+                0x0000000000000a0c        0xe ./SRC/Peripheral/src/ch32v00X_adc.o
+                0x0000000000000a0c                ADC_Sample_ModeConfig
  .text.DMA_DeInit
-                0x00000000000009dc       0x92 ./SRC/Peripheral/src/ch32v00X_dma.o
-                0x00000000000009dc                DMA_DeInit
+                0x0000000000000a1a       0x92 ./SRC/Peripheral/src/ch32v00X_dma.o
+                0x0000000000000a1a                DMA_DeInit
  .text.DMA_Init
-                0x0000000000000a6e       0x38 ./SRC/Peripheral/src/ch32v00X_dma.o
-                0x0000000000000a6e                DMA_Init
- .text.DMA_Cmd  0x0000000000000aa6       0x14 ./SRC/Peripheral/src/ch32v00X_dma.o
-                0x0000000000000aa6                DMA_Cmd
+                0x0000000000000aac       0x38 ./SRC/Peripheral/src/ch32v00X_dma.o
+                0x0000000000000aac                DMA_Init
+ .text.DMA_Cmd  0x0000000000000ae4       0x14 ./SRC/Peripheral/src/ch32v00X_dma.o
+                0x0000000000000ae4                DMA_Cmd
  .text.DMA_ITConfig
-                0x0000000000000aba       0x14 ./SRC/Peripheral/src/ch32v00X_dma.o
-                0x0000000000000aba                DMA_ITConfig
+                0x0000000000000af8       0x14 ./SRC/Peripheral/src/ch32v00X_dma.o
+                0x0000000000000af8                DMA_ITConfig
  .text.DMA_GetFlagStatus
-                0x0000000000000ace        0xe ./SRC/Peripheral/src/ch32v00X_dma.o
-                0x0000000000000ace                DMA_GetFlagStatus
+                0x0000000000000b0c        0xe ./SRC/Peripheral/src/ch32v00X_dma.o
+                0x0000000000000b0c                DMA_GetFlagStatus
  .text.DMA_ClearFlag
-                0x0000000000000adc        0x8 ./SRC/Peripheral/src/ch32v00X_dma.o
-                0x0000000000000adc                DMA_ClearFlag
+                0x0000000000000b1a        0x8 ./SRC/Peripheral/src/ch32v00X_dma.o
+                0x0000000000000b1a                DMA_ClearFlag
  .text.DMA_GetITStatus
-                0x0000000000000ae4        0x2 ./SRC/Peripheral/src/ch32v00X_dma.o
-                0x0000000000000ae4                DMA_GetITStatus
+                0x0000000000000b22        0x2 ./SRC/Peripheral/src/ch32v00X_dma.o
+                0x0000000000000b22                DMA_GetITStatus
  .text.DMA_ClearITPendingBit
-                0x0000000000000ae6        0x8 ./SRC/Peripheral/src/ch32v00X_dma.o
-                0x0000000000000ae6                DMA_ClearITPendingBit
+                0x0000000000000b24        0x8 ./SRC/Peripheral/src/ch32v00X_dma.o
+                0x0000000000000b24                DMA_ClearITPendingBit
  .text.ROM_ERASE
-                0x0000000000000aee       0xae ./SRC/Peripheral/src/ch32v00X_flash.o
+                0x0000000000000b2c       0xae ./SRC/Peripheral/src/ch32v00X_flash.o
+ .text.FLASH_Unlock
+                0x0000000000000bda       0x1a ./SRC/Peripheral/src/ch32v00X_flash.o
+                0x0000000000000bda                FLASH_Unlock
+ .text.FLASH_Lock
+                0x0000000000000bf4        0xe ./SRC/Peripheral/src/ch32v00X_flash.o
+                0x0000000000000bf4                FLASH_Lock
  .text.FLASH_Unlock_Fast
-                0x0000000000000b9c       0x1e ./SRC/Peripheral/src/ch32v00X_flash.o
-                0x0000000000000b9c                FLASH_Unlock_Fast
+                0x0000000000000c02       0x1e ./SRC/Peripheral/src/ch32v00X_flash.o
+                0x0000000000000c02                FLASH_Unlock_Fast
  .text.FLASH_ErasePage_Fast
-                0x0000000000000bba       0x46 ./SRC/Peripheral/src/ch32v00X_flash.o
-                0x0000000000000bba                FLASH_ErasePage_Fast
+                0x0000000000000c20       0x46 ./SRC/Peripheral/src/ch32v00X_flash.o
+                0x0000000000000c20                FLASH_ErasePage_Fast
+ .text.SystemReset_StartMode
+                0x0000000000000c66       0x3c ./SRC/Peripheral/src/ch32v00X_flash.o
+                0x0000000000000c66                SystemReset_StartMode
  .text.FLASH_ROM_ERASE
-                0x0000000000000c00      0x1bc ./SRC/Peripheral/src/ch32v00X_flash.o
-                0x0000000000000c00                FLASH_ROM_ERASE
+                0x0000000000000ca2      0x1bc ./SRC/Peripheral/src/ch32v00X_flash.o
+                0x0000000000000ca2                FLASH_ROM_ERASE
  .text.FLASH_ROM_WRITE
-                0x0000000000000dbc       0xfe ./SRC/Peripheral/src/ch32v00X_flash.o
-                0x0000000000000dbc                FLASH_ROM_WRITE
+                0x0000000000000e5e       0xfe ./SRC/Peripheral/src/ch32v00X_flash.o
+                0x0000000000000e5e                FLASH_ROM_WRITE
  .text.GPIO_Init
-                0x0000000000000eba       0x76 ./SRC/Peripheral/src/ch32v00X_gpio.o
-                0x0000000000000eba                GPIO_Init
+                0x0000000000000f5c       0x76 ./SRC/Peripheral/src/ch32v00X_gpio.o
+                0x0000000000000f5c                GPIO_Init
  .text.GPIO_ReadInputDataBit
-                0x0000000000000f30        0xc ./SRC/Peripheral/src/ch32v00X_gpio.o
-                0x0000000000000f30                GPIO_ReadInputDataBit
+                0x0000000000000fd2        0xc ./SRC/Peripheral/src/ch32v00X_gpio.o
+                0x0000000000000fd2                GPIO_ReadInputDataBit
  .text.GPIO_SetBits
-                0x0000000000000f3c        0x4 ./SRC/Peripheral/src/ch32v00X_gpio.o
-                0x0000000000000f3c                GPIO_SetBits
+                0x0000000000000fde        0x4 ./SRC/Peripheral/src/ch32v00X_gpio.o
+                0x0000000000000fde                GPIO_SetBits
  .text.GPIO_PinRemapConfig
-                0x0000000000000f40       0xa2 ./SRC/Peripheral/src/ch32v00X_gpio.o
-                0x0000000000000f40                GPIO_PinRemapConfig
+                0x0000000000000fe2       0xa2 ./SRC/Peripheral/src/ch32v00X_gpio.o
+                0x0000000000000fe2                GPIO_PinRemapConfig
  .text.GPIO_IPD_Unused
-                0x0000000000000fe2      0x2de ./SRC/Peripheral/src/ch32v00X_gpio.o
-                0x0000000000000fe2                GPIO_IPD_Unused
+                0x0000000000001084      0x2de ./SRC/Peripheral/src/ch32v00X_gpio.o
+                0x0000000000001084                GPIO_IPD_Unused
  .text.I2C_Init
-                0x00000000000012c0       0xde ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x00000000000012c0                I2C_Init
- .text.I2C_Cmd  0x000000000000139e       0x18 ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x000000000000139e                I2C_Cmd
+                0x0000000000001362       0xde ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x0000000000001362                I2C_Init
+ .text.I2C_Cmd  0x0000000000001440       0x18 ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x0000000000001440                I2C_Cmd
  .text.I2C_GenerateSTART
-                0x00000000000013b6       0x1a ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x00000000000013b6                I2C_GenerateSTART
+                0x0000000000001458       0x1a ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x0000000000001458                I2C_GenerateSTART
  .text.I2C_GenerateSTOP
-                0x00000000000013d0       0x1a ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x00000000000013d0                I2C_GenerateSTOP
+                0x0000000000001472       0x1a ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x0000000000001472                I2C_GenerateSTOP
  .text.I2C_AcknowledgeConfig
-                0x00000000000013ea       0x1a ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x00000000000013ea                I2C_AcknowledgeConfig
+                0x000000000000148c       0x1a ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x000000000000148c                I2C_AcknowledgeConfig
  .text.I2C_SendData
-                0x0000000000001404        0x4 ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x0000000000001404                I2C_SendData
+                0x00000000000014a6        0x4 ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x00000000000014a6                I2C_SendData
  .text.I2C_ReceiveData
-                0x0000000000001408        0x8 ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x0000000000001408                I2C_ReceiveData
+                0x00000000000014aa        0x8 ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x00000000000014aa                I2C_ReceiveData
  .text.I2C_Send7bitAddress
-                0x0000000000001410        0xe ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x0000000000001410                I2C_Send7bitAddress
+                0x00000000000014b2        0xe ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x00000000000014b2                I2C_Send7bitAddress
  .text.I2C_SoftwareResetCmd
-                0x000000000000141e       0x12 ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x000000000000141e                I2C_SoftwareResetCmd
+                0x00000000000014c0       0x12 ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x00000000000014c0                I2C_SoftwareResetCmd
  .text.I2C_NACKPositionConfig
-                0x0000000000001430       0x22 ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x0000000000001430                I2C_NACKPositionConfig
+                0x00000000000014d2       0x22 ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x00000000000014d2                I2C_NACKPositionConfig
  .text.I2C_CheckEvent
-                0x0000000000001452       0x16 ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x0000000000001452                I2C_CheckEvent
+                0x00000000000014f4       0x16 ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x00000000000014f4                I2C_CheckEvent
  .text.I2C_GetFlagStatus
-                0x0000000000001468       0x32 ./SRC/Peripheral/src/ch32v00X_i2c.o
-                0x0000000000001468                I2C_GetFlagStatus
+                0x000000000000150a       0x32 ./SRC/Peripheral/src/ch32v00X_i2c.o
+                0x000000000000150a                I2C_GetFlagStatus
  .text.IWDG_WriteAccessCmd
-                0x000000000000149a        0x8 ./SRC/Peripheral/src/ch32v00X_iwdg.o
-                0x000000000000149a                IWDG_WriteAccessCmd
+                0x000000000000153c        0x8 ./SRC/Peripheral/src/ch32v00X_iwdg.o
+                0x000000000000153c                IWDG_WriteAccessCmd
  .text.IWDG_SetPrescaler
-                0x00000000000014a2        0x8 ./SRC/Peripheral/src/ch32v00X_iwdg.o
-                0x00000000000014a2                IWDG_SetPrescaler
+                0x0000000000001544        0x8 ./SRC/Peripheral/src/ch32v00X_iwdg.o
+                0x0000000000001544                IWDG_SetPrescaler
  .text.IWDG_SetReload
-                0x00000000000014aa        0x8 ./SRC/Peripheral/src/ch32v00X_iwdg.o
-                0x00000000000014aa                IWDG_SetReload
+                0x000000000000154c        0x8 ./SRC/Peripheral/src/ch32v00X_iwdg.o
+                0x000000000000154c                IWDG_SetReload
  .text.IWDG_ReloadCounter
-                0x00000000000014b2        0xe ./SRC/Peripheral/src/ch32v00X_iwdg.o
-                0x00000000000014b2                IWDG_ReloadCounter
+                0x0000000000001554        0xe ./SRC/Peripheral/src/ch32v00X_iwdg.o
+                0x0000000000001554                IWDG_ReloadCounter
  .text.IWDG_Enable
-                0x00000000000014c0       0x18 ./SRC/Peripheral/src/ch32v00X_iwdg.o
-                0x00000000000014c0                IWDG_Enable
+                0x0000000000001562       0x18 ./SRC/Peripheral/src/ch32v00X_iwdg.o
+                0x0000000000001562                IWDG_Enable
  .text.NVIC_PriorityGroupConfig
-                0x00000000000014d8        0x6 ./SRC/Peripheral/src/ch32v00X_misc.o
-                0x00000000000014d8                NVIC_PriorityGroupConfig
+                0x000000000000157a        0x6 ./SRC/Peripheral/src/ch32v00X_misc.o
+                0x000000000000157a                NVIC_PriorityGroupConfig
  .text.NVIC_Init
-                0x00000000000014de       0x62 ./SRC/Peripheral/src/ch32v00X_misc.o
-                0x00000000000014de                NVIC_Init
+                0x0000000000001580       0x62 ./SRC/Peripheral/src/ch32v00X_misc.o
+                0x0000000000001580                NVIC_Init
  .text.OPA_Unlock
-                0x0000000000001540       0x1a ./SRC/Peripheral/src/ch32v00X_opa.o
-                0x0000000000001540                OPA_Unlock
+                0x00000000000015e2       0x1a ./SRC/Peripheral/src/ch32v00X_opa.o
+                0x00000000000015e2                OPA_Unlock
  .text.OPA_Lock
-                0x000000000000155a       0x10 ./SRC/Peripheral/src/ch32v00X_opa.o
-                0x000000000000155a                OPA_Lock
+                0x00000000000015fc       0x10 ./SRC/Peripheral/src/ch32v00X_opa.o
+                0x00000000000015fc                OPA_Lock
  .text.OPA_Init
-                0x000000000000156a       0x98 ./SRC/Peripheral/src/ch32v00X_opa.o
-                0x000000000000156a                OPA_Init
- .text.OPA_Cmd  0x0000000000001602       0x1a ./SRC/Peripheral/src/ch32v00X_opa.o
-                0x0000000000001602                OPA_Cmd
+                0x000000000000160c       0x98 ./SRC/Peripheral/src/ch32v00X_opa.o
+                0x000000000000160c                OPA_Init
+ .text.OPA_Cmd  0x00000000000016a4       0x1a ./SRC/Peripheral/src/ch32v00X_opa.o
+                0x00000000000016a4                OPA_Cmd
  .text.RCC_ADCCLKConfig
-                0x000000000000161c       0x16 ./SRC/Peripheral/src/ch32v00X_rcc.o
-                0x000000000000161c                RCC_ADCCLKConfig
+                0x00000000000016be       0x16 ./SRC/Peripheral/src/ch32v00X_rcc.o
+                0x00000000000016be                RCC_ADCCLKConfig
  .text.RCC_LSICmd
-                0x0000000000001632       0x14 ./SRC/Peripheral/src/ch32v00X_rcc.o
-                0x0000000000001632                RCC_LSICmd
+                0x00000000000016d4       0x14 ./SRC/Peripheral/src/ch32v00X_rcc.o
+                0x00000000000016d4                RCC_LSICmd
  .text.RCC_GetClocksFreq
-                0x0000000000001646       0xa2 ./SRC/Peripheral/src/ch32v00X_rcc.o
-                0x0000000000001646                RCC_GetClocksFreq
+                0x00000000000016e8       0xa2 ./SRC/Peripheral/src/ch32v00X_rcc.o
+                0x00000000000016e8                RCC_GetClocksFreq
  .text.RCC_HBPeriphClockCmd
-                0x00000000000016e8       0x1e ./SRC/Peripheral/src/ch32v00X_rcc.o
-                0x00000000000016e8                RCC_HBPeriphClockCmd
+                0x000000000000178a       0x1e ./SRC/Peripheral/src/ch32v00X_rcc.o
+                0x000000000000178a                RCC_HBPeriphClockCmd
  .text.RCC_PB2PeriphClockCmd
-                0x0000000000001706       0x1e ./SRC/Peripheral/src/ch32v00X_rcc.o
-                0x0000000000001706                RCC_PB2PeriphClockCmd
+                0x00000000000017a8       0x1e ./SRC/Peripheral/src/ch32v00X_rcc.o
+                0x00000000000017a8                RCC_PB2PeriphClockCmd
  .text.RCC_PB1PeriphClockCmd
-                0x0000000000001724       0x1e ./SRC/Peripheral/src/ch32v00X_rcc.o
-                0x0000000000001724                RCC_PB1PeriphClockCmd
+                0x00000000000017c6       0x1e ./SRC/Peripheral/src/ch32v00X_rcc.o
+                0x00000000000017c6                RCC_PB1PeriphClockCmd
  .text.RCC_PB2PeriphResetCmd
-                0x0000000000001742       0x1e ./SRC/Peripheral/src/ch32v00X_rcc.o
-                0x0000000000001742                RCC_PB2PeriphResetCmd
+                0x00000000000017e4       0x1e ./SRC/Peripheral/src/ch32v00X_rcc.o
+                0x00000000000017e4                RCC_PB2PeriphResetCmd
  .text.RCC_GetFlagStatus
-                0x0000000000001760       0x20 ./SRC/Peripheral/src/ch32v00X_rcc.o
-                0x0000000000001760                RCC_GetFlagStatus
+                0x0000000000001802       0x20 ./SRC/Peripheral/src/ch32v00X_rcc.o
+                0x0000000000001802                RCC_GetFlagStatus
  .text.RCC_ClearFlag
-                0x0000000000001780       0x10 ./SRC/Peripheral/src/ch32v00X_rcc.o
-                0x0000000000001780                RCC_ClearFlag
+                0x0000000000001822       0x10 ./SRC/Peripheral/src/ch32v00X_rcc.o
+                0x0000000000001822                RCC_ClearFlag
  .text.SPI_Init
-                0x0000000000001790       0x34 ./SRC/Peripheral/src/ch32v00X_spi.o
-                0x0000000000001790                SPI_Init
- .text.SPI_Cmd  0x00000000000017c4       0x1a ./SRC/Peripheral/src/ch32v00X_spi.o
-                0x00000000000017c4                SPI_Cmd
+                0x0000000000001832       0x34 ./SRC/Peripheral/src/ch32v00X_spi.o
+                0x0000000000001832                SPI_Init
+ .text.SPI_Cmd  0x0000000000001866       0x1a ./SRC/Peripheral/src/ch32v00X_spi.o
+                0x0000000000001866                SPI_Cmd
  .text.SPI_I2S_SendData
-                0x00000000000017de        0x4 ./SRC/Peripheral/src/ch32v00X_spi.o
-                0x00000000000017de                SPI_I2S_SendData
+                0x0000000000001880        0x4 ./SRC/Peripheral/src/ch32v00X_spi.o
+                0x0000000000001880                SPI_I2S_SendData
  .text.SPI_I2S_GetFlagStatus
-                0x00000000000017e2        0xa ./SRC/Peripheral/src/ch32v00X_spi.o
-                0x00000000000017e2                SPI_I2S_GetFlagStatus
+                0x0000000000001884        0xa ./SRC/Peripheral/src/ch32v00X_spi.o
+                0x0000000000001884                SPI_I2S_GetFlagStatus
  .text.TI1_Config
-                0x00000000000017ec       0x56 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x000000000000188e       0x56 ./SRC/Peripheral/src/ch32v00X_tim.o
  .text.TI2_Config
-                0x0000000000001842       0x66 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x00000000000018e4       0x66 ./SRC/Peripheral/src/ch32v00X_tim.o
  .text.TIM_TimeBaseInit
-                0x00000000000018a8       0x6c ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x00000000000018a8                TIM_TimeBaseInit
+                0x000000000000194a       0x6c ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x000000000000194a                TIM_TimeBaseInit
  .text.TIM_OC1Init
-                0x0000000000001914       0xa8 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001914                TIM_OC1Init
+                0x00000000000019b6       0xa8 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x00000000000019b6                TIM_OC1Init
  .text.TIM_OC2Init
-                0x00000000000019bc       0xd8 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x00000000000019bc                TIM_OC2Init
+                0x0000000000001a5e       0xd8 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001a5e                TIM_OC2Init
  .text.TIM_OC4Init
-                0x0000000000001a94       0x68 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001a94                TIM_OC4Init
+                0x0000000000001b36       0x68 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001b36                TIM_OC4Init
  .text.TIM_OCStructInit
-                0x0000000000001afc       0x22 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001afc                TIM_OCStructInit
+                0x0000000000001b9e       0x22 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001b9e                TIM_OCStructInit
  .text.TIM_ICStructInit
-                0x0000000000001b1e       0x16 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001b1e                TIM_ICStructInit
- .text.TIM_Cmd  0x0000000000001b34       0x56 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001b34                TIM_Cmd
+                0x0000000000001bc0       0x16 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001bc0                TIM_ICStructInit
+ .text.TIM_Cmd  0x0000000000001bd6       0x56 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001bd6                TIM_Cmd
  .text.TIM_CtrlPWMOutputs
-                0x0000000000001b8a       0x16 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001b8a                TIM_CtrlPWMOutputs
+                0x0000000000001c2c       0x16 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001c2c                TIM_CtrlPWMOutputs
  .text.TIM_ITConfig
-                0x0000000000001ba0       0x12 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001ba0                TIM_ITConfig
+                0x0000000000001c42       0x12 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001c42                TIM_ITConfig
  .text.TIM_SelectInputTrigger
-                0x0000000000001bb2       0x10 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001bb2                TIM_SelectInputTrigger
+                0x0000000000001c54       0x10 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001c54                TIM_SelectInputTrigger
  .text.TIM_ARRPreloadConfig
-                0x0000000000001bc2       0x58 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001bc2                TIM_ARRPreloadConfig
+                0x0000000000001c64       0x58 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001c64                TIM_ARRPreloadConfig
  .text.TIM_OC1PreloadConfig
-                0x0000000000001c1a       0x3e ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001c1a                TIM_OC1PreloadConfig
+                0x0000000000001cbc       0x3e ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001cbc                TIM_OC1PreloadConfig
  .text.TIM_OC2PreloadConfig
-                0x0000000000001c58       0x46 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001c58                TIM_OC2PreloadConfig
+                0x0000000000001cfa       0x46 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001cfa                TIM_OC2PreloadConfig
  .text.TIM_OC4PreloadConfig
-                0x0000000000001c9e       0x46 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001c9e                TIM_OC4PreloadConfig
+                0x0000000000001d40       0x46 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001d40                TIM_OC4PreloadConfig
  .text.TIM_OC2PolarityConfig
-                0x0000000000001ce4       0x16 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001ce4                TIM_OC2PolarityConfig
+                0x0000000000001d86       0x16 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001d86                TIM_OC2PolarityConfig
  .text.TIM_CCxCmd
-                0x0000000000001cfa       0x20 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001cfa                TIM_CCxCmd
+                0x0000000000001d9c       0x20 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001d9c                TIM_CCxCmd
  .text.TIM_SelectOutputTrigger
-                0x0000000000001d1a       0x18 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001d1a                TIM_SelectOutputTrigger
+                0x0000000000001dbc       0x18 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001dbc                TIM_SelectOutputTrigger
  .text.TIM_SelectSlaveMode
-                0x0000000000001d32       0x54 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001d32                TIM_SelectSlaveMode
+                0x0000000000001dd4       0x54 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001dd4                TIM_SelectSlaveMode
  .text.TIM_SetCompare1
-                0x0000000000001d86       0x28 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001d86                TIM_SetCompare1
+                0x0000000000001e28       0x28 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001e28                TIM_SetCompare1
  .text.TIM_SetCompare2
-                0x0000000000001dae       0x28 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001dae                TIM_SetCompare2
+                0x0000000000001e50       0x28 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001e50                TIM_SetCompare2
  .text.TIM_SetCompare4
-                0x0000000000001dd6       0x28 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001dd6                TIM_SetCompare4
+                0x0000000000001e78       0x28 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001e78                TIM_SetCompare4
  .text.TIM_SetIC1Prescaler
-                0x0000000000001dfe       0x16 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001dfe                TIM_SetIC1Prescaler
+                0x0000000000001ea0       0x16 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001ea0                TIM_SetIC1Prescaler
  .text.TIM_SetIC2Prescaler
-                0x0000000000001e14       0x1a ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001e14                TIM_SetIC2Prescaler
+                0x0000000000001eb6       0x1a ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001eb6                TIM_SetIC2Prescaler
  .text.TIM_SetIC3Prescaler
-                0x0000000000001e2e       0x16 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001e2e                TIM_SetIC3Prescaler
+                0x0000000000001ed0       0x16 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001ed0                TIM_SetIC3Prescaler
  .text.TIM_SetIC4Prescaler
-                0x0000000000001e44       0x1a ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001e44                TIM_SetIC4Prescaler
+                0x0000000000001ee6       0x1a ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001ee6                TIM_SetIC4Prescaler
  .text.TIM_ICInit
-                0x0000000000001e5e      0x10a ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001e5e                TIM_ICInit
+                0x0000000000001f00      0x10a ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000001f00                TIM_ICInit
  .text.TIM_GetCapture2
-                0x0000000000001f68       0x30 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001f68                TIM_GetCapture2
+                0x000000000000200a       0x30 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x000000000000200a                TIM_GetCapture2
  .text.TIM_ClearFlag
-                0x0000000000001f98        0xc ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001f98                TIM_ClearFlag
+                0x000000000000203a        0xc ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x000000000000203a                TIM_ClearFlag
  .text.TIM_GetITStatus
-                0x0000000000001fa4       0x18 ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001fa4                TIM_GetITStatus
+                0x0000000000002046       0x18 ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x0000000000002046                TIM_GetITStatus
  .text.TIM_ClearITPendingBit
-                0x0000000000001fbc        0xc ./SRC/Peripheral/src/ch32v00X_tim.o
-                0x0000000000001fbc                TIM_ClearITPendingBit
+                0x000000000000205e        0xc ./SRC/Peripheral/src/ch32v00X_tim.o
+                0x000000000000205e                TIM_ClearITPendingBit
  .text.USART_Init
-                0x0000000000001fc8       0x9c ./SRC/Peripheral/src/ch32v00X_usart.o
-                0x0000000000001fc8                USART_Init
+                0x000000000000206a       0x9c ./SRC/Peripheral/src/ch32v00X_usart.o
+                0x000000000000206a                USART_Init
  .text.USART_Cmd
-                0x0000000000002064       0x14 ./SRC/Peripheral/src/ch32v00X_usart.o
-                0x0000000000002064                USART_Cmd
+                0x0000000000002106       0x14 ./SRC/Peripheral/src/ch32v00X_usart.o
+                0x0000000000002106                USART_Cmd
  .text.USART_ITConfig
-                0x0000000000002078       0x38 ./SRC/Peripheral/src/ch32v00X_usart.o
-                0x0000000000002078                USART_ITConfig
+                0x000000000000211a       0x38 ./SRC/Peripheral/src/ch32v00X_usart.o
+                0x000000000000211a                USART_ITConfig
  .text.USART_SendData
-                0x00000000000020b0        0x8 ./SRC/Peripheral/src/ch32v00X_usart.o
-                0x00000000000020b0                USART_SendData
+                0x0000000000002152        0x8 ./SRC/Peripheral/src/ch32v00X_usart.o
+                0x0000000000002152                USART_SendData
  .text.USART_ReceiveData
-                0x00000000000020b8        0x8 ./SRC/Peripheral/src/ch32v00X_usart.o
-                0x00000000000020b8                USART_ReceiveData
+                0x000000000000215a        0x8 ./SRC/Peripheral/src/ch32v00X_usart.o
+                0x000000000000215a                USART_ReceiveData
  .text.USART_HalfDuplexCmd
-                0x00000000000020c0       0x18 ./SRC/Peripheral/src/ch32v00X_usart.o
-                0x00000000000020c0                USART_HalfDuplexCmd
+                0x0000000000002162       0x18 ./SRC/Peripheral/src/ch32v00X_usart.o
+                0x0000000000002162                USART_HalfDuplexCmd
  .text.USART_GetFlagStatus
-                0x00000000000020d8        0xa ./SRC/Peripheral/src/ch32v00X_usart.o
-                0x00000000000020d8                USART_GetFlagStatus
+                0x000000000000217a        0xa ./SRC/Peripheral/src/ch32v00X_usart.o
+                0x000000000000217a                USART_GetFlagStatus
  .text.USART_GetITStatus
-                0x00000000000020e2       0x3c ./SRC/Peripheral/src/ch32v00X_usart.o
-                0x00000000000020e2                USART_GetITStatus
+                0x0000000000002184       0x3c ./SRC/Peripheral/src/ch32v00X_usart.o
+                0x0000000000002184                USART_GetITStatus
  .text.Delay_Init
-                0x000000000000211e       0x30 ./SRC/Debug/debug.o
-                0x000000000000211e                Delay_Init
+                0x00000000000021c0       0x30 ./SRC/Debug/debug.o
+                0x00000000000021c0                Delay_Init
  .text.Delay_Us
-                0x000000000000214e       0x2e ./SRC/Debug/debug.o
-                0x000000000000214e                Delay_Us
+                0x00000000000021f0       0x2e ./SRC/Debug/debug.o
+                0x00000000000021f0                Delay_Us
  .text.Delay_Ms
-                0x000000000000217c       0x2e ./SRC/Debug/debug.o
-                0x000000000000217c                Delay_Ms
+                0x000000000000221e       0x2e ./SRC/Debug/debug.o
+                0x000000000000221e                Delay_Ms
  .text.__get_MSTATUS
-                0x00000000000021aa        0x6 ./SRC/Core/core_riscv.o
-                0x00000000000021aa                __get_MSTATUS
+                0x000000000000224c        0x6 ./SRC/Core/core_riscv.o
+                0x000000000000224c                __get_MSTATUS
  .text.__set_MSTATUS
-                0x00000000000021b0        0x6 ./SRC/Core/core_riscv.o
-                0x00000000000021b0                __set_MSTATUS
+                0x0000000000002252        0x6 ./SRC/Core/core_riscv.o
+                0x0000000000002252                __set_MSTATUS
  .text.ADC_Block_Sum
-                0x00000000000021b6       0x28 ./Drivers/D_adc.o
- .text.D_ADC_DMA_ISR
-                0x00000000000021de       0xdc ./Drivers/D_adc.o
-                0x00000000000021de                D_ADC_DMA_ISR
- .text.D_ADC_Current_Filter_Reset
-                0x00000000000022ba       0x2a ./Drivers/D_adc.o
-                0x00000000000022ba                D_ADC_Current_Filter_Reset
- .text.D_ADC_Current_Window_Set
-                0x00000000000022e4       0x34 ./Drivers/D_adc.o
-                0x00000000000022e4                D_ADC_Current_Window_Set
+                0x0000000000002258       0x28 ./Drivers/D_adc.o
  .text.D_ADC_DMA_Init
-                0x0000000000002318      0x200 ./Drivers/D_adc.o
-                0x0000000000002318                D_ADC_DMA_Init
+                0x0000000000002280      0x20c ./Drivers/D_adc.o
+                0x0000000000002280                D_ADC_DMA_Init
+ .text.D_ADC_DMA_ISR
+                0x000000000000248c       0xd2 ./Drivers/D_adc.o
+                0x000000000000248c                D_ADC_DMA_ISR
+ .text.D_ADC_Current_Window_Set
+                0x000000000000255e        0xa ./Drivers/D_adc.o
+                0x000000000000255e                D_ADC_Current_Window_Set
  .text.D_ADC_Current_Read
-                0x0000000000002518       0x58 ./Drivers/D_adc.o
-                0x0000000000002518                D_ADC_Current_Read
+                0x0000000000002568       0x70 ./Drivers/D_adc.o
+                0x0000000000002568                D_ADC_Current_Read
  .text.D_ADC_Encoder_Read
-                0x0000000000002570       0x42 ./Drivers/D_adc.o
-                0x0000000000002570                D_ADC_Encoder_Read
+                0x00000000000025d8       0x3e ./Drivers/D_adc.o
+                0x00000000000025d8                D_ADC_Encoder_Read
  .text.D_ADC_Voltage_Read
-                0x00000000000025b2       0x78 ./Drivers/D_adc.o
-                0x00000000000025b2                D_ADC_Voltage_Read
+                0x0000000000002616       0x76 ./Drivers/D_adc.o
+                0x0000000000002616                D_ADC_Voltage_Read
  .text.I2C_BusDelay
-                0x000000000000262a       0x1c ./Drivers/D_i2c.o
+                0x000000000000268c       0x1c ./Drivers/D_i2c.o
  .text.I2C_ConfigPins
-                0x0000000000002646       0x2a ./Drivers/D_i2c.o
+                0x00000000000026a8       0x2a ./Drivers/D_i2c.o
  .text.I2C_WaitStar1.constprop.0
-                0x0000000000002670       0x2a ./Drivers/D_i2c.o
+                0x00000000000026d2       0x2a ./Drivers/D_i2c.o
  .text.I2C_ApplyConfig.constprop.0
-                0x000000000000269a       0x4c ./Drivers/D_i2c.o
+                0x00000000000026fc       0x4c ./Drivers/D_i2c.o
  .text.I2C_SoftReset.constprop.0
-                0x00000000000026e6       0x7e ./Drivers/D_i2c.o
+                0x0000000000002748       0x7e ./Drivers/D_i2c.o
  .text.D_Bus_I2C_Init
-                0x0000000000002764       0x46 ./Drivers/D_i2c.o
-                0x0000000000002764                D_Bus_I2C_Init
+                0x00000000000027c6       0x46 ./Drivers/D_i2c.o
+                0x00000000000027c6                D_Bus_I2C_Init
  .text.D_I2C_Write
-                0x00000000000027aa      0x166 ./Drivers/D_i2c.o
-                0x00000000000027aa                D_I2C_Write
+                0x000000000000280c      0x166 ./Drivers/D_i2c.o
+                0x000000000000280c                D_I2C_Write
  .text.D_I2C_Read
-                0x0000000000002910      0x29c ./Drivers/D_i2c.o
-                0x0000000000002910                D_I2C_Read
+                0x0000000000002972      0x29c ./Drivers/D_i2c.o
+                0x0000000000002972                D_I2C_Read
  .text.D_IWDG_Init
-                0x0000000000002bac       0x44 ./Drivers/D_iwdg.o
-                0x0000000000002bac                D_IWDG_Init
+                0x0000000000002c0e       0x44 ./Drivers/D_iwdg.o
+                0x0000000000002c0e                D_IWDG_Init
  .text.D_IWDG_Feed
-                0x0000000000002bf0        0x4 ./Drivers/D_iwdg.o
-                0x0000000000002bf0                D_IWDG_Feed
+                0x0000000000002c52        0x4 ./Drivers/D_iwdg.o
+                0x0000000000002c52                D_IWDG_Feed
  .text.D_Motor_Set
-                0x0000000000002bf4      0x110 ./Drivers/D_motor.o
-                0x0000000000002bf4                D_Motor_Set
+                0x0000000000002c56       0xee ./Drivers/D_motor.o
+                0x0000000000002c56                D_Motor_Set
  .text.D_Motor_Release
-                0x0000000000002d04       0x5e ./Drivers/D_motor.o
-                0x0000000000002d04                D_Motor_Release
+                0x0000000000002d44       0x56 ./Drivers/D_motor.o
+                0x0000000000002d44                D_Motor_Release
  .text.D_MT6701_Init
-                0x0000000000002d62       0x18 ./Drivers/D_mt6701.o
-                0x0000000000002d62                D_MT6701_Init
+                0x0000000000002d9a       0x18 ./Drivers/D_mt6701.o
+                0x0000000000002d9a                D_MT6701_Init
  .text.D_OPA1_Init
-                0x0000000000002d7a       0x64 ./Drivers/D_opa.o
-                0x0000000000002d7a                D_OPA1_Init
+                0x0000000000002db2       0x64 ./Drivers/D_opa.o
+                0x0000000000002db2                D_OPA1_Init
  .text.SPI1_Recover
-                0x0000000000002dde       0x1c ./Drivers/D_spi.o
+                0x0000000000002e16       0x1c ./Drivers/D_spi.o
  .text.D_SPI1_Init
-                0x0000000000002dfa       0x7a ./Drivers/D_spi.o
-                0x0000000000002dfa                D_SPI1_Init
+                0x0000000000002e32       0x7a ./Drivers/D_spi.o
+                0x0000000000002e32                D_SPI1_Init
  .text.D_SPI1_Send_Buf
-                0x0000000000002e74       0x5e ./Drivers/D_spi.o
-                0x0000000000002e74                D_SPI1_Send_Buf
+                0x0000000000002eac       0x5e ./Drivers/D_spi.o
+                0x0000000000002eac                D_SPI1_Send_Buf
  .text.PWM_ResetCaptureState
-                0x0000000000002ed2       0x1e ./Drivers/D_tim.o
+                0x0000000000002f0a       0x1e ./Drivers/D_tim.o
  .text.D_TIM2_PWM_Init
-                0x0000000000002ef0       0xfa ./Drivers/D_tim.o
-                0x0000000000002ef0                D_TIM2_PWM_Init
+                0x0000000000002f28       0xfa ./Drivers/D_tim.o
+                0x0000000000002f28                D_TIM2_PWM_Init
  .text.D_TIM2_ADC_Trigger_Set
-                0x0000000000002fea       0x54 ./Drivers/D_tim.o
-                0x0000000000002fea                D_TIM2_ADC_Trigger_Set
+                0x0000000000003022       0x54 ./Drivers/D_tim.o
+                0x0000000000003022                D_TIM2_ADC_Trigger_Set
  .text.D_TIM1_PWM_IC_Init
-                0x000000000000303e      0x146 ./Drivers/D_tim.o
-                0x000000000000303e                D_TIM1_PWM_IC_Init
+                0x0000000000003076      0x146 ./Drivers/D_tim.o
+                0x0000000000003076                D_TIM1_PWM_IC_Init
  .text.D_PWM_Read
-                0x0000000000003184       0x2a ./Drivers/D_tim.o
-                0x0000000000003184                D_PWM_Read
+                0x00000000000031bc       0x2a ./Drivers/D_tim.o
+                0x00000000000031bc                D_PWM_Read
  .text.D_PWM_Input_Enable
-                0x00000000000031ae       0xc4 ./Drivers/D_tim.o
-                0x00000000000031ae                D_PWM_Input_Enable
+                0x00000000000031e6       0xc4 ./Drivers/D_tim.o
+                0x00000000000031e6                D_PWM_Input_Enable
  .text.D_TIM1_CC_ISR
-                0x0000000000003272       0xee ./Drivers/D_tim.o
-                0x0000000000003272                D_TIM1_CC_ISR
+                0x00000000000032aa      0x110 ./Drivers/D_tim.o
+                0x00000000000032aa                D_TIM1_CC_ISR
  .text.D_TIM1_UP_ISR
-                0x0000000000003360       0x44 ./Drivers/D_tim.o
-                0x0000000000003360                D_TIM1_UP_ISR
+                0x00000000000033ba       0x44 ./Drivers/D_tim.o
+                0x00000000000033ba                D_TIM1_UP_ISR
  .text.D_TMP112_Init
-                0x00000000000033a4       0x36 ./Drivers/D_tmp112.o
-                0x00000000000033a4                D_TMP112_Init
+                0x00000000000033fe       0x36 ./Drivers/D_tmp112.o
+                0x00000000000033fe                D_TMP112_Init
  .text.D_TMP112_Read_Temp
-                0x00000000000033da       0x44 ./Drivers/D_tmp112.o
-                0x00000000000033da                D_TMP112_Read_Temp
+                0x0000000000003434       0x44 ./Drivers/D_tmp112.o
+                0x0000000000003434                D_TMP112_Read_Temp
  .text.Uart_ApplyParams
-                0x000000000000341e       0x44 ./Drivers/D_uart.o
+                0x0000000000003478       0x44 ./Drivers/D_uart.o
  .text.Uart_TxDone
-                0x0000000000003462       0x38 ./Drivers/D_uart.o
+                0x00000000000034bc       0x38 ./Drivers/D_uart.o
  .text.D_USART1_Cfg
-                0x000000000000349a       0x88 ./Drivers/D_uart.o
-                0x000000000000349a                D_USART1_Cfg
+                0x00000000000034f4       0x88 ./Drivers/D_uart.o
+                0x00000000000034f4                D_USART1_Cfg
  .text.D_UART_Enable
-                0x0000000000003522       0xba ./Drivers/D_uart.o
-                0x0000000000003522                D_UART_Enable
+                0x000000000000357c       0xba ./Drivers/D_uart.o
+                0x000000000000357c                D_UART_Enable
  .text.D_UART1_Rx_Get
-                0x00000000000035dc        0xa ./Drivers/D_uart.o
-                0x00000000000035dc                D_UART1_Rx_Get
+                0x0000000000003636        0xa ./Drivers/D_uart.o
+                0x0000000000003636                D_UART1_Rx_Get
  .text.D_UART1_Tx_Write
-                0x00000000000035e6       0xba ./Drivers/D_uart.o
-                0x00000000000035e6                D_UART1_Tx_Write
+                0x0000000000003640       0xba ./Drivers/D_uart.o
+                0x0000000000003640                D_UART1_Tx_Write
  .text.D_UART_SetBaud_Deferred
-                0x00000000000036a0        0x6 ./Drivers/D_uart.o
-                0x00000000000036a0                D_UART_SetBaud_Deferred
+                0x00000000000036fa        0x6 ./Drivers/D_uart.o
+                0x00000000000036fa                D_UART_SetBaud_Deferred
  .text.D_UART_Service
-                0x00000000000036a6       0x28 ./Drivers/D_uart.o
-                0x00000000000036a6                D_UART_Service
+                0x0000000000003700       0x2a ./Drivers/D_uart.o
+                0x0000000000003700                D_UART_Service
  .text.D_UART1_ISR
-                0x00000000000036ce       0xb0 ./Drivers/D_uart.o
-                0x00000000000036ce                D_UART1_ISR
+                0x000000000000372a       0xb0 ./Drivers/D_uart.o
+                0x000000000000372a                D_UART1_ISR
  .text.WS2812_Encode
-                0x000000000000377e       0x2a ./Drivers/D_ws2812.o
+                0x00000000000037da       0x2a ./Drivers/D_ws2812.o
  .text.D_WS2812_Send
-                0x00000000000037a8       0x40 ./Drivers/D_ws2812.o
-                0x00000000000037a8                D_WS2812_Send
+                0x0000000000003804       0x40 ./Drivers/D_ws2812.o
+                0x0000000000003804                D_WS2812_Send
  .text.D_WS2812_Off
-                0x00000000000037e8        0xa ./Drivers/D_ws2812.o
-                0x00000000000037e8                D_WS2812_Off
+                0x0000000000003844        0xa ./Drivers/D_ws2812.o
+                0x0000000000003844                D_WS2812_Off
  .text.D_WS2812_Init
-                0x00000000000037f2        0x4 ./Drivers/D_ws2812.o
-                0x00000000000037f2                D_WS2812_Init
+                0x000000000000384e        0x4 ./Drivers/D_ws2812.o
+                0x000000000000384e                D_WS2812_Init
  .text.C_PosCtrl_Reset
-                0x00000000000037f6       0x1a ./Common/C_Pos_Ctrl.o
-                0x00000000000037f6                C_PosCtrl_Reset
+                0x0000000000003852       0x1e ./Common/C_Pos_Ctrl.o
+                0x0000000000003852                C_PosCtrl_Reset
  .text.C_PosCtrl_Init
-                0x0000000000003810       0x16 ./Common/C_Pos_Ctrl.o
-                0x0000000000003810                C_PosCtrl_Init
+                0x0000000000003870       0x16 ./Common/C_Pos_Ctrl.o
+                0x0000000000003870                C_PosCtrl_Init
  .text.C_PosCtrl_Set_Output_Limit
-                0x0000000000003826       0x1c ./Common/C_Pos_Ctrl.o
-                0x0000000000003826                C_PosCtrl_Set_Output_Limit
+                0x0000000000003886       0x1c ./Common/C_Pos_Ctrl.o
+                0x0000000000003886                C_PosCtrl_Set_Output_Limit
  .text.C_PosCtrl_Update
-                0x0000000000003842      0x4f8 ./Common/C_Pos_Ctrl.o
-                0x0000000000003842                C_PosCtrl_Update
+                0x00000000000038a2      0x582 ./Common/C_Pos_Ctrl.o
+                0x00000000000038a2                C_PosCtrl_Update
  .text.C_Ring_Buf_Init
-                0x0000000000003d3a        0xc ./Common/C_Ring_Buf.o
-                0x0000000000003d3a                C_Ring_Buf_Init
+                0x0000000000003e24        0xc ./Common/C_Ring_Buf.o
+                0x0000000000003e24                C_Ring_Buf_Init
  .text.C_Ring_Buf_Put
-                0x0000000000003d46       0x2c ./Common/C_Ring_Buf.o
-                0x0000000000003d46                C_Ring_Buf_Put
+                0x0000000000003e30       0x2c ./Common/C_Ring_Buf.o
+                0x0000000000003e30                C_Ring_Buf_Put
  .text.C_Ring_Buf_Get
-                0x0000000000003d72       0x32 ./Common/C_Ring_Buf.o
-                0x0000000000003d72                C_Ring_Buf_Get
+                0x0000000000003e5c       0x32 ./Common/C_Ring_Buf.o
+                0x0000000000003e5c                C_Ring_Buf_Get
  .text.C_Ring_Buf_Get_Count
-                0x0000000000003da4       0x34 ./Common/C_Ring_Buf.o
-                0x0000000000003da4                C_Ring_Buf_Get_Count
+                0x0000000000003e8e       0x34 ./Common/C_Ring_Buf.o
+                0x0000000000003e8e                C_Ring_Buf_Get_Count
  .text.C_SpeedObs_Init
-                0x0000000000003dd8       0x3e ./Common/C_Speed_Observer.o
-                0x0000000000003dd8                C_SpeedObs_Init
+                0x0000000000003ec2       0x3e ./Common/C_Speed_Observer.o
+                0x0000000000003ec2                C_SpeedObs_Init
  .text.C_SpeedObs_Update
-                0x0000000000003e16      0x198 ./Common/C_Speed_Observer.o
-                0x0000000000003e16                C_SpeedObs_Update
+                0x0000000000003f00      0x198 ./Common/C_Speed_Observer.o
+                0x0000000000003f00                C_SpeedObs_Update
  .text.C_Task_Init
-                0x0000000000003fae       0x2e ./Common/C_Task_Scheduler.o
-                0x0000000000003fae                C_Task_Init
+                0x0000000000004098       0x2e ./Common/C_Task_Scheduler.o
+                0x0000000000004098                C_Task_Init
  .text.C_Task_Tick_Update
-                0x0000000000003fdc       0x50 ./Common/C_Task_Scheduler.o
-                0x0000000000003fdc                C_Task_Tick_Update
+                0x00000000000040c6       0x50 ./Common/C_Task_Scheduler.o
+                0x00000000000040c6                C_Task_Tick_Update
  .text.C_Task_Run
-                0x000000000000402c       0x8e ./Common/C_Task_Scheduler.o
-                0x000000000000402c                C_Task_Run
+                0x0000000000004116       0x8e ./Common/C_Task_Scheduler.o
+                0x0000000000004116                C_Task_Run
+ .text.C_Task_EventFlag
+                0x00000000000041a4       0x2c ./Common/C_Task_Scheduler.o
+                0x00000000000041a4                C_Task_EventFlag
  .text.Traj_Sqrt_Ceil
-                0x00000000000040ba       0x2c ./Common/C_Traj_Planner.o
+                0x00000000000041d0       0x2c ./Common/C_Traj_Planner.o
  .text.Traj_Div_U64
-                0x00000000000040e6       0x68 ./Common/C_Traj_Planner.o
+                0x00000000000041fc       0x68 ./Common/C_Traj_Planner.o
  .text.Traj_Acc_Coef
-                0x000000000000414e       0x76 ./Common/C_Traj_Planner.o
+                0x0000000000004264       0x76 ./Common/C_Traj_Planner.o
  .text.Traj_Emit
-                0x00000000000041c4       0x3e ./Common/C_Traj_Planner.o
+                0x00000000000042da       0x3e ./Common/C_Traj_Planner.o
  .text.Traj_SCurve
-                0x0000000000004202      0x16c ./Common/C_Traj_Planner.o
+                0x0000000000004318      0x16c ./Common/C_Traj_Planner.o
  .text.Traj_TblLerp
-                0x000000000000436e       0x6e ./Common/C_Traj_Planner.o
+                0x0000000000004484       0x6e ./Common/C_Traj_Planner.o
  .text.C_Traj_Init
-                0x00000000000043dc      0x13c ./Common/C_Traj_Planner.o
-                0x00000000000043dc                C_Traj_Init
+                0x00000000000044f2      0x13c ./Common/C_Traj_Planner.o
+                0x00000000000044f2                C_Traj_Init
  .text.C_Traj_Set_Range
-                0x0000000000004518       0x4a ./Common/C_Traj_Planner.o
-                0x0000000000004518                C_Traj_Set_Range
+                0x000000000000462e       0x4a ./Common/C_Traj_Planner.o
+                0x000000000000462e                C_Traj_Set_Range
  .text.C_Traj_Hold
-                0x0000000000004562       0x50 ./Common/C_Traj_Planner.o
-                0x0000000000004562                C_Traj_Hold
+                0x0000000000004678       0x50 ./Common/C_Traj_Planner.o
+                0x0000000000004678                C_Traj_Hold
  .text.C_Traj_Plan
-                0x00000000000045b2      0x798 ./Common/C_Traj_Planner.o
-                0x00000000000045b2                C_Traj_Plan
+                0x00000000000046c8      0x822 ./Common/C_Traj_Planner.o
+                0x00000000000046c8                C_Traj_Plan
  .text.C_Traj_Step
-                0x0000000000004d4a      0x17e ./Common/C_Traj_Planner.o
-                0x0000000000004d4a                C_Traj_Step
+                0x0000000000004eea      0x17e ./Common/C_Traj_Planner.o
+                0x0000000000004eea                C_Traj_Step
  .text.C_Traj_Is_Done
-                0x0000000000004ec8       0x16 ./Common/C_Traj_Planner.o
-                0x0000000000004ec8                C_Traj_Is_Done
+                0x0000000000005068       0x16 ./Common/C_Traj_Planner.o
+                0x0000000000005068                C_Traj_Is_Done
  .text.C_Traj_Get_Ticks
-                0x0000000000004ede       0x14 ./Common/C_Traj_Planner.o
-                0x0000000000004ede                C_Traj_Get_Ticks
+                0x000000000000507e       0x14 ./Common/C_Traj_Planner.o
+                0x000000000000507e                C_Traj_Get_Ticks
  .text.A_Config_MarkDirty
-                0x0000000000004ef2       0x10 ./Application/A_Config.o
-                0x0000000000004ef2                A_Config_MarkDirty
+                0x0000000000005092       0x10 ./Application/A_Config.o
+                0x0000000000005092                A_Config_MarkDirty
  .text.A_Config_Default
-                0x0000000000004f02       0x30 ./Application/A_Config.o
-                0x0000000000004f02                A_Config_Default
+                0x00000000000050a2       0x40 ./Application/A_Config.o
+                0x00000000000050a2                A_Config_Default
  .text.A_Config_BindSaveEvent
-                0x0000000000004f32       0x12 ./Application/A_Config.o
-                0x0000000000004f32                A_Config_BindSaveEvent
+                0x00000000000050e2       0x12 ./Application/A_Config.o
+                0x00000000000050e2                A_Config_BindSaveEvent
  .text.A_Config_SaveTask
-                0x0000000000004f44       0x2e ./Application/A_Config.o
-                0x0000000000004f44                A_Config_SaveTask
+                0x00000000000050f4       0x2e ./Application/A_Config.o
+                0x00000000000050f4                A_Config_SaveTask
  .text.A_Config_Init
-                0x0000000000004f72       0xa8 ./Application/A_Config.o
-                0x0000000000004f72                A_Config_Init
+                0x0000000000005122      0x114 ./Application/A_Config.o
+                0x0000000000005122                A_Config_Init
  .text.A_Config_Baudrate
-                0x000000000000501a       0x22 ./Application/A_Config.o
-                0x000000000000501a                A_Config_Baudrate
+                0x0000000000005236       0x22 ./Application/A_Config.o
+                0x0000000000005236                A_Config_Baudrate
  .text.Protect_ApplyTorqueSetting
-                0x000000000000503c       0x66 ./Application/A_Protect.o
+                0x0000000000005258       0x66 ./Application/A_Protect.o
  .text.A_Protect_SetTorque
-                0x00000000000050a2       0x22 ./Application/A_Protect.o
-                0x00000000000050a2                A_Protect_SetTorque
+                0x00000000000052be       0x22 ./Application/A_Protect.o
+                0x00000000000052be                A_Protect_SetTorque
  .text.A_Protect_GetTorque
-                0x00000000000050c4        0x6 ./Application/A_Protect.o
-                0x00000000000050c4                A_Protect_GetTorque
+                0x00000000000052e0        0x6 ./Application/A_Protect.o
+                0x00000000000052e0                A_Protect_GetTorque
  .text.A_Protect_Fault
-                0x00000000000050ca        0x6 ./Application/A_Protect.o
-                0x00000000000050ca                A_Protect_Fault
+                0x00000000000052e6        0x6 ./Application/A_Protect.o
+                0x00000000000052e6                A_Protect_Fault
+ .text.A_Protect_GetCurrent
+                0x00000000000052ec        0x6 ./Application/A_Protect.o
+                0x00000000000052ec                A_Protect_GetCurrent
  .text.A_Protect_Init
-                0x00000000000050d0       0x18 ./Application/A_Protect.o
-                0x00000000000050d0                A_Protect_Init
+                0x00000000000052f2       0x18 ./Application/A_Protect.o
+                0x00000000000052f2                A_Protect_Init
  .text.A_Protect_Task
-                0x00000000000050e8      0x1d0 ./Application/A_Protect.o
-                0x00000000000050e8                A_Protect_Task
+                0x000000000000530a      0x1d6 ./Application/A_Protect.o
+                0x000000000000530a                A_Protect_Task
  .text.A_Encoder_Read
-                0x00000000000052b8       0x8a ./Application/A_Sensor.o
-                0x00000000000052b8                A_Encoder_Read
+                0x00000000000054e0       0x8a ./Application/A_Sensor.o
+                0x00000000000054e0                A_Encoder_Read
  .text.A_Voltage_Read
-                0x0000000000005342       0x24 ./Application/A_Sensor.o
-                0x0000000000005342                A_Voltage_Read
+                0x000000000000556a       0x24 ./Application/A_Sensor.o
+                0x000000000000556a                A_Voltage_Read
  .text.A_Temperature_Read
-                0x0000000000005366        0x4 ./Application/A_Sensor.o
-                0x0000000000005366                A_Temperature_Read
+                0x000000000000558e        0x4 ./Application/A_Sensor.o
+                0x000000000000558e                A_Temperature_Read
  .text.A_Current_Read
-                0x000000000000536a       0x42 ./Application/A_Sensor.o
-                0x000000000000536a                A_Current_Read
+                0x0000000000005592       0x3e ./Application/A_Sensor.o
+                0x0000000000005592                A_Current_Read
  .text.Servo_IsPosition
-                0x00000000000053ac       0x14 ./Application/A_Servo.o
- .text.Servo_WrapAngle
-                0x00000000000053c0       0x36 ./Application/A_Servo.o
- .text.Servo_Offset
-                0x00000000000053f6       0x28 ./Application/A_Servo.o
- .text.Servo_EscapeStart
-                0x000000000000541e       0x1c ./Application/A_Servo.o
- .text.Servo_PositionToPwm
-                0x000000000000543a       0x40 ./Application/A_Servo.o
- .text.Servo_ResyncLoops
-                0x000000000000547a       0x3a ./Application/A_Servo.o
+                0x00000000000055d0       0x14 ./Application/A_Servo.o
+ .text.Servo_NominalSpan
+                0x00000000000055e4       0x28 ./Application/A_Servo.o
+ .text.Servo_StoredOffset
+                0x000000000000560c       0x28 ./Application/A_Servo.o
+ .text.Servo_DeriveCal
+                0x0000000000005634       0x62 ./Application/A_Servo.o
  .text.Servo_SetModeFields
-                0x00000000000054b4       0x5a ./Application/A_Servo.o
+                0x0000000000005696       0x98 ./Application/A_Servo.o
+ .text.Servo_EscapeStart
+                0x000000000000572e       0x1c ./Application/A_Servo.o
+ .text.Servo_PositionToPwm
+                0x000000000000574a       0x42 ./Application/A_Servo.o
+ .text.Servo_ResyncLoops
+                0x000000000000578c       0x40 ./Application/A_Servo.o
  .text.Servo_SetTrajRange
-                0x000000000000550e       0x6a ./Application/A_Servo.o
+                0x00000000000057cc       0x46 ./Application/A_Servo.o
  .text.Servo_ReadPosition
-                0x0000000000005578       0x46 ./Application/A_Servo.o
+                0x0000000000005812       0x44 ./Application/A_Servo.o
  .text.Servo_ApplyTorqueOutput
-                0x00000000000055be       0x2c ./Application/A_Servo.o
+                0x0000000000005856       0x2c ./Application/A_Servo.o
  .text.A_Servo_SetOutputLimit
-                0x00000000000055ea       0x28 ./Application/A_Servo.o
-                0x00000000000055ea                A_Servo_SetOutputLimit
+                0x0000000000005882       0x28 ./Application/A_Servo.o
+                0x0000000000005882                A_Servo_SetOutputLimit
  .text.A_Servo_TorqueOn
-                0x0000000000005612        0xa ./Application/A_Servo.o
-                0x0000000000005612                A_Servo_TorqueOn
+                0x00000000000058aa        0xa ./Application/A_Servo.o
+                0x00000000000058aa                A_Servo_TorqueOn
  .text.A_Servo_SampleMotion
-                0x000000000000561c       0x6c ./Application/A_Servo.o
-                0x000000000000561c                A_Servo_SampleMotion
+                0x00000000000058b4       0x6e ./Application/A_Servo.o
+                0x00000000000058b4                A_Servo_SampleMotion
  .text.A_Servo_ApplyConfig
-                0x0000000000005688       0x5c ./Application/A_Servo.o
-                0x0000000000005688                A_Servo_ApplyConfig
+                0x0000000000005922       0x60 ./Application/A_Servo.o
+                0x0000000000005922                A_Servo_ApplyConfig
+ .text.A_Servo_SubmitTurns
+                0x0000000000005982        0x2 ./Application/A_Servo.o
+                0x0000000000005982                A_Servo_SubmitTurns
  .text.A_Servo_Pause
-                0x00000000000056e4       0x50 ./Application/A_Servo.o
-                0x00000000000056e4                A_Servo_Pause
+                0x0000000000005984       0x50 ./Application/A_Servo.o
+                0x0000000000005984                A_Servo_Pause
  .text.A_Servo_Resume
-                0x0000000000005734       0x70 ./Application/A_Servo.o
-                0x0000000000005734                A_Servo_Resume
+                0x00000000000059d4       0x70 ./Application/A_Servo.o
+                0x00000000000059d4                A_Servo_Resume
  .text.A_Servo_Stop
-                0x00000000000057a4       0x42 ./Application/A_Servo.o
-                0x00000000000057a4                A_Servo_Stop
+                0x0000000000005a44       0x42 ./Application/A_Servo.o
+                0x0000000000005a44                A_Servo_Stop
  .text.A_Servo_HoldHere
-                0x00000000000057e6       0x18 ./Application/A_Servo.o
-                0x00000000000057e6                A_Servo_HoldHere
+                0x0000000000005a86       0x18 ./Application/A_Servo.o
+                0x0000000000005a86                A_Servo_HoldHere
+ .text.Servo_Calibrate
+                0x0000000000005a9e       0x8a ./Application/A_Servo.o
  .text.A_Servo_Release
-                0x00000000000057fe        0xe ./Application/A_Servo.o
-                0x00000000000057fe                A_Servo_Release
+                0x0000000000005b28        0xe ./Application/A_Servo.o
+                0x0000000000005b28                A_Servo_Release
  .text.A_Servo_RestoreTorque
-                0x000000000000580c       0x3a ./Application/A_Servo.o
-                0x000000000000580c                A_Servo_RestoreTorque
+                0x0000000000005b36       0x3a ./Application/A_Servo.o
+                0x0000000000005b36                A_Servo_RestoreTorque
+ .text.Servo_SubmitQ3
+                0x0000000000005b70      0x25c ./Application/A_Servo.o
  .text.A_Servo_Submit
-                0x0000000000005846      0x21e ./Application/A_Servo.o
-                0x0000000000005846                A_Servo_Submit
+                0x0000000000005dcc       0x1c ./Application/A_Servo.o
+                0x0000000000005dcc                A_Servo_Submit
  .text.Servo_ApplyBootAction
-                0x0000000000005a64       0x46 ./Application/A_Servo.o
+                0x0000000000005de8       0x6e ./Application/A_Servo.o
  .text.A_Servo_Init
-                0x0000000000005aaa       0xcc ./Application/A_Servo.o
-                0x0000000000005aaa                A_Servo_Init
+                0x0000000000005e56      0x114 ./Application/A_Servo.o
+                0x0000000000005e56                A_Servo_Init
  .text.A_Servo_SetMode
-                0x0000000000005b76       0x44 ./Application/A_Servo.o
-                0x0000000000005b76                A_Servo_SetMode
+                0x0000000000005f6a       0x44 ./Application/A_Servo.o
+                0x0000000000005f6a                A_Servo_SetMode
  .text.A_Servo_GetPositionPwm
-                0x0000000000005bba       0x16 ./Application/A_Servo.o
-                0x0000000000005bba                A_Servo_GetPositionPwm
+                0x0000000000005fae       0x16 ./Application/A_Servo.o
+                0x0000000000005fae                A_Servo_GetPositionPwm
  .text.A_Servo_CalibrateMid
-                0x0000000000005bd0       0x86 ./Application/A_Servo.o
-                0x0000000000005bd0                A_Servo_CalibrateMid
+                0x0000000000005fc4        0x6 ./Application/A_Servo.o
+                0x0000000000005fc4                A_Servo_CalibrateMid
+ .text.A_Servo_CalibrateZero
+                0x0000000000005fca        0x6 ./Application/A_Servo.o
+                0x0000000000005fca                A_Servo_CalibrateZero
  .text.A_Servo_SetTravelEnd
-                0x0000000000005c56       0x9c ./Application/A_Servo.o
-                0x0000000000005c56                A_Servo_SetTravelEnd
+                0x0000000000005fd0       0xde ./Application/A_Servo.o
+                0x0000000000005fd0                A_Servo_SetTravelEnd
+ .text.A_Servo_SetPulseLimit
+                0x00000000000060ae       0x42 ./Application/A_Servo.o
+                0x00000000000060ae                A_Servo_SetPulseLimit
  .text.A_Servo_SaveStartup
-                0x0000000000005cf2       0x26 ./Application/A_Servo.o
-                0x0000000000005cf2                A_Servo_SaveStartup
+                0x00000000000060f0       0x26 ./Application/A_Servo.o
+                0x00000000000060f0                A_Servo_SaveStartup
  .text.A_Servo_Control
-                0x0000000000005d18      0x310 ./Application/A_Servo.o
-                0x0000000000005d18                A_Servo_Control
+                0x0000000000006116      0x36a ./Application/A_Servo.o
+                0x0000000000006116                A_Servo_Control
  .text.Task_State
-                0x0000000000006028       0x4e ./Application/A_Tasks.o
+                0x0000000000006480       0x34 ./Application/A_Tasks.o
  .text.Task_Protect
-                0x0000000000006076        0x4 ./Application/A_Tasks.o
+                0x00000000000064b4        0x4 ./Application/A_Tasks.o
  .text.Task_Uart
-                0x000000000000607a        0x2 ./Application/A_Tasks.o
+                0x00000000000064b8        0xe ./Application/A_Tasks.o
  .text.Task_ServoControl
-                0x000000000000607c        0x4 ./Application/A_Tasks.o
+                0x00000000000064c6        0x4 ./Application/A_Tasks.o
  .text.A_Tasks_Init
-                0x0000000000006080       0x22 ./Application/A_Tasks.o
-                0x0000000000006080                A_Tasks_Init
+                0x00000000000064ca       0x24 ./Application/A_Tasks.o
+                0x00000000000064ca                A_Tasks_Init
  .text.Reply_Begin
-                0x00000000000060a2       0x58 ./Application/A_UartCmd.o
+                0x00000000000064ee       0x58 ./Application/A_UartCmd.o
  .text.Reply_Char
-                0x00000000000060fa       0x1e ./Application/A_UartCmd.o
+                0x0000000000006546       0x1e ./Application/A_UartCmd.o
  .text.Reply_Text
-                0x0000000000006118       0x28 ./Application/A_UartCmd.o
+                0x0000000000006564       0x28 ./Application/A_UartCmd.o
  .text.Reply_UInt
-                0x0000000000006140       0x98 ./Application/A_UartCmd.o
+                0x000000000000658c       0x98 ./Application/A_UartCmd.o
  .text.Uart_BodyIs
-                0x00000000000061d8       0x32 ./Application/A_UartCmd.o
+                0x0000000000006624       0x32 ./Application/A_UartCmd.o
  .text.Reply_Send
-                0x000000000000620a       0x20 ./Application/A_UartCmd.o
+                0x0000000000006656       0x20 ./Application/A_UartCmd.o
  .text.Reply_Value
-                0x000000000000622a       0x28 ./Application/A_UartCmd.o
+                0x0000000000006676       0x28 ./Application/A_UartCmd.o
  .text.Reply_OK
-                0x0000000000006252       0x1a ./Application/A_UartCmd.o
+                0x000000000000669e       0x1a ./Application/A_UartCmd.o
  .text.Uart_ParseDigits.part.0
-                0x000000000000626c       0x40 ./Application/A_UartCmd.o
+                0x00000000000066b8       0x40 ./Application/A_UartCmd.o
  .text.A_Uart_Process
-                0x00000000000062ac      0x5f2 ./Application/A_UartCmd.o
-                0x00000000000062ac                A_Uart_Process
+                0x00000000000066f8      0x71c ./Application/A_UartCmd.o
+                0x00000000000066f8                A_Uart_Process
  .text.__divdi3
-                0x000000000000689e      0x4cc d:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_divdi3.o)
-                0x000000000000689e                __divdi3
- .text.memcmp   0x0000000000006d6a       0x24 d:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-memcmp.o)
-                0x0000000000006d6a                memcmp
- .text.strlen   0x0000000000006d8e       0x10 d:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-strlen.o)
-                0x0000000000006d8e                strlen
+                0x0000000000006e14      0x4cc d:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_divdi3.o)
+                0x0000000000006e14                __divdi3
+ .text.memcmp   0x00000000000072e0       0x24 d:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-memcmp.o)
+                0x00000000000072e0                memcmp
+ .text.strlen   0x0000000000007304       0x10 d:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-strlen.o)
+                0x0000000000007304                strlen
  *(.rodata)
  *(.rodata*)
- *fill*         0x0000000000006d9e        0x2 
+ *fill*         0x0000000000007314        0x0 
  .rodata.IAP_Rx_Deal
-                0x0000000000006da0       0x28 ./System/iap.o
+                0x0000000000007314       0x28 ./System/iap.o
  .rodata.TRAJ_G_Q15
-                0x0000000000006dc8       0x30 ./Common/C_Traj_Planner.o
+                0x000000000000733c       0x30 ./Common/C_Traj_Planner.o
  .rodata.TRAJ_H_Q12
-                0x0000000000006df8       0x30 ./Common/C_Traj_Planner.o
+                0x000000000000736c       0x30 ./Common/C_Traj_Planner.o
  .rodata.TRAJ_F_Q15
-                0x0000000000006e28       0x30 ./Common/C_Traj_Planner.o
+                0x000000000000739c       0x30 ./Common/C_Traj_Planner.o
  .rodata.baud.0
-                0x0000000000006e58       0x20 ./Application/A_Config.o
+                0x00000000000073cc       0x20 ./Application/A_Config.o
  .rodata.span.0
-                0x0000000000006e78        0x6 ./Application/A_Servo.o
- *fill*         0x0000000000006e7e        0x2 
+                0x00000000000073ec        0x6 ./Application/A_Servo.o
+ *fill*         0x00000000000073f2        0x2 
  .rodata.Reply_OK.str1.4
-                0x0000000000006e80        0x3 ./Application/A_UartCmd.o
- *fill*         0x0000000000006e83        0x1 
+                0x00000000000073f4        0x3 ./Application/A_UartCmd.o
+ *fill*         0x00000000000073f7        0x1 
  .rodata.A_Uart_Process.str1.4
-                0x0000000000006e84       0x77 ./Application/A_UartCmd.o
-                                         0x7b (size before relaxing)
- *fill*         0x0000000000006efb        0x1 
+                0x00000000000073f8       0x87 ./Application/A_UartCmd.o
+                                         0x8b (size before relaxing)
+ *fill*         0x000000000000747f        0x1 
  .rodata.A_Uart_Process
-                0x0000000000006efc       0x68 ./Application/A_UartCmd.o
+                0x0000000000007480       0x7c ./Application/A_UartCmd.o
  .rodata.__clz_tab
-                0x0000000000006f64      0x100 d:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_clz.o)
-                0x0000000000006f64                __clz_tab
+                0x00000000000074fc      0x100 d:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_clz.o)
+                0x00000000000074fc                __clz_tab
  *(.gnu.linkonce.t.*)
-                0x0000000000007064                . = ALIGN (0x4)
+                0x00000000000075fc                . = ALIGN (0x4)
 
-.rela.dyn       0x0000000000007064        0x0
- .rela.init     0x0000000000007064        0x0 ./User/ch32v00X_it.o
+.rela.dyn       0x00000000000075fc        0x0
+ .rela.init     0x00000000000075fc        0x0 ./User/ch32v00X_it.o
  .rela.text.handle_reset
-                0x0000000000007064        0x0 ./User/ch32v00X_it.o
+                0x00000000000075fc        0x0 ./User/ch32v00X_it.o
 
-.fini           0x0000000000007064        0x0
+.fini           0x00000000000075fc        0x0
  *(SORT_NONE(.fini))
-                0x0000000000007064                . = ALIGN (0x4)
+                0x00000000000075fc                . = ALIGN (0x4)
                 [!provide]                        PROVIDE (_etext = .)
                 [!provide]                        PROVIDE (_eitcm = .)
 
-.preinit_array  0x0000000000007064        0x0
+.preinit_array  0x00000000000075fc        0x0
                 [!provide]                        PROVIDE (__preinit_array_start = .)
  *(.preinit_array)
                 [!provide]                        PROVIDE (__preinit_array_end = .)
 
-.init_array     0x0000000000007064        0x0
+.init_array     0x00000000000075fc        0x0
                 [!provide]                        PROVIDE (__init_array_start = .)
  *(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*))
  *(.init_array EXCLUDE_FILE(*crtend?.o *crtend.o *crtbegin?.o *crtbegin.o) .ctors)
                 [!provide]                        PROVIDE (__init_array_end = .)
 
-.fini_array     0x0000000000007064        0x0
+.fini_array     0x00000000000075fc        0x0
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*))
  *(.fini_array EXCLUDE_FILE(*crtend?.o *crtend.o *crtbegin?.o *crtbegin.o) .dtors)
@@ -2287,15 +2314,15 @@ END GROUP
  *(SORT_BY_NAME(.dtors.*))
  *(.dtors)
 
-.dalign         0x0000000020000000        0x0 load address 0x0000000000007064
+.dalign         0x0000000020000000        0x0 load address 0x00000000000075fc
                 0x0000000020000000                . = ALIGN (0x4)
                 0x0000000020000000                PROVIDE (_data_vma = .)
 
-.dlalign        0x0000000000007064        0x0
-                0x0000000000007064                . = ALIGN (0x4)
-                0x0000000000007064                PROVIDE (_data_lma = .)
+.dlalign        0x00000000000075fc        0x0
+                0x00000000000075fc                . = ALIGN (0x4)
+                0x00000000000075fc                PROVIDE (_data_lma = .)
 
-.data           0x0000000020000000       0x90 load address 0x0000000000007064
+.data           0x0000000020000000       0x90 load address 0x00000000000075fc
                 0x0000000020000000                . = ALIGN (0x4)
  *(.gnu.linkonce.r.*)
  *(.data .data.*)
@@ -2329,7 +2356,7 @@ END GROUP
                 0x0000000020000090                . = ALIGN (0x4)
                 0x0000000020000090                PROVIDE (_edata = .)
 
-.bss            0x0000000020000090      0x3e0 load address 0x00000000000070f4
+.bss            0x0000000020000090      0x400 load address 0x000000000000768c
                 0x0000000020000090                . = ALIGN (0x4)
                 0x0000000020000090                PROVIDE (_sbss = .)
  *(.sbss*)
@@ -2357,31 +2384,30 @@ END GROUP
  *fill*         0x00000000200000e6        0x2 
  .bss.s_encoder_half_sum
                 0x00000000200000e8        0x4 ./Drivers/D_adc.o
+ .bss.s_current_seq
+                0x00000000200000ec        0x2 ./Drivers/D_adc.o
  .bss.s_current_window_off
-                0x00000000200000ec        0x1 ./Drivers/D_adc.o
- .bss.s_discard_dma_block
-                0x00000000200000ed        0x1 ./Drivers/D_adc.o
- .bss.s_current_valid
                 0x00000000200000ee        0x1 ./Drivers/D_adc.o
- *fill*         0x00000000200000ef        0x1 
+ .bss.s_current_in_window
+                0x00000000200000ef        0x1 ./Drivers/D_adc.o
+ .bss.s_current_valid
+                0x00000000200000f0        0x1 ./Drivers/D_adc.o
+ *fill*         0x00000000200000f1        0x1 
  .bss.s_current_offset
-                0x00000000200000f0        0x2 ./Drivers/D_adc.o
- .bss.s_current_filtered
                 0x00000000200000f2        0x2 ./Drivers/D_adc.o
+ .bss.s_current_avg
+                0x00000000200000f4        0x2 ./Drivers/D_adc.o
+ *fill*         0x00000000200000f6        0x2 
  .bss.s_current_half_sum
-                0x00000000200000f4        0x4 ./Drivers/D_adc.o
+                0x00000000200000f8        0x4 ./Drivers/D_adc.o
  .bss.s_adc_dma_buffer
-                0x00000000200000f8       0x50 ./Drivers/D_adc.o
+                0x00000000200000fc       0x50 ./Drivers/D_adc.o
  .bss.s_i2c_initialized
-                0x0000000020000148        0x1 ./Drivers/D_i2c.o
- .bss.s_adc_window
-                0x0000000020000149        0x1 ./Drivers/D_motor.o
+                0x000000002000014c        0x1 ./Drivers/D_i2c.o
  .bss.s_motor_direction
-                0x000000002000014a        0x1 ./Drivers/D_motor.o
- *fill*         0x000000002000014b        0x1 
+                0x000000002000014d        0x1 ./Drivers/D_motor.o
  .bss.s_pulse_us
-                0x000000002000014c        0x2 ./Drivers/D_tim.o
- *fill*         0x000000002000014e        0x2 
+                0x000000002000014e        0x2 ./Drivers/D_tim.o
  .bss.s_ic_overflow
                 0x0000000020000150        0x4 ./Drivers/D_tim.o
  .bss.s_ic_period_valid
@@ -2406,41 +2432,38 @@ END GROUP
  .bss.s_rx_rb   0x00000000200001ec       0x82 ./Drivers/D_uart.o
  *fill*         0x000000002000026e        0x2 
  .bss.s_frame   0x0000000020000270       0x18 ./Drivers/D_ws2812.o
- .bss.s_ctl     0x0000000020000288       0x14 ./Common/C_Pos_Ctrl.o
- .bss.s_obs     0x000000002000029c       0x2c ./Common/C_Speed_Observer.o
+ .bss.s_ctl     0x0000000020000288       0x18 ./Common/C_Pos_Ctrl.o
+ .bss.s_obs     0x00000000200002a0       0x2c ./Common/C_Speed_Observer.o
  .bss.s_task_count
-                0x00000000200002c8        0x1 ./Common/C_Task_Scheduler.o
- *fill*         0x00000000200002c9        0x3 
- .bss.s_tasks   0x00000000200002cc        0x4 ./Common/C_Task_Scheduler.o
- .bss.s_tj      0x00000000200002d0       0x98 ./Common/C_Traj_Planner.o
+                0x00000000200002cc        0x1 ./Common/C_Task_Scheduler.o
+ *fill*         0x00000000200002cd        0x3 
+ .bss.s_tasks   0x00000000200002d0        0x4 ./Common/C_Task_Scheduler.o
+ .bss.s_tj      0x00000000200002d4       0x98 ./Common/C_Traj_Planner.o
  .bss.s_save_event
-                0x0000000020000368        0x4 ./Application/A_Config.o
- .bss.s_dirty   0x000000002000036c        0x1 ./Application/A_Config.o
- *fill*         0x000000002000036d        0x3 
+                0x000000002000036c        0x4 ./Application/A_Config.o
+ .bss.s_dirty   0x0000000020000370        0x1 ./Application/A_Config.o
+ *fill*         0x0000000020000371        0x3 
  .bss.s_sequence
-                0x0000000020000370        0x4 ./Application/A_Config.o
- .bss.g_config  0x0000000020000374        0xe ./Application/A_Config.o
-                0x0000000020000374                g_config
- *fill*         0x0000000020000382        0x2 
- .bss.s_prot    0x0000000020000384        0xe ./Application/A_Protect.o
- *fill*         0x0000000020000392        0x2 
- .bss.s_servo   0x0000000020000394       0x84 ./Application/A_Servo.o
- .bss.led_on.0  0x0000000020000418        0x1 ./Application/A_Tasks.o
- .bss.led_div.1
-                0x0000000020000419        0x1 ./Application/A_Tasks.o
- *fill*         0x000000002000041a        0x2 
- .bss.s_reply   0x000000002000041c       0x31 ./Application/A_UartCmd.o
+                0x0000000020000374        0x4 ./Application/A_Config.o
+ .bss.g_config  0x0000000020000378       0x16 ./Application/A_Config.o
+                0x0000000020000378                g_config
+ *fill*         0x000000002000038e        0x2 
+ .bss.s_prot    0x0000000020000390       0x10 ./Application/A_Protect.o
+ .bss.s_servo   0x00000000200003a0       0x98 ./Application/A_Servo.o
+ .bss.led_on.0  0x0000000020000438        0x1 ./Application/A_Tasks.o
+ *fill*         0x0000000020000439        0x3 
+ .bss.s_reply   0x000000002000043c       0x31 ./Application/A_UartCmd.o
  .bss.s_framing
-                0x000000002000044d        0x1 ./Application/A_UartCmd.o
+                0x000000002000046d        0x1 ./Application/A_UartCmd.o
  .bss.s_frame_idx
-                0x000000002000044e        0x1 ./Application/A_UartCmd.o
- *fill*         0x000000002000044f        0x1 
- .bss.s_frame   0x0000000020000450       0x20 ./Application/A_UartCmd.o
+                0x000000002000046e        0x1 ./Application/A_UartCmd.o
+ *fill*         0x000000002000046f        0x1 
+ .bss.s_frame   0x0000000020000470       0x20 ./Application/A_UartCmd.o
  *(.gnu.linkonce.b.*)
  *(COMMON*)
-                0x0000000020000470                . = ALIGN (0x4)
-                0x0000000020000470                PROVIDE (_ebss = .)
-                0x0000000020000470                PROVIDE (_end = _ebss)
+                0x0000000020000490                . = ALIGN (0x4)
+                0x0000000020000490                PROVIDE (_ebss = .)
+                0x0000000020000490                PROVIDE (_end = _ebss)
                 [!provide]                        PROVIDE (end = .)
 
 .stack          0x0000000020001800      0x800
@@ -2452,7 +2475,7 @@ END GROUP
                 0x0000000020002000                PROVIDE (_eusrstack = .)
 OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
 
-.debug_info     0x0000000000000000    0x162b8
+.debug_info     0x0000000000000000    0x16cd4
  .debug_info    0x0000000000000000      0x6ca ./User/ch32v00X_it.o
  .debug_info    0x00000000000006ca      0x284 ./User/main.o
  .debug_info    0x000000000000094e      0x5e6 ./System/flash.o
@@ -2473,30 +2496,30 @@ OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
  .debug_info    0x0000000000008dd1      0x887 ./SRC/Peripheral/src/ch32v00X_usart.o
  .debug_info    0x0000000000009658      0x702 ./SRC/Debug/debug.o
  .debug_info    0x0000000000009d5a      0x2eb ./SRC/Core/core_riscv.o
- .debug_info    0x000000000000a045     0x125c ./Drivers/D_adc.o
- .debug_info    0x000000000000b2a1      0xfaf ./Drivers/D_i2c.o
- .debug_info    0x000000000000c250      0x225 ./Drivers/D_iwdg.o
- .debug_info    0x000000000000c475      0x603 ./Drivers/D_motor.o
- .debug_info    0x000000000000ca78      0x1bd ./Drivers/D_mt6701.o
- .debug_info    0x000000000000cc35      0x796 ./Drivers/D_opa.o
- .debug_info    0x000000000000d3cb      0x604 ./Drivers/D_spi.o
- .debug_info    0x000000000000d9cf     0x1491 ./Drivers/D_tim.o
- .debug_info    0x000000000000ee60      0x2bd ./Drivers/D_tmp112.o
- .debug_info    0x000000000000f11d     0x1017 ./Drivers/D_uart.o
- .debug_info    0x0000000000010134      0x24e ./Drivers/D_ws2812.o
- .debug_info    0x0000000000010382      0x7c4 ./Common/C_Pos_Ctrl.o
- .debug_info    0x0000000000010b46      0x1be ./Common/C_Ring_Buf.o
- .debug_info    0x0000000000010d04      0x339 ./Common/C_Speed_Observer.o
- .debug_info    0x000000000001103d      0x32c ./Common/C_Task_Scheduler.o
- .debug_info    0x0000000000011369     0x1267 ./Common/C_Traj_Planner.o
- .debug_info    0x00000000000125d0      0x3df ./Application/A_Config.o
- .debug_info    0x00000000000129af      0x637 ./Application/A_Protect.o
- .debug_info    0x0000000000012fe6      0x279 ./Application/A_Sensor.o
- .debug_info    0x000000000001325f     0x19b9 ./Application/A_Servo.o
- .debug_info    0x0000000000014c18      0x320 ./Application/A_Tasks.o
- .debug_info    0x0000000000014f38     0x1380 ./Application/A_UartCmd.o
+ .debug_info    0x000000000000a045     0x11bf ./Drivers/D_adc.o
+ .debug_info    0x000000000000b204      0xfad ./Drivers/D_i2c.o
+ .debug_info    0x000000000000c1b1      0x225 ./Drivers/D_iwdg.o
+ .debug_info    0x000000000000c3d6      0x5b4 ./Drivers/D_motor.o
+ .debug_info    0x000000000000c98a      0x1bd ./Drivers/D_mt6701.o
+ .debug_info    0x000000000000cb47      0x796 ./Drivers/D_opa.o
+ .debug_info    0x000000000000d2dd      0x604 ./Drivers/D_spi.o
+ .debug_info    0x000000000000d8e1     0x1493 ./Drivers/D_tim.o
+ .debug_info    0x000000000000ed74      0x2bd ./Drivers/D_tmp112.o
+ .debug_info    0x000000000000f031     0x1017 ./Drivers/D_uart.o
+ .debug_info    0x0000000000010048      0x24e ./Drivers/D_ws2812.o
+ .debug_info    0x0000000000010296      0x808 ./Common/C_Pos_Ctrl.o
+ .debug_info    0x0000000000010a9e      0x1be ./Common/C_Ring_Buf.o
+ .debug_info    0x0000000000010c5c      0x339 ./Common/C_Speed_Observer.o
+ .debug_info    0x0000000000010f95      0x367 ./Common/C_Task_Scheduler.o
+ .debug_info    0x00000000000112fc     0x1386 ./Common/C_Traj_Planner.o
+ .debug_info    0x0000000000012682      0x4c2 ./Application/A_Config.o
+ .debug_info    0x0000000000012b44      0x684 ./Application/A_Protect.o
+ .debug_info    0x00000000000131c8      0x287 ./Application/A_Sensor.o
+ .debug_info    0x000000000001344f     0x1f2d ./Application/A_Servo.o
+ .debug_info    0x000000000001537c      0x2db ./Application/A_Tasks.o
+ .debug_info    0x0000000000015657     0x167d ./Application/A_UartCmd.o
 
-.debug_abbrev   0x0000000000000000     0x5616
+.debug_abbrev   0x0000000000000000     0x5625
  .debug_abbrev  0x0000000000000000      0x217 ./User/ch32v00X_it.o
  .debug_abbrev  0x0000000000000217       0xb5 ./User/main.o
  .debug_abbrev  0x00000000000002cc      0x1b8 ./System/flash.o
@@ -2517,30 +2540,30 @@ OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
  .debug_abbrev  0x0000000000002004      0x1ff ./SRC/Peripheral/src/ch32v00X_usart.o
  .debug_abbrev  0x0000000000002203      0x283 ./SRC/Debug/debug.o
  .debug_abbrev  0x0000000000002486       0xe5 ./SRC/Core/core_riscv.o
- .debug_abbrev  0x000000000000256b      0x366 ./Drivers/D_adc.o
- .debug_abbrev  0x00000000000028d1      0x300 ./Drivers/D_i2c.o
- .debug_abbrev  0x0000000000002bd1      0x118 ./Drivers/D_iwdg.o
- .debug_abbrev  0x0000000000002ce9      0x1b9 ./Drivers/D_motor.o
- .debug_abbrev  0x0000000000002ea2       0xed ./Drivers/D_mt6701.o
- .debug_abbrev  0x0000000000002f8f      0x13e ./Drivers/D_opa.o
- .debug_abbrev  0x00000000000030cd      0x1bd ./Drivers/D_spi.o
- .debug_abbrev  0x000000000000328a      0x3a6 ./Drivers/D_tim.o
- .debug_abbrev  0x0000000000003630      0x158 ./Drivers/D_tmp112.o
- .debug_abbrev  0x0000000000003788      0x321 ./Drivers/D_uart.o
- .debug_abbrev  0x0000000000003aa9      0x131 ./Drivers/D_ws2812.o
- .debug_abbrev  0x0000000000003bda      0x290 ./Common/C_Pos_Ctrl.o
- .debug_abbrev  0x0000000000003e6a      0x10c ./Common/C_Ring_Buf.o
- .debug_abbrev  0x0000000000003f76      0x185 ./Common/C_Speed_Observer.o
- .debug_abbrev  0x00000000000040fb      0x17e ./Common/C_Task_Scheduler.o
- .debug_abbrev  0x0000000000004279      0x381 ./Common/C_Traj_Planner.o
- .debug_abbrev  0x00000000000045fa      0x230 ./Application/A_Config.o
- .debug_abbrev  0x000000000000482a      0x29d ./Application/A_Protect.o
- .debug_abbrev  0x0000000000004ac7      0x11e ./Application/A_Sensor.o
- .debug_abbrev  0x0000000000004be5      0x50a ./Application/A_Servo.o
- .debug_abbrev  0x00000000000050ef      0x185 ./Application/A_Tasks.o
- .debug_abbrev  0x0000000000005274      0x3a2 ./Application/A_UartCmd.o
+ .debug_abbrev  0x000000000000256b      0x34f ./Drivers/D_adc.o
+ .debug_abbrev  0x00000000000028ba      0x2ff ./Drivers/D_i2c.o
+ .debug_abbrev  0x0000000000002bb9      0x118 ./Drivers/D_iwdg.o
+ .debug_abbrev  0x0000000000002cd1      0x1a6 ./Drivers/D_motor.o
+ .debug_abbrev  0x0000000000002e77       0xed ./Drivers/D_mt6701.o
+ .debug_abbrev  0x0000000000002f64      0x13e ./Drivers/D_opa.o
+ .debug_abbrev  0x00000000000030a2      0x1bd ./Drivers/D_spi.o
+ .debug_abbrev  0x000000000000325f      0x386 ./Drivers/D_tim.o
+ .debug_abbrev  0x00000000000035e5      0x158 ./Drivers/D_tmp112.o
+ .debug_abbrev  0x000000000000373d      0x321 ./Drivers/D_uart.o
+ .debug_abbrev  0x0000000000003a5e      0x131 ./Drivers/D_ws2812.o
+ .debug_abbrev  0x0000000000003b8f      0x2c8 ./Common/C_Pos_Ctrl.o
+ .debug_abbrev  0x0000000000003e57      0x10c ./Common/C_Ring_Buf.o
+ .debug_abbrev  0x0000000000003f63      0x185 ./Common/C_Speed_Observer.o
+ .debug_abbrev  0x00000000000040e8      0x17e ./Common/C_Task_Scheduler.o
+ .debug_abbrev  0x0000000000004266      0x3b6 ./Common/C_Traj_Planner.o
+ .debug_abbrev  0x000000000000461c      0x242 ./Application/A_Config.o
+ .debug_abbrev  0x000000000000485e      0x27a ./Application/A_Protect.o
+ .debug_abbrev  0x0000000000004ad8      0x11e ./Application/A_Sensor.o
+ .debug_abbrev  0x0000000000004bf6      0x52a ./Application/A_Servo.o
+ .debug_abbrev  0x0000000000005120      0x163 ./Application/A_Tasks.o
+ .debug_abbrev  0x0000000000005283      0x3a2 ./Application/A_UartCmd.o
 
-.debug_aranges  0x0000000000000000     0x1418
+.debug_aranges  0x0000000000000000     0x1460
  .debug_aranges
                 0x0000000000000000       0x48 ./User/ch32v00X_it.o
  .debug_aranges
@@ -2582,52 +2605,52 @@ OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
  .debug_aranges
                 0x0000000000000ce8       0xa0 ./SRC/Core/core_riscv.o
  .debug_aranges
-                0x0000000000000d88       0x60 ./Drivers/D_adc.o
+                0x0000000000000d88       0x58 ./Drivers/D_adc.o
  .debug_aranges
-                0x0000000000000de8       0x58 ./Drivers/D_i2c.o
+                0x0000000000000de0       0x58 ./Drivers/D_i2c.o
  .debug_aranges
-                0x0000000000000e40       0x28 ./Drivers/D_iwdg.o
+                0x0000000000000e38       0x28 ./Drivers/D_iwdg.o
  .debug_aranges
-                0x0000000000000e68       0x28 ./Drivers/D_motor.o
+                0x0000000000000e60       0x28 ./Drivers/D_motor.o
  .debug_aranges
-                0x0000000000000e90       0x30 ./Drivers/D_mt6701.o
+                0x0000000000000e88       0x30 ./Drivers/D_mt6701.o
  .debug_aranges
-                0x0000000000000ec0       0x20 ./Drivers/D_opa.o
+                0x0000000000000eb8       0x20 ./Drivers/D_opa.o
  .debug_aranges
-                0x0000000000000ee0       0x30 ./Drivers/D_spi.o
+                0x0000000000000ed8       0x30 ./Drivers/D_spi.o
  .debug_aranges
-                0x0000000000000f10       0x58 ./Drivers/D_tim.o
+                0x0000000000000f08       0x58 ./Drivers/D_tim.o
  .debug_aranges
-                0x0000000000000f68       0x28 ./Drivers/D_tmp112.o
+                0x0000000000000f60       0x28 ./Drivers/D_tmp112.o
  .debug_aranges
-                0x0000000000000f90       0x68 ./Drivers/D_uart.o
+                0x0000000000000f88       0x68 ./Drivers/D_uart.o
  .debug_aranges
-                0x0000000000000ff8       0x38 ./Drivers/D_ws2812.o
+                0x0000000000000ff0       0x38 ./Drivers/D_ws2812.o
  .debug_aranges
-                0x0000000000001030       0x40 ./Common/C_Pos_Ctrl.o
+                0x0000000000001028       0x40 ./Common/C_Pos_Ctrl.o
  .debug_aranges
-                0x0000000000001070       0x38 ./Common/C_Ring_Buf.o
+                0x0000000000001068       0x38 ./Common/C_Ring_Buf.o
  .debug_aranges
-                0x00000000000010a8       0x28 ./Common/C_Speed_Observer.o
+                0x00000000000010a0       0x28 ./Common/C_Speed_Observer.o
  .debug_aranges
-                0x00000000000010d0       0x40 ./Common/C_Task_Scheduler.o
+                0x00000000000010c8       0x48 ./Common/C_Task_Scheduler.o
  .debug_aranges
-                0x0000000000001110       0x80 ./Common/C_Traj_Planner.o
+                0x0000000000001110       0x90 ./Common/C_Traj_Planner.o
  .debug_aranges
-                0x0000000000001190       0x48 ./Application/A_Config.o
+                0x00000000000011a0       0x48 ./Application/A_Config.o
  .debug_aranges
-                0x00000000000011d8       0x50 ./Application/A_Protect.o
+                0x00000000000011e8       0x58 ./Application/A_Protect.o
  .debug_aranges
-                0x0000000000001228       0x38 ./Application/A_Sensor.o
+                0x0000000000001240       0x38 ./Application/A_Sensor.o
  .debug_aranges
-                0x0000000000001260      0x110 ./Application/A_Servo.o
+                0x0000000000001278      0x140 ./Application/A_Servo.o
  .debug_aranges
-                0x0000000000001370       0x40 ./Application/A_Tasks.o
+                0x00000000000013b8       0x40 ./Application/A_Tasks.o
  .debug_aranges
-                0x00000000000013b0       0x68 ./Application/A_UartCmd.o
+                0x00000000000013f8       0x68 ./Application/A_UartCmd.o
 
 .debug_rnglists
-                0x0000000000000000     0x1a59
+                0x0000000000000000     0x1b81
  .debug_rnglists
                 0x0000000000000000       0x43 ./User/ch32v00X_it.o
  .debug_rnglists
@@ -2669,51 +2692,51 @@ OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
  .debug_rnglists
                 0x0000000000000d9a       0xa6 ./SRC/Core/core_riscv.o
  .debug_rnglists
-                0x0000000000000e40       0x84 ./Drivers/D_adc.o
+                0x0000000000000e40       0xa9 ./Drivers/D_adc.o
  .debug_rnglists
-                0x0000000000000ec4       0x97 ./Drivers/D_i2c.o
+                0x0000000000000ee9       0x97 ./Drivers/D_i2c.o
  .debug_rnglists
-                0x0000000000000f5b       0x1f ./Drivers/D_iwdg.o
+                0x0000000000000f80       0x1f ./Drivers/D_iwdg.o
  .debug_rnglists
-                0x0000000000000f7a       0x1f ./Drivers/D_motor.o
+                0x0000000000000f9f       0x1f ./Drivers/D_motor.o
  .debug_rnglists
-                0x0000000000000f99       0x28 ./Drivers/D_mt6701.o
+                0x0000000000000fbe       0x28 ./Drivers/D_mt6701.o
  .debug_rnglists
-                0x0000000000000fc1       0x16 ./Drivers/D_opa.o
+                0x0000000000000fe6       0x16 ./Drivers/D_opa.o
  .debug_rnglists
-                0x0000000000000fd7       0x3b ./Drivers/D_spi.o
+                0x0000000000000ffc       0x3b ./Drivers/D_spi.o
  .debug_rnglists
-                0x0000000000001012       0x68 ./Drivers/D_tim.o
+                0x0000000000001037       0x68 ./Drivers/D_tim.o
  .debug_rnglists
-                0x000000000000107a       0x4e ./Drivers/D_tmp112.o
+                0x000000000000109f       0x4e ./Drivers/D_tmp112.o
  .debug_rnglists
-                0x00000000000010c8       0x67 ./Drivers/D_uart.o
+                0x00000000000010ed       0x67 ./Drivers/D_uart.o
  .debug_rnglists
-                0x000000000000112f       0x31 ./Drivers/D_ws2812.o
+                0x0000000000001154       0x31 ./Drivers/D_ws2812.o
  .debug_rnglists
-                0x0000000000001160       0xf4 ./Common/C_Pos_Ctrl.o
+                0x0000000000001185       0xf4 ./Common/C_Pos_Ctrl.o
  .debug_rnglists
-                0x0000000000001254       0x31 ./Common/C_Ring_Buf.o
+                0x0000000000001279       0x31 ./Common/C_Ring_Buf.o
  .debug_rnglists
-                0x0000000000001285       0x5f ./Common/C_Speed_Observer.o
+                0x00000000000012aa       0x5f ./Common/C_Speed_Observer.o
  .debug_rnglists
-                0x00000000000012e4       0x3a ./Common/C_Task_Scheduler.o
+                0x0000000000001309       0x43 ./Common/C_Task_Scheduler.o
  .debug_rnglists
-                0x000000000000131e      0x256 ./Common/C_Traj_Planner.o
+                0x000000000000134c      0x271 ./Common/C_Traj_Planner.o
  .debug_rnglists
-                0x0000000000001574       0x43 ./Application/A_Config.o
+                0x00000000000015bd       0x43 ./Application/A_Config.o
  .debug_rnglists
-                0x00000000000015b7       0xfc ./Application/A_Protect.o
+                0x0000000000001600      0x105 ./Application/A_Protect.o
  .debug_rnglists
-                0x00000000000016b3       0x31 ./Application/A_Sensor.o
+                0x0000000000001705       0x31 ./Application/A_Sensor.o
  .debug_rnglists
-                0x00000000000016e4      0x247 ./Application/A_Servo.o
+                0x0000000000001736      0x330 ./Application/A_Servo.o
  .debug_rnglists
-                0x000000000000192b       0x4d ./Application/A_Tasks.o
+                0x0000000000001a66       0x3a ./Application/A_Tasks.o
  .debug_rnglists
-                0x0000000000001978       0xe1 ./Application/A_UartCmd.o
+                0x0000000000001aa0       0xe1 ./Application/A_UartCmd.o
 
-.debug_line     0x0000000000000000    0x1a03b
+.debug_line     0x0000000000000000    0x1ade1
  .debug_line    0x0000000000000000      0x1dd ./User/ch32v00X_it.o
  .debug_line    0x00000000000001dd      0x177 ./User/main.o
  .debug_line    0x0000000000000354      0x597 ./System/flash.o
@@ -2734,242 +2757,242 @@ OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
  .debug_line    0x000000000000c6ed      0xa78 ./SRC/Peripheral/src/ch32v00X_usart.o
  .debug_line    0x000000000000d165      0x57c ./SRC/Debug/debug.o
  .debug_line    0x000000000000d6e1      0x332 ./SRC/Core/core_riscv.o
- .debug_line    0x000000000000da13      0xc7e ./Drivers/D_adc.o
- .debug_line    0x000000000000e691      0xcfd ./Drivers/D_i2c.o
- .debug_line    0x000000000000f38e      0x11d ./Drivers/D_iwdg.o
- .debug_line    0x000000000000f4ab      0x319 ./Drivers/D_motor.o
- .debug_line    0x000000000000f7c4      0x178 ./Drivers/D_mt6701.o
- .debug_line    0x000000000000f93c      0x1a1 ./Drivers/D_opa.o
- .debug_line    0x000000000000fadd      0x2bf ./Drivers/D_spi.o
- .debug_line    0x000000000000fd9c      0xb57 ./Drivers/D_tim.o
- .debug_line    0x00000000000108f3      0x1ad ./Drivers/D_tmp112.o
- .debug_line    0x0000000000010aa0      0x887 ./Drivers/D_uart.o
- .debug_line    0x0000000000011327      0x1a7 ./Drivers/D_ws2812.o
- .debug_line    0x00000000000114ce      0xd59 ./Common/C_Pos_Ctrl.o
- .debug_line    0x0000000000012227      0x2d2 ./Common/C_Ring_Buf.o
- .debug_line    0x00000000000124f9      0x4a0 ./Common/C_Speed_Observer.o
- .debug_line    0x0000000000012999      0x5a8 ./Common/C_Task_Scheduler.o
- .debug_line    0x0000000000012f41     0x2690 ./Common/C_Traj_Planner.o
- .debug_line    0x00000000000155d1      0x3b6 ./Application/A_Config.o
- .debug_line    0x0000000000015987      0x875 ./Application/A_Protect.o
- .debug_line    0x00000000000161fc      0x2f0 ./Application/A_Sensor.o
- .debug_line    0x00000000000164ec     0x295b ./Application/A_Servo.o
- .debug_line    0x0000000000018e47      0x1a6 ./Application/A_Tasks.o
- .debug_line    0x0000000000018fed     0x104e ./Application/A_UartCmd.o
+ .debug_line    0x000000000000da13      0xbc5 ./Drivers/D_adc.o
+ .debug_line    0x000000000000e5d8      0xcfb ./Drivers/D_i2c.o
+ .debug_line    0x000000000000f2d3      0x11b ./Drivers/D_iwdg.o
+ .debug_line    0x000000000000f3ee      0x292 ./Drivers/D_motor.o
+ .debug_line    0x000000000000f680      0x176 ./Drivers/D_mt6701.o
+ .debug_line    0x000000000000f7f6      0x19f ./Drivers/D_opa.o
+ .debug_line    0x000000000000f995      0x2bd ./Drivers/D_spi.o
+ .debug_line    0x000000000000fc52      0xbb1 ./Drivers/D_tim.o
+ .debug_line    0x0000000000010803      0x1ab ./Drivers/D_tmp112.o
+ .debug_line    0x00000000000109ae      0x888 ./Drivers/D_uart.o
+ .debug_line    0x0000000000011236      0x1a6 ./Drivers/D_ws2812.o
+ .debug_line    0x00000000000113dc      0xf44 ./Common/C_Pos_Ctrl.o
+ .debug_line    0x0000000000012320      0x2cf ./Common/C_Ring_Buf.o
+ .debug_line    0x00000000000125ef      0x4a0 ./Common/C_Speed_Observer.o
+ .debug_line    0x0000000000012a8f      0x63f ./Common/C_Task_Scheduler.o
+ .debug_line    0x00000000000130ce     0x2826 ./Common/C_Traj_Planner.o
+ .debug_line    0x00000000000158f4      0x4da ./Application/A_Config.o
+ .debug_line    0x0000000000015dce      0x8a9 ./Application/A_Protect.o
+ .debug_line    0x0000000000016677      0x2e7 ./Application/A_Sensor.o
+ .debug_line    0x000000000001695e     0x308b ./Application/A_Servo.o
+ .debug_line    0x00000000000199e9      0x171 ./Application/A_Tasks.o
+ .debug_line    0x0000000000019b5a     0x1287 ./Application/A_UartCmd.o
 
-.debug_str      0x0000000000000000     0x578f
+.debug_str      0x0000000000000000     0x598a
  .debug_str     0x0000000000000000      0x3e2 ./User/ch32v00X_it.o
                                         0x481 (size before relaxing)
  .debug_str     0x00000000000003e2      0x146 ./User/main.o
                                         0x2d2 (size before relaxing)
  .debug_str     0x0000000000000528      0x17c ./System/flash.o
                                         0x342 (size before relaxing)
- .debug_str     0x00000000000006a4      0x134 ./System/iap.o
+ .debug_str     0x00000000000006a4      0x139 ./System/iap.o
                                         0x3c1 (size before relaxing)
- .debug_str     0x00000000000007d8       0xd6 ./System/system_ch32v00X.o
+ .debug_str     0x00000000000007dd       0xd6 ./System/system_ch32v00X.o
                                         0x2df (size before relaxing)
- .debug_str     0x00000000000008ae       0x5c ./SRC/Startup/startup_ch32v00X.o
- .debug_str     0x000000000000090a      0x6cb ./SRC/Peripheral/src/ch32v00X_adc.o
+ .debug_str     0x00000000000008b3       0x60 ./SRC/Startup/startup_ch32v00X.o
+ .debug_str     0x0000000000000913      0x6cb ./SRC/Peripheral/src/ch32v00X_adc.o
                                         0x8b5 (size before relaxing)
- .debug_str     0x0000000000000fd5      0x1d5 ./SRC/Peripheral/src/ch32v00X_dma.o
+ .debug_str     0x0000000000000fde      0x1d5 ./SRC/Peripheral/src/ch32v00X_dma.o
                                         0x3ca (size before relaxing)
- .debug_str     0x00000000000011aa      0x324 ./SRC/Peripheral/src/ch32v00X_flash.o
+ .debug_str     0x00000000000011b3      0x324 ./SRC/Peripheral/src/ch32v00X_flash.o
                                         0x67b (size before relaxing)
- .debug_str     0x00000000000014ce      0x2c5 ./SRC/Peripheral/src/ch32v00X_gpio.o
+ .debug_str     0x00000000000014d7      0x2c5 ./SRC/Peripheral/src/ch32v00X_gpio.o
                                         0x509 (size before relaxing)
- .debug_str     0x0000000000001793      0x403 ./SRC/Peripheral/src/ch32v00X_i2c.o
+ .debug_str     0x000000000000179c      0x403 ./SRC/Peripheral/src/ch32v00X_i2c.o
                                         0x692 (size before relaxing)
- .debug_str     0x0000000000001b96       0xa8 ./SRC/Peripheral/src/ch32v00X_iwdg.o
+ .debug_str     0x0000000000001b9f       0xa8 ./SRC/Peripheral/src/ch32v00X_iwdg.o
                                         0x2ca (size before relaxing)
- .debug_str     0x0000000000001c3e      0x288 ./SRC/Peripheral/src/ch32v00X_misc.o
+ .debug_str     0x0000000000001c47      0x288 ./SRC/Peripheral/src/ch32v00X_misc.o
                                         0x4fd (size before relaxing)
- .debug_str     0x0000000000001ec6      0xa23 ./SRC/Peripheral/src/ch32v00X_opa.o
+ .debug_str     0x0000000000001ecf      0xa23 ./SRC/Peripheral/src/ch32v00X_opa.o
                                         0xc3d (size before relaxing)
- .debug_str     0x00000000000028e9      0x2a6 ./SRC/Peripheral/src/ch32v00X_rcc.o
+ .debug_str     0x00000000000028f2      0x2a6 ./SRC/Peripheral/src/ch32v00X_rcc.o
                                         0x64c (size before relaxing)
- .debug_str     0x0000000000002b8f      0x274 ./SRC/Peripheral/src/ch32v00X_spi.o
+ .debug_str     0x0000000000002b98      0x274 ./SRC/Peripheral/src/ch32v00X_spi.o
                                         0x51d (size before relaxing)
- .debug_str     0x0000000000002e03      0xaa6 ./SRC/Peripheral/src/ch32v00X_tim.o
+ .debug_str     0x0000000000002e0c      0xaa6 ./SRC/Peripheral/src/ch32v00X_tim.o
                                         0xec3 (size before relaxing)
- .debug_str     0x00000000000038a9      0x2ed ./SRC/Peripheral/src/ch32v00X_usart.o
+ .debug_str     0x00000000000038b2      0x2ed ./SRC/Peripheral/src/ch32v00X_usart.o
                                         0x5eb (size before relaxing)
- .debug_str     0x0000000000003b96       0x98 ./SRC/Debug/debug.o
+ .debug_str     0x0000000000003b9f       0x98 ./SRC/Debug/debug.o
                                         0x51f (size before relaxing)
- .debug_str     0x0000000000003c2e       0xda ./SRC/Core/core_riscv.o
+ .debug_str     0x0000000000003c37       0xda ./SRC/Core/core_riscv.o
                                         0x25c (size before relaxing)
- .debug_str     0x0000000000003d08      0x206 ./Drivers/D_adc.o
-                                        0xb8a (size before relaxing)
- .debug_str     0x0000000000003f0e       0xc0 ./Drivers/D_i2c.o
+ .debug_str     0x0000000000003d11      0x1e2 ./Drivers/D_adc.o
+                                        0xb67 (size before relaxing)
+ .debug_str     0x0000000000003ef3       0xc0 ./Drivers/D_i2c.o
                                         0x65a (size before relaxing)
- .debug_str     0x0000000000003fce        0xc ./Drivers/D_iwdg.o
+ .debug_str     0x0000000000003fb3        0xc ./Drivers/D_iwdg.o
                                         0x261 (size before relaxing)
- .debug_str     0x0000000000003fda       0x8b ./Drivers/D_motor.o
-                                        0x44a (size before relaxing)
- .debug_str     0x0000000000004065       0x26 ./Drivers/D_mt6701.o
+ .debug_str     0x0000000000003fbf       0x95 ./Drivers/D_motor.o
+                                        0x41b (size before relaxing)
+ .debug_str     0x0000000000004054       0x26 ./Drivers/D_mt6701.o
                                         0x1df (size before relaxing)
- .debug_str     0x000000000000408b       0x12 ./Drivers/D_opa.o
+ .debug_str     0x000000000000407a       0x12 ./Drivers/D_opa.o
                                         0x8d2 (size before relaxing)
- .debug_str     0x000000000000409d       0x2f ./Drivers/D_spi.o
+ .debug_str     0x000000000000408c       0x2f ./Drivers/D_spi.o
                                         0x4b5 (size before relaxing)
- .debug_str     0x00000000000040cc      0x124 ./Drivers/D_tim.o
-                                        0xc07 (size before relaxing)
- .debug_str     0x00000000000041f0       0x6b ./Drivers/D_tmp112.o
+ .debug_str     0x00000000000040bb      0x124 ./Drivers/D_tim.o
+                                        0xc10 (size before relaxing)
+ .debug_str     0x00000000000041df       0x6b ./Drivers/D_tmp112.o
                                         0x247 (size before relaxing)
- .debug_str     0x000000000000425b      0x11b ./Drivers/D_uart.o
+ .debug_str     0x000000000000424a      0x11b ./Drivers/D_uart.o
                                         0x8d2 (size before relaxing)
- .debug_str     0x0000000000004376       0x37 ./Drivers/D_ws2812.o
+ .debug_str     0x0000000000004365       0x37 ./Drivers/D_ws2812.o
                                         0x1fe (size before relaxing)
- .debug_str     0x00000000000043ad      0x21c ./Common/C_Pos_Ctrl.o
-                                        0x3ff (size before relaxing)
- .debug_str     0x00000000000045c9        0x5 ./Common/C_Ring_Buf.o
+ .debug_str     0x000000000000439c      0x22f ./Common/C_Pos_Ctrl.o
+                                        0x412 (size before relaxing)
+ .debug_str     0x00000000000045cb        0x5 ./Common/C_Ring_Buf.o
                                         0x1ee (size before relaxing)
- .debug_str     0x00000000000045ce       0xf9 ./Common/C_Speed_Observer.o
+ .debug_str     0x00000000000045d0       0xf9 ./Common/C_Speed_Observer.o
                                         0x2d0 (size before relaxing)
- .debug_str     0x00000000000046c7       0x8e ./Common/C_Task_Scheduler.o
-                                        0x296 (size before relaxing)
- .debug_str     0x0000000000004755      0x39e ./Common/C_Traj_Planner.o
-                                        0x5d7 (size before relaxing)
- .debug_str     0x0000000000004af3      0x22b ./Application/A_Config.o
-                                        0x41a (size before relaxing)
- .debug_str     0x0000000000004d1e      0x223 ./Application/A_Protect.o
-                                        0x4ce (size before relaxing)
- .debug_str     0x0000000000004f41       0x38 ./Application/A_Sensor.o
-                                        0x282 (size before relaxing)
- .debug_str     0x0000000000004f79      0x4d7 ./Application/A_Servo.o
-                                        0xb8f (size before relaxing)
- .debug_str     0x0000000000005450       0xc1 ./Application/A_Tasks.o
-                                        0x30f (size before relaxing)
- .debug_str     0x0000000000005511      0x27e ./Application/A_UartCmd.o
-                                        0x815 (size before relaxing)
+ .debug_str     0x00000000000046c9       0x98 ./Common/C_Task_Scheduler.o
+                                        0x2a7 (size before relaxing)
+ .debug_str     0x0000000000004761      0x3e3 ./Common/C_Traj_Planner.o
+                                        0x61c (size before relaxing)
+ .debug_str     0x0000000000004b44      0x282 ./Application/A_Config.o
+                                        0x4a2 (size before relaxing)
+ .debug_str     0x0000000000004dc6      0x240 ./Application/A_Protect.o
+                                        0x516 (size before relaxing)
+ .debug_str     0x0000000000005006       0x38 ./Application/A_Sensor.o
+                                        0x28c (size before relaxing)
+ .debug_str     0x000000000000503e      0x63e ./Application/A_Servo.o
+                                        0xd7b (size before relaxing)
+ .debug_str     0x000000000000567c       0x4a ./Application/A_Tasks.o
+                                        0x2b3 (size before relaxing)
+ .debug_str     0x00000000000056c6      0x2c4 ./Application/A_UartCmd.o
+                                        0x8e1 (size before relaxing)
 
 .debug_line_str
-                0x0000000000000000      0xad3
+                0x0000000000000000      0xaf3
  .debug_line_str
-                0x0000000000000000      0x2a4 ./User/ch32v00X_it.o
-                                        0x2f9 (size before relaxing)
+                0x0000000000000000      0x2b8 ./User/ch32v00X_it.o
+                                        0x311 (size before relaxing)
  .debug_line_str
-                0x00000000000002a4      0x150 ./User/main.o
-                                        0x3cb (size before relaxing)
+                0x00000000000002b8      0x15c ./User/main.o
+                                        0x3eb (size before relaxing)
  .debug_line_str
-                0x00000000000003f4      0x16f ./System/flash.o
-                                        0x355 (size before relaxing)
+                0x0000000000000414      0x16f ./System/flash.o
+                                        0x361 (size before relaxing)
  .debug_line_str
-                0x0000000000000563       0x16 ./System/iap.o
+                0x0000000000000583       0x16 ./System/iap.o
+                                        0x2bc (size before relaxing)
+ .debug_line_str
+                0x0000000000000599       0x2c ./System/system_ch32v00X.o
+                                        0x28e (size before relaxing)
+ .debug_line_str
+                0x00000000000005c5       0x22 ./SRC/Startup/startup_ch32v00X.o
+                                         0x67 (size before relaxing)
+ .debug_line_str
+                0x00000000000005e7       0x4a ./SRC/Peripheral/src/ch32v00X_adc.o
                                         0x2a8 (size before relaxing)
  .debug_line_str
-                0x0000000000000579       0x2c ./System/system_ch32v00X.o
-                                        0x27e (size before relaxing)
+                0x0000000000000631       0x34 ./SRC/Peripheral/src/ch32v00X_dma.o
+                                        0x299 (size before relaxing)
  .debug_line_str
-                0x00000000000005a5       0x22 ./SRC/Startup/startup_ch32v00X.o
-                                         0x63 (size before relaxing)
+                0x0000000000000665       0x27 ./SRC/Peripheral/src/ch32v00X_flash.o
+                                        0x2a1 (size before relaxing)
  .debug_line_str
-                0x00000000000005c7       0x4a ./SRC/Peripheral/src/ch32v00X_adc.o
-                                        0x298 (size before relaxing)
+                0x000000000000068c       0x26 ./SRC/Peripheral/src/ch32v00X_gpio.o
+                                        0x2ac (size before relaxing)
  .debug_line_str
-                0x0000000000000611       0x34 ./SRC/Peripheral/src/ch32v00X_dma.o
-                                        0x289 (size before relaxing)
+                0x00000000000006b2       0x34 ./SRC/Peripheral/src/ch32v00X_i2c.o
+                                        0x2a8 (size before relaxing)
  .debug_line_str
-                0x0000000000000645       0x27 ./SRC/Peripheral/src/ch32v00X_flash.o
-                                        0x291 (size before relaxing)
- .debug_line_str
-                0x000000000000066c       0x26 ./SRC/Peripheral/src/ch32v00X_gpio.o
-                                        0x29c (size before relaxing)
- .debug_line_str
-                0x0000000000000692       0x34 ./SRC/Peripheral/src/ch32v00X_i2c.o
-                                        0x298 (size before relaxing)
- .debug_line_str
-                0x00000000000006c6       0x26 ./SRC/Peripheral/src/ch32v00X_iwdg.o
-                                        0x27d (size before relaxing)
- .debug_line_str
-                0x00000000000006ec       0x26 ./SRC/Peripheral/src/ch32v00X_misc.o
+                0x00000000000006e6       0x26 ./SRC/Peripheral/src/ch32v00X_iwdg.o
                                         0x28d (size before relaxing)
  .debug_line_str
-                0x0000000000000712       0x34 ./SRC/Peripheral/src/ch32v00X_opa.o
-                                        0x289 (size before relaxing)
+                0x000000000000070c       0x26 ./SRC/Peripheral/src/ch32v00X_misc.o
+                                        0x29d (size before relaxing)
  .debug_line_str
-                0x0000000000000746       0x25 ./SRC/Peripheral/src/ch32v00X_rcc.o
-                                        0x289 (size before relaxing)
+                0x0000000000000732       0x34 ./SRC/Peripheral/src/ch32v00X_opa.o
+                                        0x299 (size before relaxing)
  .debug_line_str
-                0x000000000000076b       0x34 ./SRC/Peripheral/src/ch32v00X_spi.o
-                                        0x298 (size before relaxing)
+                0x0000000000000766       0x25 ./SRC/Peripheral/src/ch32v00X_rcc.o
+                                        0x299 (size before relaxing)
  .debug_line_str
-                0x000000000000079f       0x25 ./SRC/Peripheral/src/ch32v00X_tim.o
-                                        0x298 (size before relaxing)
+                0x000000000000078b       0x34 ./SRC/Peripheral/src/ch32v00X_spi.o
+                                        0x2a8 (size before relaxing)
  .debug_line_str
-                0x00000000000007c4       0x38 ./SRC/Peripheral/src/ch32v00X_usart.o
-                                        0x2a0 (size before relaxing)
+                0x00000000000007bf       0x25 ./SRC/Peripheral/src/ch32v00X_tim.o
+                                        0x2a8 (size before relaxing)
  .debug_line_str
-                0x00000000000007fc       0x22 ./SRC/Debug/debug.o
-                                        0x369 (size before relaxing)
+                0x00000000000007e4       0x38 ./SRC/Peripheral/src/ch32v00X_usart.o
+                                        0x2b0 (size before relaxing)
  .debug_line_str
-                0x000000000000081e       0x25 ./SRC/Core/core_riscv.o
-                                        0x1d8 (size before relaxing)
+                0x000000000000081c       0x22 ./SRC/Debug/debug.o
+                                        0x37d (size before relaxing)
  .debug_line_str
-                0x0000000000000843       0x1e ./Drivers/D_adc.o
-                                        0x2eb (size before relaxing)
+                0x000000000000083e       0x25 ./SRC/Core/core_riscv.o
+                                        0x1e0 (size before relaxing)
  .debug_line_str
-                0x0000000000000861       0x13 ./Drivers/D_i2c.o
-                                        0x27d (size before relaxing)
+                0x0000000000000863       0x1e ./Drivers/D_adc.o
+                                        0x2f7 (size before relaxing)
  .debug_line_str
-                0x0000000000000874       0x24 ./Drivers/D_iwdg.o
-                                        0x266 (size before relaxing)
- .debug_line_str
-                0x0000000000000898       0x15 ./Drivers/D_motor.o
-                                        0x234 (size before relaxing)
- .debug_line_str
-                0x00000000000008ad       0x16 ./Drivers/D_mt6701.o
-                                        0x1d8 (size before relaxing)
- .debug_line_str
-                0x00000000000008c3       0x13 ./Drivers/D_opa.o
-                                        0x288 (size before relaxing)
- .debug_line_str
-                0x00000000000008d6       0x13 ./Drivers/D_spi.o
-                                        0x27d (size before relaxing)
- .debug_line_str
-                0x00000000000008e9       0x13 ./Drivers/D_tim.o
+                0x0000000000000881       0x13 ./Drivers/D_i2c.o
                                         0x28d (size before relaxing)
  .debug_line_str
-                0x00000000000008fc       0x16 ./Drivers/D_tmp112.o
-                                        0x1d8 (size before relaxing)
+                0x0000000000000894       0x24 ./Drivers/D_iwdg.o
+                                        0x276 (size before relaxing)
  .debug_line_str
-                0x0000000000000912       0x21 ./Drivers/D_uart.o
-                                        0x2d0 (size before relaxing)
+                0x00000000000008b8       0x15 ./Drivers/D_motor.o
+                                        0x240 (size before relaxing)
  .debug_line_str
-                0x0000000000000933       0x16 ./Drivers/D_ws2812.o
-                                        0x214 (size before relaxing)
+                0x00000000000008cd       0x16 ./Drivers/D_mt6701.o
+                                        0x1e0 (size before relaxing)
  .debug_line_str
-                0x0000000000000949       0x52 ./Common/C_Pos_Ctrl.o
-                                        0x205 (size before relaxing)
+                0x00000000000008e3       0x13 ./Drivers/D_opa.o
+                                        0x298 (size before relaxing)
  .debug_line_str
-                0x000000000000099b       0x17 ./Common/C_Ring_Buf.o
-                                        0x1e1 (size before relaxing)
+                0x00000000000008f6       0x13 ./Drivers/D_spi.o
+                                        0x28d (size before relaxing)
  .debug_line_str
-                0x00000000000009b2       0x1d ./Common/C_Speed_Observer.o
+                0x0000000000000909       0x13 ./Drivers/D_tim.o
+                                        0x29d (size before relaxing)
+ .debug_line_str
+                0x000000000000091c       0x16 ./Drivers/D_tmp112.o
+                                        0x1e0 (size before relaxing)
+ .debug_line_str
+                0x0000000000000932       0x21 ./Drivers/D_uart.o
+                                        0x2e4 (size before relaxing)
+ .debug_line_str
+                0x0000000000000953       0x16 ./Drivers/D_ws2812.o
+                                        0x220 (size before relaxing)
+ .debug_line_str
+                0x0000000000000969       0x52 ./Common/C_Pos_Ctrl.o
+                                        0x20d (size before relaxing)
+ .debug_line_str
+                0x00000000000009bb       0x17 ./Common/C_Ring_Buf.o
+                                        0x1e9 (size before relaxing)
+ .debug_line_str
+                0x00000000000009d2       0x1d ./Common/C_Speed_Observer.o
+                                        0x201 (size before relaxing)
+ .debug_line_str
+                0x00000000000009ef       0x1d ./Common/C_Task_Scheduler.o
+                                        0x245 (size before relaxing)
+ .debug_line_str
+                0x0000000000000a0c       0x1b ./Common/C_Traj_Planner.o
                                         0x1f9 (size before relaxing)
  .debug_line_str
-                0x00000000000009cf       0x1d ./Common/C_Task_Scheduler.o
-                                        0x239 (size before relaxing)
+                0x0000000000000a27       0x29 ./Application/A_Config.o
+                                        0x36a (size before relaxing)
  .debug_line_str
-                0x00000000000009ec       0x1b ./Common/C_Traj_Planner.o
-                                        0x1f1 (size before relaxing)
+                0x0000000000000a50       0x26 ./Application/A_Protect.o
+                                        0x33a (size before relaxing)
  .debug_line_str
-                0x0000000000000a07       0x29 ./Application/A_Config.o
-                                        0x21c (size before relaxing)
+                0x0000000000000a76       0x1a ./Application/A_Sensor.o
+                                        0x229 (size before relaxing)
  .debug_line_str
-                0x0000000000000a30       0x26 ./Application/A_Protect.o
-                                        0x332 (size before relaxing)
+                0x0000000000000a90       0x23 ./Application/A_Servo.o
+                                        0x442 (size before relaxing)
  .debug_line_str
-                0x0000000000000a56       0x1a ./Application/A_Sensor.o
-                                        0x21d (size before relaxing)
+                0x0000000000000ab3       0x25 ./Application/A_Tasks.o
+                                        0x2d7 (size before relaxing)
  .debug_line_str
-                0x0000000000000a70       0x23 ./Application/A_Servo.o
-                                        0x42e (size before relaxing)
- .debug_line_str
-                0x0000000000000a93       0x25 ./Application/A_Tasks.o
-                                        0x28c (size before relaxing)
- .debug_line_str
-                0x0000000000000ab8       0x1b ./Application/A_UartCmd.o
-                                        0x3bb (size before relaxing)
+                0x0000000000000ad8       0x1b ./Application/A_UartCmd.o
+                                        0x3cb (size before relaxing)
 
 .comment        0x0000000000000000       0x31
  .comment       0x0000000000000000       0x31 ./User/ch32v00X_it.o
@@ -3122,7 +3145,7 @@ OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
  .riscv.attributes
                 0x0000000000000926       0x30 d:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-strlen.o)
 
-.debug_frame    0x0000000000000000     0x2c60
+.debug_frame    0x0000000000000000     0x2cec
  .debug_frame   0x0000000000000000       0x70 ./User/ch32v00X_it.o
  .debug_frame   0x0000000000000070       0x28 ./User/main.o
  .debug_frame   0x0000000000000098       0x8c ./System/flash.o
@@ -3142,31 +3165,31 @@ OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
  .debug_frame   0x00000000000017e0      0x194 ./SRC/Peripheral/src/ch32v00X_usart.o
  .debug_frame   0x0000000000001974       0xc4 ./SRC/Debug/debug.o
  .debug_frame   0x0000000000001a38      0x120 ./SRC/Core/core_riscv.o
- .debug_frame   0x0000000000001b58      0x128 ./Drivers/D_adc.o
- .debug_frame   0x0000000000001c80      0x11c ./Drivers/D_i2c.o
- .debug_frame   0x0000000000001d9c       0x40 ./Drivers/D_iwdg.o
- .debug_frame   0x0000000000001ddc       0x58 ./Drivers/D_motor.o
- .debug_frame   0x0000000000001e34       0x70 ./Drivers/D_mt6701.o
- .debug_frame   0x0000000000001ea4       0x34 ./Drivers/D_opa.o
- .debug_frame   0x0000000000001ed8       0x74 ./Drivers/D_spi.o
- .debug_frame   0x0000000000001f4c      0x10c ./Drivers/D_tim.o
- .debug_frame   0x0000000000002058       0x54 ./Drivers/D_tmp112.o
- .debug_frame   0x00000000000020ac      0x14c ./Drivers/D_uart.o
- .debug_frame   0x00000000000021f8       0x68 ./Drivers/D_ws2812.o
- .debug_frame   0x0000000000002260       0x7c ./Common/C_Pos_Ctrl.o
- .debug_frame   0x00000000000022dc       0x50 ./Common/C_Ring_Buf.o
- .debug_frame   0x000000000000232c       0x48 ./Common/C_Speed_Observer.o
- .debug_frame   0x0000000000002374       0x90 ./Common/C_Task_Scheduler.o
- .debug_frame   0x0000000000002404      0x160 ./Common/C_Traj_Planner.o
- .debug_frame   0x0000000000002564       0x90 ./Application/A_Config.o
- .debug_frame   0x00000000000025f4       0xb4 ./Application/A_Protect.o
- .debug_frame   0x00000000000026a8       0x88 ./Application/A_Sensor.o
- .debug_frame   0x0000000000002730      0x380 ./Application/A_Servo.o
- .debug_frame   0x0000000000002ab0       0x7c ./Application/A_Tasks.o
- .debug_frame   0x0000000000002b2c      0x134 ./Application/A_UartCmd.o
+ .debug_frame   0x0000000000001b58       0xfc ./Drivers/D_adc.o
+ .debug_frame   0x0000000000001c54      0x11c ./Drivers/D_i2c.o
+ .debug_frame   0x0000000000001d70       0x40 ./Drivers/D_iwdg.o
+ .debug_frame   0x0000000000001db0       0x58 ./Drivers/D_motor.o
+ .debug_frame   0x0000000000001e08       0x70 ./Drivers/D_mt6701.o
+ .debug_frame   0x0000000000001e78       0x34 ./Drivers/D_opa.o
+ .debug_frame   0x0000000000001eac       0x74 ./Drivers/D_spi.o
+ .debug_frame   0x0000000000001f20      0x10c ./Drivers/D_tim.o
+ .debug_frame   0x000000000000202c       0x54 ./Drivers/D_tmp112.o
+ .debug_frame   0x0000000000002080      0x14c ./Drivers/D_uart.o
+ .debug_frame   0x00000000000021cc       0x68 ./Drivers/D_ws2812.o
+ .debug_frame   0x0000000000002234       0x78 ./Common/C_Pos_Ctrl.o
+ .debug_frame   0x00000000000022ac       0x50 ./Common/C_Ring_Buf.o
+ .debug_frame   0x00000000000022fc       0x48 ./Common/C_Speed_Observer.o
+ .debug_frame   0x0000000000002344       0xa0 ./Common/C_Task_Scheduler.o
+ .debug_frame   0x00000000000023e4      0x180 ./Common/C_Traj_Planner.o
+ .debug_frame   0x0000000000002564       0x94 ./Application/A_Config.o
+ .debug_frame   0x00000000000025f8       0xc4 ./Application/A_Protect.o
+ .debug_frame   0x00000000000026bc       0x88 ./Application/A_Sensor.o
+ .debug_frame   0x0000000000002744      0x3ec ./Application/A_Servo.o
+ .debug_frame   0x0000000000002b30       0x88 ./Application/A_Tasks.o
+ .debug_frame   0x0000000000002bb8      0x134 ./Application/A_UartCmd.o
 
 .debug_loclists
-                0x0000000000000000     0x8ec5
+                0x0000000000000000     0x979d
  .debug_loclists
                 0x0000000000000000      0x268 ./System/flash.o
  .debug_loclists
@@ -3200,42 +3223,42 @@ OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
  .debug_loclists
                 0x00000000000046ea      0x18c ./SRC/Debug/debug.o
  .debug_loclists
-                0x0000000000004876      0x1df ./Drivers/D_adc.o
+                0x0000000000004876      0x2a8 ./Drivers/D_adc.o
  .debug_loclists
-                0x0000000000004a55      0x4ac ./Drivers/D_i2c.o
+                0x0000000000004b1e      0x4ac ./Drivers/D_i2c.o
  .debug_loclists
-                0x0000000000004f01       0x35 ./Drivers/D_iwdg.o
+                0x0000000000004fca       0x35 ./Drivers/D_iwdg.o
  .debug_loclists
-                0x0000000000004f36       0xb1 ./Drivers/D_motor.o
+                0x0000000000004fff       0x8c ./Drivers/D_motor.o
  .debug_loclists
-                0x0000000000004fe7       0x37 ./Drivers/D_mt6701.o
+                0x000000000000508b       0x37 ./Drivers/D_mt6701.o
  .debug_loclists
-                0x000000000000501e       0xb2 ./Drivers/D_spi.o
+                0x00000000000050c2       0xb2 ./Drivers/D_spi.o
  .debug_loclists
-                0x00000000000050d0      0x157 ./Drivers/D_tim.o
+                0x0000000000005174      0x18f ./Drivers/D_tim.o
  .debug_loclists
-                0x0000000000005227       0xc0 ./Drivers/D_tmp112.o
+                0x0000000000005303       0xc0 ./Drivers/D_tmp112.o
  .debug_loclists
-                0x00000000000052e7      0x184 ./Drivers/D_uart.o
+                0x00000000000053c3      0x184 ./Drivers/D_uart.o
  .debug_loclists
-                0x000000000000546b       0x89 ./Drivers/D_ws2812.o
+                0x0000000000005547       0x89 ./Drivers/D_ws2812.o
  .debug_loclists
-                0x00000000000054f4      0x929 ./Common/C_Pos_Ctrl.o
+                0x00000000000055d0      0x904 ./Common/C_Pos_Ctrl.o
  .debug_loclists
-                0x0000000000005e1d       0xa8 ./Common/C_Ring_Buf.o
+                0x0000000000005ed4       0xa8 ./Common/C_Ring_Buf.o
  .debug_loclists
-                0x0000000000005ec5      0x31f ./Common/C_Speed_Observer.o
+                0x0000000000005f7c      0x31f ./Common/C_Speed_Observer.o
  .debug_loclists
-                0x00000000000061e4      0x1c3 ./Common/C_Task_Scheduler.o
+                0x000000000000629b      0x223 ./Common/C_Task_Scheduler.o
  .debug_loclists
-                0x00000000000063a7     0x1853 ./Common/C_Traj_Planner.o
+                0x00000000000064be     0x1b7f ./Common/C_Traj_Planner.o
  .debug_loclists
-                0x0000000000007bfa       0x47 ./Application/A_Config.o
+                0x000000000000803d       0x47 ./Application/A_Config.o
  .debug_loclists
-                0x0000000000007c41      0x25e ./Application/A_Protect.o
+                0x0000000000008084      0x25e ./Application/A_Protect.o
  .debug_loclists
-                0x0000000000007e9f      0x11c ./Application/A_Sensor.o
+                0x00000000000082e2      0x14c ./Application/A_Sensor.o
  .debug_loclists
-                0x0000000000007fbb      0x95d ./Application/A_Servo.o
+                0x000000000000842e      0xc9c ./Application/A_Servo.o
  .debug_loclists
-                0x0000000000008918      0x5ad ./Application/A_UartCmd.o
+                0x00000000000090ca      0x6d3 ./Application/A_UartCmd.o

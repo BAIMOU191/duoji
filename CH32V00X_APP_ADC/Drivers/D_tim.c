@@ -2,42 +2,25 @@
 
 #include "D_tim.h"
 
-#define PULSE_MIN_US       500    /* 有效脉宽最小值(us) */
-#define PULSE_MAX_US       2500   /* 有效脉宽最大值(us) */
+#define PULSE_MIN_US       500    /* 协议脉宽下限(us)，上报值不会低于它 */
+#define PULSE_MAX_US       2500   /* 协议脉宽上限(us)，上报值不会高于它 */
+/* 捕获窗口两端各放宽容差：容差带内的脉宽夹回协议量程上报(信号源满杆常略超端点)，窗口外整帧丢弃 */
+#define PULSE_TOLERANCE_US 50
 #define PERIOD_NOMINAL_US  20000  /* 输入信号标称周期(us) */
 #define PERIOD_TOLERANCE_US 2000  /* 周期容差(us) */
 #define PERIOD_MIN_US      (PERIOD_NOMINAL_US - PERIOD_TOLERANCE_US)
 #define PERIOD_MAX_US      (PERIOD_NOMINAL_US + PERIOD_TOLERANCE_US)
 #define TIMER_TICKS_US     48     /* 每微秒定时器计数 */
-#define PULSE_MIN_TICKS    ((uint32_t)PULSE_MIN_US * TIMER_TICKS_US)
-#define PULSE_MAX_TICKS    ((uint32_t)PULSE_MAX_US * TIMER_TICKS_US)
+#define PULSE_MIN_TICKS    ((uint32_t)(PULSE_MIN_US - PULSE_TOLERANCE_US) * TIMER_TICKS_US)
+#define PULSE_MAX_TICKS    ((uint32_t)(PULSE_MAX_US + PULSE_TOLERANCE_US) * TIMER_TICKS_US)
 #define PERIOD_MIN_TICKS   ((uint32_t)PERIOD_MIN_US * TIMER_TICKS_US)
 #define PERIOD_MAX_TICKS   ((uint32_t)PERIOD_MAX_US * TIMER_TICKS_US)
 
-/* ==================== 电流采样触发点 ====================
- *
- * AT8236固定慢衰减(一路恒高、另一路反相PWM)下，一个PWM周期分成两段。
- * 按数据手册真值表 IN1=IN2=1 -> OUT1=OUT2=L，即两个下管同时导通：
- *
- *   [0, ARR-mag)    续流段。电机电流经下管流入ISEN节点，再经另一个
- *                   下管流回电机，进出同一节点，检流电阻上净电流为零。
- *   [ARR-mag, ARR)  驱动段。VM->上管->电机->下管->检流电阻->GND，
- *                   全部绕组电流流过检流电阻。
- *
- * 所以采样窗口必须落在**周期尾部的驱动段**。旧公式 CCR4 = pwm_ticks/2 - 122
- * 是按"驱动段在周期开头"(快衰减)写的，在当前驱动模式下会采到续流段，
- * 读数恒为零。
- *
- * 时序常数统一放在 D_tim.h，与 D_adc.c 的分频和采样档由 #if 绑死。 */
-/* 采样窗口放不下时，触发点停到周期中部而**不是关掉**。
- *
- * 关掉触发是给纯电流采样写的：没有窗口就没有样本，valid自然保持0。但规则组
- * 现在还挂着电位器角度，那是位置环的反馈——舵机保持位置时输出接近0，正是最
- * 需要角度的时候，触发一关角度就跟着断了。
- *
- * 停在周期中部是续流段的正中间，离两个开关沿最远，电位器那一路采得最干净；
- * 电流那一路此刻采到的不是绕组电流(续流段检流电阻上净电流为零)，由
- * D_ADC_Current_Window_Set 显式标成无效，不靠"没有样本"来表达。 */
+/* 电流采样触发点。AT8236慢衰减下一个PWM周期分两段：
+ *   [0, ARR-mag)   续流段，两下管导通，检流电阻净电流为零；
+ *   [ARR-mag, ARR) 驱动段，全部绕组电流流过检流电阻。
+ * 采样窗口必须落在周期尾部的驱动段，时序常数见 D_tim.h。 */
+/* 窗口放不下时触发点停到续流段正中而不关闭：电位器角度仍需1kHz刷新，电流由上层标为无效 */
 #define ADC_TRIGGER_PARK_CCR          (TIM_PWM_RESOLUTION / 2U)
 
 static uint8_t  s_ic_wait_falling; /* 0=等待上升沿，1=等待下降沿 */
@@ -48,12 +31,7 @@ static uint8_t  s_ic_period_valid; /* 输入周期有效标志 */
 static volatile uint32_t s_ic_overflow; /* TIM1溢出计数，用于32位时间戳 */
 static volatile uint16_t s_pulse_us;    /* 最新捕获脉宽，0=无有效帧 */
 
-/*
- * @fn      PWM_ResetCaptureState
- * @brief   复位捕获状态机，恢复上升沿捕获
- * @param   无
- * @return  无
- */
+/* 复位捕获状态机，恢复上升沿捕获 */
 static void PWM_ResetCaptureState(void)
 {
     s_ic_wait_falling = 0;
@@ -63,23 +41,13 @@ static void PWM_ResetCaptureState(void)
     TIM_OC2PolarityConfig(TIM1, TIM_OCPolarity_High);
 }
 
-/*
- * @fn      PWM_InvalidateFrames
- * @brief   清除当前捕获结果
- * @param   无
- * @return  无
- */
+/* 清除当前捕获结果 */
 static void PWM_InvalidateFrames(void)
 {
     s_pulse_us = 0;
 }
 
-/*
- * @fn      D_TIM2_PWM_Init
- * @brief   初始化TIM2：PD3输出20kHz PWM，CH4产生ADC采样TRGO
- * @param   无
- * @return  无
- */
+/* 初始化TIM2：PD3输出20kHz PWM，CH4产生ADC采样TRGO */
 void D_TIM2_PWM_Init(void)
 {
     GPIO_InitTypeDef         GPIO_InitStructure        = {0};
@@ -114,8 +82,7 @@ void D_TIM2_PWM_Init(void)
     TIM_OC2PreloadConfig(TIM2, TIM_OCPreload_Enable);
     TIM_ARRPreloadConfig(TIM2, ENABLE);
 
-    /* CH4仅作为内部采样标记，不使能引脚输出。PWM2在CNT==CCR4
-     * 时产生OC4REF上升沿，通过TIM2_TRGO触发ADC规则组。 */
+    /* CH4仅作内部采样标记：CNT==CCR4 时OC4REF上升沿经TRGO触发ADC规则组 */
     TIM_OCStructInit(&TIM_OCInitStructure);
     TIM_OCInitStructure.TIM_OCMode      = TIM_OCMode_PWM2;
     TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Disable;
@@ -132,23 +99,9 @@ void D_TIM2_PWM_Init(void)
     TIM_Cmd(TIM2, ENABLE);
 }
 
-/*
- * @fn      D_TIM2_ADC_Trigger_Set
- * @brief   按当前PWM幅值把电流采样点重新定位到驱动段内
- * @param   pwm_ticks 本次输出的PWM幅值(绝对值)，不是反相后的比较值
- * @return  1=采样窗口有效，0=占空比过低，触发点已停到续流段(电流读数无效)
- *
- * 采样点自适应：
- *   占空比够宽 -> 孔径居中于驱动段，对驱动段电流纹波无偏，是首选；
- *   占空比偏窄 -> 居中会踩进开关振铃，此时后移到刚好避开 tBLANK 的最早
- *                 位置。代价是采在驱动段后段(纹波峰附近)读数略偏高，但
- *                 总比整段没有数据强。
- * 若一直坚持居中，门限会被抬到 2*tBLANK+采样时间；改成自适应后门限降为
- * tBLANK+采样+转换+尾余量，整整省下一个 tBLANK。
- *
- * CCR4使能了预装载，与两路PWM比较值在同一个周期边界同步生效，
- * 因此占空比和采样点不会出现错拍。
- */
+/* 按PWM幅值把电流采样点定位到驱动段内；返回0=占空比过低，触发点已停到续流段。
+ * 占空比够宽时孔径居中于驱动段；偏窄时后移到刚好避开 tBLANK 的最早位置。
+ * CCR4预装载，与PWM比较值同一周期边界生效，不错拍。 */
 uint8_t D_TIM2_ADC_Trigger_Set(uint16_t pwm_ticks)
 {
     uint32_t centered;   /* 孔径居中于驱动段所需的CCR4 */
@@ -175,12 +128,7 @@ uint8_t D_TIM2_ADC_Trigger_Set(uint16_t pwm_ticks)
     return 1;
 }
 
-/*
- * @fn      D_TIM1_PWM_IC_Init
- * @brief   初始化TIM1：PD2输出20kHz PWM，PA1输入捕获，更新中断提供20kHz分频源
- * @param   无
- * @return  无
- */
+/* 初始化TIM1：PD2输出20kHz PWM，PA1输入捕获，更新中断提供调度时基 */
 void D_TIM1_PWM_IC_Init(void)
 {
     GPIO_InitTypeDef         GPIO_InitStructure        = {0};
@@ -254,12 +202,7 @@ void D_TIM1_PWM_IC_Init(void)
     TIM_Cmd(TIM1, ENABLE);
 }
 
-/*
- * @fn      D_PWM_Read
- * @brief   读取最新捕获脉宽，读取后清除，无新帧时返回0
- * @param   无
- * @return  捕获脉宽(us)，0=无新帧
- */
+/* 读最新捕获脉宽(us)，读后清除，无新帧返回0 */
 uint16_t D_PWM_Read(void)
 {
     uint32_t irq_state = __get_MSTATUS();
@@ -272,12 +215,7 @@ uint16_t D_PWM_Read(void)
     return pulse;
 }
 
-/*
- * @fn      D_PWM_Input_Enable
- * @brief   使能/失能输入捕获：使能时PA1上拉输入，失能时开漏置高释放
- * @param   en 1=使能，0=失能
- * @return  无
- */
+/* 使能/失能输入捕获：使能时PA1上拉输入，失能时开漏置高释放 */
 void D_PWM_Input_Enable(uint8_t en)
 {
     GPIO_InitTypeDef gpio = {0};
@@ -309,18 +247,14 @@ void D_PWM_Input_Enable(uint8_t en)
     }
 }
 
-/*
- * @fn      D_TIM1_CC_ISR
- * @brief   捕获中断处理：双沿测量高电平脉宽并校验输入周期
- * @param   无
- * @return  无
- */
+/* 捕获中断：双沿测量高电平脉宽并校验输入周期 */
 void D_TIM1_CC_ISR(void)
 {
     uint16_t flags = TIM1->INTFR;
     uint16_t cap;
     uint32_t ts;
     uint32_t ticks;
+    uint32_t pulse_us;
 
     if ((flags & (TIM_IT_CC2 | TIM_FLAG_CC2OF)) == 0) return;
 
@@ -353,8 +287,13 @@ void D_TIM1_CC_ISR(void)
         ticks = ts - s_ic_rise_time;
         if (s_ic_period_valid && ticks >= PULSE_MIN_TICKS
                             && ticks <= PULSE_MAX_TICKS)
-            s_pulse_us = (uint16_t)((ticks + TIMER_TICKS_US / 2)
-                                   / TIMER_TICKS_US);
+        {
+            /* 窗口内才认，认了夹进协议量程 */
+            pulse_us = (ticks + TIMER_TICKS_US / 2) / TIMER_TICKS_US;
+            if (pulse_us < PULSE_MIN_US) pulse_us = PULSE_MIN_US;
+            if (pulse_us > PULSE_MAX_US) pulse_us = PULSE_MAX_US;
+            s_pulse_us = (uint16_t)pulse_us;
+        }
         s_ic_wait_falling = 0;
         TIM_OC2PolarityConfig(TIM1, TIM_OCPolarity_High); /* 切换回上升沿捕获 */
     }
@@ -362,12 +301,7 @@ void D_TIM1_CC_ISR(void)
     TIM_ClearITPendingBit(TIM1, TIM_IT_CC2);
 }
 
-/*
- * @fn      D_TIM1_UP_ISR
- * @brief   溢出中断处理：累加溢出计数，供32位时间戳使用
- * @param   无
- * @return  无
- */
+/* 溢出中断：累加溢出计数，供32位时间戳 */
 void D_TIM1_UP_ISR(void)
 {
     if (TIM_GetITStatus(TIM1, TIM_IT_Update) != RESET)

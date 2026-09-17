@@ -3,7 +3,7 @@
   "audit_failures": 0,
   "scenarios": {
     "cycle": {
-      "final_pos": 20258.8,
+      "final_pos": 6740.0,
       "tail_motion_pp": 0.0,
       "tail_nonzero_pwm": 0,
       "tail_max_pwm": 0.0,
@@ -12,184 +12,193 @@
       "moves": [
         {
           "done_ms": 802,
-          "overshoot": 20.9,
-          "final_error": -12.4,
-          "post_done_travel": 6.0,
+          "overshoot": 17.3,
+          "final_error": 11.8,
+          "post_done_travel": 3.4,
           "tail_pwm": 0
         },
         {
           "done_ms": 1173,
-          "overshoot": 15.4,
-          "final_error": 10.3,
-          "post_done_travel": 2.9,
+          "overshoot": 15.0,
+          "final_error": -9.7,
+          "post_done_travel": 3.2,
           "tail_pwm": 0
         },
         {
           "done_ms": 1173,
-          "overshoot": 15.9,
+          "overshoot": 13.8,
+          "final_error": 9.1,
+          "post_done_travel": 2.6,
+          "tail_pwm": 0
+        },
+        {
+          "done_ms": 1173,
+          "overshoot": 14.7,
           "final_error": -10.0,
-          "post_done_travel": 3.7,
-          "tail_pwm": 0
-        },
-        {
-          "done_ms": 1173,
-          "overshoot": 14.5,
-          "final_error": 8.8,
-          "post_done_travel": 3.5,
+          "post_done_travel": 2.6,
           "tail_pwm": 0
         }
       ]
     },
     "micro": {
-      "final_pos": 13562.7,
-      "tail_motion_pp": 67.17,
-      "tail_nonzero_pwm": 122,
-      "tail_max_pwm": 340.0,
-      "max_abs_pwm": 383.0,
+      "final_pos": 13426.1,
+      "tail_motion_pp": 65.09,
+      "tail_nonzero_pwm": 118,
+      "tail_max_pwm": 356.0,
+      "max_abs_pwm": 361.0,
       "escape_entries": 0,
       "steps": [
         {
           "overshoot": 0.0,
           "reversals": 0,
-          "ratio": 1.04,
-          "err": -2.6,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 0.0,
-          "reversals": 0,
-          "ratio": 1.07,
-          "err": -3.4,
+          "ratio": 1.06,
+          "err": 0.8,
           "tail_pwm": 0
         },
         {
           "overshoot": 0.0,
           "reversals": 0,
           "ratio": 1.06,
-          "err": -6.1,
+          "err": 2.1,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 0.0,
+          "reversals": 0,
+          "ratio": 1.08,
+          "err": 2.1,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 0.0,
+          "reversals": 0,
+          "ratio": 1.07,
+          "err": 3.2,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 0.0,
+          "reversals": 0,
+          "ratio": 1.08,
+          "err": 3.3,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 0.0,
+          "reversals": 0,
+          "ratio": 1.07,
+          "err": 5.0,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 0.0,
+          "reversals": 0,
+          "ratio": 1.07,
+          "err": 4.7,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 0.0,
+          "reversals": 0,
+          "ratio": 1.07,
+          "err": 6.4,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 0.0,
+          "reversals": 0,
+          "ratio": 1.04,
+          "err": 7.1,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 0.0,
+          "reversals": 0,
+          "ratio": 1.1,
+          "err": 8.1,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 6.0,
+          "reversals": 0,
+          "ratio": 1.07,
+          "err": 6.0,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 4.7,
+          "reversals": 0,
+          "ratio": 1.05,
+          "err": 4.7,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 2.4,
+          "reversals": 0,
+          "ratio": 1.07,
+          "err": 2.4,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 0.8,
+          "reversals": 0,
+          "ratio": 1.05,
+          "err": 0.8,
           "tail_pwm": 0
         },
         {
           "overshoot": 0.0,
           "reversals": 1,
           "ratio": 1.07,
-          "err": -7.1,
+          "err": -1.1,
           "tail_pwm": 0
         },
         {
           "overshoot": 0.0,
           "reversals": 0,
-          "ratio": 1.06,
-          "err": -9.0,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 0.0,
-          "reversals": 0,
-          "ratio": 1.11,
-          "err": -8.4,
+          "ratio": 1.08,
+          "err": -2.4,
           "tail_pwm": 0
         },
         {
           "overshoot": 0.0,
           "reversals": 0,
           "ratio": 1.1,
-          "err": -9.4,
+          "err": -3.5,
           "tail_pwm": 0
         },
         {
           "overshoot": 0.0,
           "reversals": 0,
-          "ratio": 1.1,
-          "err": -9.3,
+          "ratio": 1.09,
+          "err": -4.0,
           "tail_pwm": 0
         },
         {
           "overshoot": 0.0,
           "reversals": 0,
-          "ratio": 1.16,
-          "err": -10.0,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 0.0,
-          "reversals": 0,
-          "ratio": 1.13,
-          "err": -9.7,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 9.7,
-          "reversals": 0,
-          "ratio": 1.06,
-          "err": -9.7,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 8.6,
-          "reversals": 0,
           "ratio": 1.07,
-          "err": -8.6,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 8.8,
-          "reversals": 0,
-          "ratio": 1.08,
-          "err": -8.8,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 7.7,
-          "reversals": 0,
-          "ratio": 1.07,
-          "err": -7.7,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 7.4,
-          "reversals": 0,
-          "ratio": 1.06,
-          "err": -7.4,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 6.5,
-          "reversals": 0,
-          "ratio": 1.08,
-          "err": -6.5,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 6.3,
-          "reversals": 0,
-          "ratio": 1.07,
-          "err": -6.3,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 5.1,
-          "reversals": 0,
-          "ratio": 1.06,
-          "err": -5.1,
-          "tail_pwm": 0
-        },
-        {
-          "overshoot": 4.8,
-          "reversals": 0,
-          "ratio": 1.07,
-          "err": -4.8,
+          "err": -6.4,
           "tail_pwm": 0
         }
       ]
     },
     "rapid": {
-      "final_pos": 8656.3,
-      "tail_motion_pp": 7061.07,
-      "tail_nonzero_pwm": 1000,
+      "final_pos": 18339.5,
+      "tail_motion_pp": 7064.43,
+      "tail_nonzero_pwm": 999,
       "tail_max_pwm": 2400.0,
       "max_abs_pwm": 2400.0,
       "escape_entries": 0
+    },
+    "flip": {
+      "final_pos": -6.0,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "max_abs_pwm": 2400.0,
+      "escape_entries": 0,
+      "max_dpwm": 208.0
     },
     "jitter": {
       "final_pos": 13500.0,
@@ -224,74 +233,94 @@
       "escape_entries": 0
     }
   },
+  "resolution": {
+    "bus-micro": {
+      "levels": 20,
+      "accepted": 19,
+      "step_min": 13.0,
+      "step_max": 14.0
+    },
+    "pwm-micro": {
+      "levels": 20,
+      "accepted": 7,
+      "step_min": 28.0,
+      "step_max": 29.0
+    },
+    "pwm-micro-jit": {
+      "levels": 20,
+      "accepted": 9,
+      "step_min": 28.0,
+      "step_max": 57.7
+    }
+  },
   "sweep": {
     "标称": {
       "done_ms": 1173,
-      "overshoot": 20.9,
-      "final_error": 12.4,
+      "overshoot": 17.3,
+      "final_error": 11.8,
       "tail_nonzero_pwm": 0,
       "tail_motion_pp": 0.0
     },
     "增益+30%": {
       "done_ms": 1168,
       "overshoot": 0.0,
-      "final_error": 11.6,
+      "final_error": 10.8,
       "tail_nonzero_pwm": 0,
       "tail_motion_pp": 0.0
     },
     "增益-30%": {
       "done_ms": 1476,
       "overshoot": 0.0,
-      "final_error": 3.5,
+      "final_error": 4.1,
       "tail_nonzero_pwm": 0,
       "tail_motion_pp": 0.0
     },
     "tau+30%": {
       "done_ms": 1180,
-      "overshoot": 71.9,
-      "final_error": 7.3,
+      "overshoot": 72.2,
+      "final_error": 7.4,
       "tail_nonzero_pwm": 0,
       "tail_motion_pp": 0.0
     },
     "tau-30%": {
       "done_ms": 1168,
       "overshoot": 0.0,
-      "final_error": 12.9,
+      "final_error": 14.0,
       "tail_nonzero_pwm": 0,
       "tail_motion_pp": 0.0
     },
     "摩擦+30%": {
       "done_ms": 1173,
-      "overshoot": 14.9,
-      "final_error": 10.3,
+      "overshoot": 15.3,
+      "final_error": 11.0,
       "tail_nonzero_pwm": 0,
       "tail_motion_pp": 0.0
     },
     "摩擦-30%": {
       "done_ms": 1172,
-      "overshoot": 17.9,
-      "final_error": 8.7,
+      "overshoot": 17.7,
+      "final_error": 9.2,
       "tail_nonzero_pwm": 0,
       "tail_motion_pp": 0.0
     },
     "延迟+1拍": {
       "done_ms": 1173,
-      "overshoot": 25.5,
-      "final_error": 11.0,
+      "overshoot": 28.9,
+      "final_error": 11.9,
       "tail_nonzero_pwm": 0,
       "tail_motion_pp": 0.0
     },
     "延迟-1拍": {
       "done_ms": 1172,
-      "overshoot": 11.6,
-      "final_error": 10.3,
+      "overshoot": 12.2,
+      "final_error": 11.5,
       "tail_nonzero_pwm": 0,
       "tail_motion_pp": 0.0
     },
     "噪声x2": {
       "done_ms": 1173,
-      "overshoot": 20.2,
-      "final_error": 11.9,
+      "overshoot": 18.3,
+      "final_error": 11.7,
       "tail_nonzero_pwm": 0,
       "tail_motion_pp": 0.0
     }

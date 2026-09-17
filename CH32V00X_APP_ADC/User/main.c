@@ -1,17 +1,6 @@
 /*
- * main.c —— 程序入口
- *
- * 分层结构(依赖只允许自上而下，同层之间不互相调用)：
- *
- *     User        main / 中断向量转发
- *        |
- *     Application A_*  业务编排：舵机状态机、协议、参数、任务表
- *        |
- *     Common      C_*  纯算法：轨迹规划/观测器/控制器/环形队列/调度器
- *        |                (零硬件依赖，可以直接在PC上编译测试)
- *     Drivers     D_*  外设驱动
- *        |
- *     SRC         WCH标准外设库
+ * main.c —— 程序入口。分层依赖自上而下：
+ *   User(main/中断转发) -> Application(A_*) -> Common(C_*，纯算法可PC测试) -> Drivers(D_*) -> SRC(WCH外设库)
  */
 
 #include "debug.h"
@@ -34,10 +23,7 @@
 #include "A_Tasks.h"
 #include "A_Calib_Min.h"
 
-/* 定义 APP_MODE_CALIB 后编译出的固件不跑舵机闭环，改为开环硬件标定程序：上电约1秒
- * 自动开始，串口打印可直接粘贴的参数，期间不注册舵机控制与串口命令任务。标定完成、
- * 参数填回 A_Parameter.h 后注释掉本行重新编译即可恢复正常固件。开跑前提和中止代码
- * 见 A_Calib_Min.h。 */
+/* 定义 APP_MODE_CALIB 编译为开环硬件标定固件(见 A_Calib_Min.h)，标定完填回 A_Parameter.h 后注释掉 */
 /* #define APP_MODE_CALIB */
 
 /* 程序入口：分层初始化后进入协作式调度主循环，不返回 */

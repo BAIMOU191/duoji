@@ -1,7 +1,7 @@
 """本工程的全套主机端验证：编译生产代码 -> 跑回归/审计/仿真场景 -> 汇总指标。
 
 用法：
-    python tests/run.py            回归 + 审计 + 全部仿真场景 + 鲁棒性扫描
+    python tests/run.py            回归 + 审计 + 全部仿真场景 + 输入分辨率 + 鲁棒性扫描
     python tests/run.py quick      只跑回归和审计(几秒)
 
 仿真链接的是生产代码本体(A_Servo.c / A_Sensor.c / A_Protect.c / C_*.c)，只有
@@ -17,6 +17,7 @@ OUT = HERE / 'results'
 CC = ['gcc', '-std=c99', '-O2', '-Wall', '-Wextra', '-Wno-unused-parameter']
 INC = ['-I' + str(p) for p in [HERE / 'sim' / 'stubs', ROOT / 'Application',
                                ROOT / 'Common', ROOT / 'Drivers']]
+SYSINC = ['-I' + str(ROOT / 'System')]   # A_Config.c 要 flash.h
 COMMON = [str(ROOT / 'Common' / f'{n}.c') for n in
           ('C_Pos_Ctrl', 'C_Speed_Observer', 'C_Traj_Planner')]
 SENSOR = str(ROOT / 'Application' / 'A_Sensor.c')
@@ -34,17 +35,29 @@ def has_deadzone():
     return bool(m and m.group(1) == '1')
 
 
-def travel_guard():
-    """行程两端的禁入余量：有死区的编码器才有，取自 A_Servo.c。"""
-    text = (ROOT / 'Application' / 'A_Servo.c').read_text(encoding='utf-8')
-    m = re.search(r'#define\s+SERVO_TRAVEL_GUARD_CDEG\s+(\d+)', text)
-    return int(m.group(1)) if m else 0
+def dir_invert():
+    """整机旋向有没有被翻过来，取自 A_Parameter.h 的 CFG_DIR_INVERT。"""
+    text = (ROOT / 'Application' / 'A_Parameter.h').read_text(encoding='utf-8')
+    m = re.search(r'#define\s+CFG_DIR_INVERT\s+(\d)', text)
+    return bool(m and m.group(1) == '1')
 
 
 DEADZONE = has_deadzone()
-GUARD = travel_guard() if DEADZONE else 0
-# cycle 场景交替发 500us / 2000us；实际目标会被规划器夹进可用行程，指标要按夹过的算
-CYCLE_TARGETS = (max(0, GUARD), min(20250, SPAN_CDEG - GUARD))
+DIR_INVERT = dir_invert()
+
+
+def pwm_to_cdeg(pwm):
+    """协议脉宽 -> 行程坐标，与 Servo_PulseToAngle 同式。
+    CFG_DIR_INVERT=1 时同一脉宽落在行程另一头，不镜像就整整差一个量程。行程两端可达，不再夹。
+    """
+    a = (pwm - 500) * SPAN_CDEG / 2000.0
+    if DIR_INVERT:
+        a = SPAN_CDEG - a
+    return a
+
+
+# cycle 场景交替发 500us / 2000us
+CYCLE_TARGETS = (pwm_to_cdeg(500), pwm_to_cdeg(2000))
 
 
 def build(name, sources, extra=()):
@@ -77,11 +90,14 @@ def scenario(exe, mode, params=(), suffix=''):
         'escape_entries': sum(r['enc_state'] == 1 and (i == 0 or rows[i - 1]['enc_state'] != 1)
                               for i, r in enumerate(rows)),
     }
+    if mode == 'flip':    # 往复换向：换向段PWM单拍跳变，越小冲击越轻
+        body = rows[1500:9000]
+        res['max_dpwm'] = max(abs(b['pwm'] - a['pwm']) for a, b in zip(body, body[1:]))
     if mode == 'micro':   # 微步进：每级都要走完并停稳，看的是抖动而不是速度
         res['steps'] = []
         for start in range(0, len(rows) - MICRO_PERIOD_MS + 1, MICRO_PERIOD_MS):
             b = rows[start:start + MICRO_PERIOD_MS]
-            target = (b[0]['pwm_target'] - 500) * SPAN_CDEG / 2000.0
+            target = pwm_to_cdeg(b[0]['pwm_target'])
             direction = 1 if target > b[0]['pos'] else -1 if target < b[0]['pos'] else 0
             if direction == 0:
                 continue
@@ -123,12 +139,45 @@ def worst(res, key):
     return max(abs(m[key]) for m in res['moves'])
 
 
+# 输入分辨率：1us 的阶梯里有几级真的被目标死区放行，放行时步距多大。
+# 总线和 PWM 输入走同一个内核，差别只在入口分辨率和 PWM 专属的额外死区，
+# 所以这三行放在一起看就是"PWM 模式到底比总线粗多少"。
+STEP_MODES = ('bus-micro', 'pwm-micro', 'pwm-micro-jit')
+STEP_LEVEL_MS = 600     # 与 servo_sim 的 SIM_PWM_MICRO_MS 一致
+STEP_INPUT_US = 1       # 与 servo_sim 的 SIM_PWM_MICRO_US 一致
+
+
+def input_resolution(exe, mode):
+    """跑 1us 阶梯，回收"生效级数"和"每次生效的目标步距(厘度)"。"""
+    dest = OUT / f'{mode}.csv'
+    with dest.open('w') as f:
+        subprocess.run([str(exe), mode], stdout=f, check=True)
+    with dest.open() as f:
+        rows = [{k: float(v) for k, v in r.items()} for r in csv.DictReader(f)]
+    levels, steps = [], []
+    for start in range(0, len(rows) - STEP_LEVEL_MS + 1, STEP_LEVEL_MS):
+        tail = rows[start + STEP_LEVEL_MS - 100:start + STEP_LEVEL_MS]
+        levels.append(sum(r['ref_pos'] for r in tail) / len(tail))
+    for a, b in zip(levels, levels[1:]):
+        if abs(b - a) > 1:
+            steps.append(abs(b - a))
+    return {'levels': len(levels), 'accepted': len(steps),
+            'step_min': round(min(steps), 1) if steps else 0,
+            'step_max': round(max(steps), 1) if steps else 0}
+
+
 def main():
     quick = len(sys.argv) > 1 and sys.argv[1] == 'quick'
     report, failures = {'encoder': '电位器ADC' if DEADZONE else 'MT6701磁编码'}, 0
 
     sim = build('sim', [str(HERE / 'sim' / 'servo_sim.c'), SENSOR] + COMMON)
+    feature = build('feature_audit', [str(HERE / 'audit' / 'feature_audit.c'), SENSOR] + COMMON)
+    # 协议层和参数层各自独立成可执行文件：它们把舵机换成探针/把Flash换成内存，
+    # 查的是"指令分发对不对""旧参数升级后还在不在"，掺进整机仿真反而看不清。
+    proto = build('proto_audit', [str(HERE / 'audit' / 'proto_audit.c')], extra=SYSINC)
+    config = build('config_audit', [str(HERE / 'audit' / 'config_audit.c')], extra=SYSINC)
     planner = build('planner_audit', [str(HERE / 'audit' / 'planner_audit.c')])
+    sched = build('sched_audit', [str(HERE / 'audit' / 'sched_audit.c')])
     protect = build('protect_audit', [str(HERE / 'audit' / 'protect_audit.c')])
     servo = build('servo_audit', [str(HERE / 'audit' / 'servo_audit.c'), SENSOR] + COMMON)
     stall = build('stall_audit', [str(HERE / 'audit' / 'stall_audit.c'), SENSOR] + COMMON,
@@ -138,7 +187,19 @@ def main():
     servo_cases = ['range', 'save', 'protection', 'invalid_range']
     if DEADZONE:
         servo_cases += ['stop', 'release', 'pause']
-    suites = [(sim, ['regression']), (planner, []), (protect, [])]
+    # 新增协议功能的专项审计。多圈只在整圈可测的编码器上存在，量程收缩只在
+    # 有物理死区的编码器上存在，两边各跑各的。
+    feature_cases = ['pulse_range', 'pulse_limit', 'boot_window', 'endpoint', 'hold_stiff',
+                     'cal_mid', 'cal_zero', 'cal_repeat', 'cal_default', 'direction']
+    if DEADZONE:
+        feature_cases += ['cal_shrink']
+    else:
+        feature_cases += ['mt_distance', 'mt_timing', 'mt_pause',
+                          'mt_interrupt', 'mt_reject', 'mt_longest']
+
+    suites = [(sim, ['regression']), (proto, []), (config, []),
+              (planner, []), (protect, []), (sched, [])]
+    suites += [(feature, [c]) for c in feature_cases]
     suites += [(servo, [c]) for c in servo_cases]
     suites += [(stall, [c]) for c in
                ['stall', 'free', 'slow', 'recover', 'hold_load', 'jam', 'released']]
@@ -153,7 +214,7 @@ def main():
         return 1 if failures else 0
 
     print('\n===== 控制质量场景 =====')
-    modes = ['cycle', 'micro', 'rapid', 'jitter', 'disturb', 'load', 'unload']
+    modes = ['cycle', 'micro', 'rapid', 'flip', 'jitter', 'disturb', 'load', 'unload']
     if DEADZONE:
         modes += ['boot-low', 'boot-high']
     report['scenarios'] = {m: scenario(sim, m) for m in modes}
@@ -162,6 +223,8 @@ def main():
         if r.get('moves'):
             extra = '  到位%dms 超调%.1f 终点误差%.1f' % (
                 worst(r, 'done_ms'), worst(r, 'overshoot'), worst(r, 'final_error'))
+        if 'max_dpwm' in r:
+            extra = '  换向PWM单拍跳变max=%d' % r['max_dpwm']
         if r.get('steps'):
             st = r['steps']
             n = len(st)
@@ -176,6 +239,13 @@ def main():
         else:
             print('  %-10s 静止段非零PWM=%-5d 静止摆动=%-7s%s'
                   % (m, r['tail_nonzero_pwm'], r['tail_motion_pp'], extra))
+
+    print('\n===== 输入分辨率(1us 阶梯，看目标死区放行几级) =====')
+    report['resolution'] = {m: input_resolution(sim, m) for m in STEP_MODES}
+    for m, r in report['resolution'].items():
+        print('  %-14s %2d级x%dus -> 生效%2d次，步距 %.0f~%.0f 厘度'
+              % (m, r['levels'], STEP_INPUT_US, r['accepted'],
+                 r['step_min'], r['step_max']))
 
     print('\n===== 鲁棒性扫描(对象失配) =====')
     nominal_delay = 2 if DEADZONE else 3
