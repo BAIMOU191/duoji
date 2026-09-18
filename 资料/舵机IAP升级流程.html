@@ -1,0 +1,1432 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>舵机 IAP 升级流程</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#FAFBF9;--surface:#F0F3EF;--ink:#18201C;--muted:#56625B;--rule:#D5DCD6;--accent:#1C6B55;
+  --host:#2D5B9A;--host-bg:#E4ECF7;--app:#1C7A58;--app-bg:#DDF0E6;--boot:#74469F;--boot-bg:#EEE5F6;
+  --fail:#B8412F;--ok:#2E7D4F;--warn-bg:#FBF3E2;--warn:#8A5A12;
+  --b-sync:#1C6B55;--b-cmd:#2D5B9A;--b-len:#8A5A12;--b-data:#18201C;--b-crc:#74469F;
+  --sans:"IBM Plex Sans","PingFang SC","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","Cascadia Mono",Consolas,"Microsoft YaHei",monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#111513;--surface:#18201B;--ink:#E3E9E4;--muted:#9BA7A0;--rule:#2B3530;--accent:#62C4A3;
+    --host:#9BBDEB;--host-bg:#1D2A3F;--app:#72D0A7;--app-bg:#15302A;--boot:#C7A6E8;--boot-bg:#2A2139;
+    --fail:#EE8A78;--ok:#7FD19E;--warn-bg:#2E2615;--warn:#E8C27A;
+    --b-sync:#62C4A3;--b-cmd:#9BBDEB;--b-len:#E8C27A;--b-data:#E3E9E4;--b-crc:#C7A6E8;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#111513;--surface:#18201B;--ink:#E3E9E4;--muted:#9BA7A0;--rule:#2B3530;--accent:#62C4A3;
+  --host:#9BBDEB;--host-bg:#1D2A3F;--app:#72D0A7;--app-bg:#15302A;--boot:#C7A6E8;--boot-bg:#2A2139;
+  --fail:#EE8A78;--ok:#7FD19E;--warn-bg:#2E2615;--warn:#E8C27A;
+  --b-sync:#62C4A3;--b-cmd:#9BBDEB;--b-len:#E8C27A;--b-data:#E3E9E4;--b-crc:#C7A6E8;
+}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.65;padding-inline:20px}
+main{max-width:1000px;margin:0 auto;padding-block:40px 72px;display:flex;flex-direction:column;gap:56px}
+h1,h2,h3,h4{text-wrap:balance;margin:0;font-weight:600;letter-spacing:-.01em}
+h1{font-size:30px;line-height:1.25}
+h2{font-size:22px;line-height:1.3}
+h3{font-size:17px}
+h4{font-size:15px}
+p{margin:0;max-width:72ch}
+ul,ol{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:4px;max-width:78ch}
+code{font-family:var(--mono);font-size:.9em;background:var(--surface);padding:1px 5px;border-radius:4px}
+header{display:flex;flex-direction:column;gap:16px}
+.lede{color:var(--muted)}
+.meta{font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.04em}
+nav{display:flex;flex-wrap:wrap;gap:8px}
+nav a{color:var(--ink);text-decoration:none;font-size:13px;padding:4px 12px;border:1px solid var(--rule);border-radius:999px}
+nav a:hover{border-color:var(--accent);color:var(--accent)}
+nav a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section{display:flex;flex-direction:column;gap:16px;scroll-margin-top:20px}
+.sub{display:flex;flex-direction:column;gap:10px;margin-top:6px;scroll-margin-top:20px}
+.eyebrow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.role{font-size:12px;font-weight:500;letter-spacing:.04em;padding:2px 10px;border-radius:4px;white-space:nowrap}
+.role.host{color:var(--host);background:var(--host-bg)}
+.role.app{color:var(--app);background:var(--app-bg)}
+.role.boot{color:var(--boot);background:var(--boot-bg)}
+.role.proto{color:var(--muted);background:var(--surface)}
+.arrow{color:var(--muted);font-size:12px}
+figure{margin:0;border:1px solid var(--rule);border-radius:10px;padding:20px 12px;overflow-x:auto;background:var(--ground)}
+pre.mermaid{margin:0;background:transparent;text-align:center;font-family:var(--sans);white-space:pre;color:var(--muted)}
+.note{font-size:13px;color:var(--muted)}
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 14px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-weight:500;color:var(--muted);font-size:13px;background:var(--surface);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.mono,.mono{font-family:var(--mono);font-size:13px;white-space:nowrap}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.frame{display:flex;flex-wrap:wrap;gap:4px;font-family:var(--mono);font-size:13px}
+.frame div{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 12px;border:1px solid var(--rule);border-radius:6px;background:var(--surface);min-width:64px}
+.frame div small{font-family:var(--sans);font-size:11px;color:var(--muted)}
+.frame .sync{border-color:var(--b-sync);color:var(--b-sync)}
+.frame .data{flex:1 1 140px}
+.cmd{border:1px solid var(--rule);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.cmd-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.cmd-head .code{font-family:var(--mono);font-size:18px;font-weight:500}
+.ex{display:flex;flex-direction:column;gap:6px}
+.ex-row{display:grid;grid-template-columns:6.5em 1fr;gap:10px;align-items:baseline}
+.ex-row .lab{font-size:12px;color:var(--muted)}
+.bytes{font-family:var(--mono);font-size:13px;line-height:1.8;overflow-wrap:anywhere}
+.bytes span{margin-right:.55em}
+.b-sync{color:var(--b-sync)}.b-cmd{color:var(--b-cmd);font-weight:500}.b-len{color:var(--b-len)}.b-data{color:var(--b-data)}.b-crc{color:var(--b-crc)}
+.bytes-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.bytes-legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px;background:currentColor}
+.bad{color:var(--fail)}
+.good{color:var(--ok)}
+pre.code{margin:0;font-family:var(--mono);font-size:13px;line-height:1.6;background:var(--surface);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;overflow-x:auto;color:var(--ink)}
+.srchead{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;justify-content:space-between}
+.srchead .path{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.session{display:flex;flex-direction:column;gap:14px}
+.session .step{display:flex;flex-direction:column;gap:6px;border-left:2px solid var(--rule);padding-left:14px}
+.session .step h4{font-size:14px}
+</style>
+<style>body{margin:0}</style>
+</head>
+<body>
+
+
+<main>
+  <header>
+    <div class="meta">CH32V006 舵机 · Boot 协议版本 1</div>
+    <h1>舵机 IAP 升级协议</h1>
+    <p class="lede">上位机与舵机之间的接口定义：通信参数、帧格式、命令字节、状态码、时序与设备行为约束、固件文件格式。所有示例帧由固件代码实测产生。</p>
+    <nav aria-label="目录">
+      <a href="#link">通信参数</a><a href="#frame">帧格式</a><a href="#commands">命令</a><a href="#status">状态码</a><a href="#flow">时序与约束</a><a href="#session">示例会话</a><a href="#firmware">固件文件</a><a href="#notes">限制与约定</a><a href="#src">附录：设备侧源码</a>
+    </nav>
+  </header>
+
+  <!-- ============================== 通信参数 ============================== -->
+  <section id="link">
+    <h2>通信参数</h2>
+    <div class="tablewrap">
+      <table>
+        <tbody>
+          <tr><th>物理层</th><td>单线半双工 UART，8 位数据、无校验、1 位停止</td></tr>
+          <tr><th>波特率</th><td><span class="role app">APP</span> 由舵机参数决定：9600 / 19200 / 38400 / 57600 / 115200 / 128000 / 256000 / 1000000<br><span class="role boot">Boot</span> 固定 115200</td></tr>
+          <tr><th>字节序</th><td>所有多字节整数小端（低字节在前）</td></tr>
+          <tr><th>交互方式</th><td>一问一答。设备不会主动发送，收到一帧才应答一帧</td></tr>
+          <tr><th>寻址</th><td>APP 命令带目标 ID（0~254，查询另可用 255 广播）；Boot 命令不带 ID</td></tr>
+          <tr><th>回环</th><td>半双工线上会收到自己发出的字节，以及总线上其他舵机的应答</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">舵机内有两套程序：平时运行的 APP（处理 0x20~0x22），升级时运行的 Boot（处理 0x01~0x04）。同一时刻只有一套在运行。</p>
+  </section>
+
+  <!-- ============================== 帧格式 ============================== -->
+  <section id="frame">
+    <h2>帧格式</h2>
+    <p>请求帧与应答帧格式相同，总长 = 11 + LEN 字节。</p>
+    <div class="frame" role="img" aria-label="帧格式：AA 55，CMD 1 字节，LEN 2 字节小端，DATA，CRC32 4 字节小端，55 AA">
+      <div class="sync">AA 55<small>帧头</small></div>
+      <div>CMD<small>1 字节</small></div>
+      <div>LEN<small>2 字节 小端</small></div>
+      <div class="data">DATA<small>LEN 字节，0~260</small></div>
+      <div>CRC32<small>4 字节 小端</small></div>
+      <div class="sync">55 AA<small>帧尾</small></div>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>帧内偏移</th><th>字节数</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td>请求为命令码；应答为命令码 | 0x80</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td>DATA 的字节数，0~260</td></tr>
+          <tr><td class="mono">5</td><td class="mono">LEN</td><td>DATA</td><td>见各命令</td><td>应答的第 1 个字节固定是状态码</td></tr>
+          <tr><td class="mono">5+LEN</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2 ~ 4+LEN</td></tr>
+          <tr><td class="mono">9+LEN</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <tbody>
+          <tr><th>CRC32 范围</th><td>CMD、LEN、DATA 三段，不含帧头帧尾</td></tr>
+          <tr><th>应答 CMD</th><td>请求 CMD | 0x80</td></tr>
+          <tr><th>应答 DATA</th><td>第一个字节是状态码，其后是该命令的返回数据</td></tr>
+          <tr><th>CMD 最高位为 1 的帧</th><td>是应答帧（自身回环或其他舵机的应答），设备与上位机都忽略</td></tr>
+          <tr><th>LEN &gt; 260</th><td>整帧丢弃</td></tr>
+          <tr><th>帧内字节间隔 &gt; 50ms</th><td>Boot 丢弃收了一半的帧</td></tr>
+          <tr><th>无效帧</th><td>Boot 回状态 1；APP 不应答（总线上分不清是发给谁的）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sub">
+      <h3>CRC32</h3>
+      <div class="tablewrap">
+        <table>
+          <tbody>
+            <tr><th>名称</th><td>CRC-32（IEEE 802.3，与 zip / PNG 相同）</td></tr>
+            <tr><th>多项式</th><td class="mono">0x04C11DB7（反射形式 0xEDB88320）</td></tr>
+            <tr><th>初值 / 结果异或</th><td class="mono">0xFFFFFFFF / 0xFFFFFFFF</td></tr>
+            <tr><th>输入输出反射</th><td>是</td></tr>
+            <tr><th>测试向量</th><td><span class="mono">"123456789"</span> → <span class="mono">0xCBF43926</span></td></tr>
+            <tr><th>Python</th><td class="mono">zlib.crc32(data) &amp; 0xFFFFFFFF</td></tr>
+            <tr><th>C#</th><td class="mono">System.IO.Hashing.Crc32.Hash(data)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sub">
+      <h3>一帧的构成</h3>
+      <div class="bytes-legend"><span class="b-sync">帧头/帧尾</span><span class="b-cmd">CMD</span><span class="b-len">LEN</span><span class="b-data">DATA</span><span class="b-crc">CRC32</span></div>
+      <div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">20</span><span class="b-len">01 00</span><span class="b-data">01</span><span class="b-crc">83 2A B3 F7</span><span class="b-sync">55 AA</span></div>
+      <p class="note">查询 ID 为 1 的舵机。CRC32 = crc32(20 01 00 01) = 0xF7B32A83，小端写出为 83 2A B3 F7。</p>
+    </div>
+  </section>
+
+  <!-- ============================== 命令 ============================== -->
+  <section id="commands">
+    <h2>命令</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>CMD</th><th>名称</th><th>处理方</th><th>请求 DATA</th><th>应答 DATA</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0x20</td><td>查询</td><td><span class="role app">APP</span></td><td class="mono">1</td><td class="mono">9</td></tr>
+          <tr><td class="mono">0x21</td><td>进入升级</td><td><span class="role app">APP</span></td><td class="mono">8</td><td class="mono">1</td></tr>
+          <tr><td class="mono">0x22</td><td>写硬件信息</td><td><span class="role app">APP</span></td><td class="mono">5</td><td class="mono">1</td></tr>
+          <tr><td class="mono">0x01</td><td>握手</td><td><span class="role boot">Boot</span></td><td class="mono">0</td><td class="mono">7</td></tr>
+          <tr><td class="mono">0x02</td><td>开始</td><td><span class="role boot">Boot</span></td><td class="mono">9</td><td class="mono">1</td></tr>
+          <tr><td class="mono">0x03</td><td>写页</td><td><span class="role boot">Boot</span></td><td class="mono">260</td><td class="mono">5</td></tr>
+          <tr><td class="mono">0x04</td><td>完成</td><td><span class="role boot">Boot</span></td><td class="mono">0</td><td class="mono">1</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">DATA 长度含状态码。长度不符时：Boot 回状态 1，APP 不应答。</p>
+    <div class="bytes-legend"><span class="b-sync">帧头/帧尾</span><span class="b-cmd">CMD</span><span class="b-len">LEN</span><span class="b-data">DATA</span><span class="b-crc">CRC32</span></div>
+
+    <div class="cmd">
+      <div class="cmd-head"><span class="code">0x20</span><h3>查询</h3><span class="role app">APP</span></div>
+      <h4>请求帧（12 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0x20</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0001</td></tr>
+          <tr><td class="mono">5</td><td class="mono">1</td><td>目标 ID</td><td>uint8</td><td>0~254；255 = 广播</td></tr>
+          <tr><td class="mono">6</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~5</td></tr>
+          <tr><td class="mono">10</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <h4>应答帧（20 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0xA0</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0009</td></tr>
+          <tr><td class="mono">5</td><td class="mono">1</td><td>状态码</td><td>uint8</td><td>固定 0</td></tr>
+          <tr><td class="mono">6</td><td class="mono">1</td><td>本机 ID</td><td>uint8</td><td>0~254</td></tr>
+          <tr><td class="mono">7</td><td class="mono">1</td><td>舵机类型</td><td>uint8</td><td>0xFF = 硬件信息未写入</td></tr>
+          <tr><td class="mono">8</td><td class="mono">1</td><td>硬件版本</td><td>uint8</td><td>同上</td></tr>
+          <tr><td class="mono">9</td><td class="mono">1</td><td>电压型号</td><td>uint8</td><td>同上</td></tr>
+          <tr><td class="mono">10</td><td class="mono">1</td><td>扭力型号</td><td>uint8</td><td>同上</td></tr>
+          <tr><td class="mono">11</td><td class="mono">1</td><td>固件主版本</td><td>uint8</td><td rowspan="3">这 3 个字节即固件版本 主.次.修订</td></tr>
+          <tr><td class="mono">12</td><td class="mono">1</td><td>固件次版本</td><td>uint8</td></tr>
+          <tr><td class="mono">13</td><td class="mono">1</td><td>固件修订版本</td><td>uint8</td></tr>
+          <tr><td class="mono">14</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~13</td></tr>
+          <tr><td class="mono">18</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">ID 不是本机且不是 255 时不应答。偏移 7~13 这 7 个字节就是进入升级命令要原样带回的内容。</p>
+      <div class="ex">
+        <div class="ex-row"><span class="lab">请求</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">20</span><span class="b-len">01 00</span><span class="b-data">01</span><span class="b-crc">83 2A B3 F7</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">应答</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">A0</span><span class="b-len">09 00</span><span class="b-data">00 01 01 0A 08 14 01 00 00</span><span class="b-crc">80 85 E1 5D</span><span class="b-sync">55 AA</span></div></div>
+        <p class="note">ID 1，类型 1、硬件版本 10、电压 8、扭力 20，固件版本 1.0.0。</p>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-head"><span class="code">0x21</span><h3>进入升级</h3><span class="role app">APP</span></div>
+      <h4>请求帧（19 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0x21</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0008</td></tr>
+          <tr><td class="mono">5</td><td class="mono">1</td><td>目标 ID</td><td>uint8</td><td>必须是本机，不接受 255</td></tr>
+          <tr><td class="mono">6</td><td class="mono">1</td><td>舵机类型</td><td>uint8</td><td rowspan="7">这 7 个字节必须与查询应答偏移 7~13 完全相同，逐字节比对</td></tr>
+          <tr><td class="mono">7</td><td class="mono">1</td><td>硬件版本</td><td>uint8</td></tr>
+          <tr><td class="mono">8</td><td class="mono">1</td><td>电压型号</td><td>uint8</td></tr>
+          <tr><td class="mono">9</td><td class="mono">1</td><td>扭力型号</td><td>uint8</td></tr>
+          <tr><td class="mono">10</td><td class="mono">1</td><td>固件主版本</td><td>uint8</td></tr>
+          <tr><td class="mono">11</td><td class="mono">1</td><td>固件次版本</td><td>uint8</td></tr>
+          <tr><td class="mono">12</td><td class="mono">1</td><td>固件修订版本</td><td>uint8</td></tr>
+          <tr><td class="mono">13</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~12</td></tr>
+          <tr><td class="mono">17</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <h4>应答帧（12 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0xA1</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0001</td></tr>
+          <tr><td class="mono">5</td><td class="mono">1</td><td>状态码</td><td>uint8</td><td>0 = 通过，舵机卸力并在应答发完后复位进 Boot；2 = 7 项中有不符，不进入</td></tr>
+          <tr><td class="mono">6</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~5</td></tr>
+          <tr><td class="mono">10</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <div class="ex">
+        <div class="ex-row"><span class="lab">请求</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">21</span><span class="b-len">08 00</span><span class="b-data">01 01 0A 08 14 01 00 00</span><span class="b-crc">7D 68 CD 1A</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">应答 通过</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">A1</span><span class="b-len">01 00</span><span class="b-data">00</span><span class="b-crc">4B CB 51 D5</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">应答 不符</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">A1</span><span class="b-len">01 00</span><span class="b-data">02</span><span class="b-crc">67 AA 5F 3B</span><span class="b-sync">55 AA</span></div></div>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-head"><span class="code">0x22</span><h3>写硬件信息</h3><span class="role app">APP</span></div>
+      <h4>请求帧（16 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0x22</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0005</td></tr>
+          <tr><td class="mono">5</td><td class="mono">1</td><td>目标 ID</td><td>uint8</td><td>必须是本机，不接受 255</td></tr>
+          <tr><td class="mono">6</td><td class="mono">1</td><td>舵机类型</td><td>uint8</td><td rowspan="4">0xFF 保留，不可写入</td></tr>
+          <tr><td class="mono">7</td><td class="mono">1</td><td>硬件版本</td><td>uint8</td></tr>
+          <tr><td class="mono">8</td><td class="mono">1</td><td>电压型号</td><td>uint8</td></tr>
+          <tr><td class="mono">9</td><td class="mono">1</td><td>扭力型号</td><td>uint8</td></tr>
+          <tr><td class="mono">10</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~9</td></tr>
+          <tr><td class="mono">14</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <h4>应答帧（12 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0xA2</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0001</td></tr>
+          <tr><td class="mono">5</td><td class="mono">1</td><td>状态码</td><td>uint8</td><td>0 成功；4 读回不一致；7 已有有效硬件信息，不允许覆盖</td></tr>
+          <tr><td class="mono">6</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~5</td></tr>
+          <tr><td class="mono">10</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">舵机首次上电时 APP 会自动写入本固件记录的适用硬件，因此这条命令一般用不到；仅在固件 4 项中带 0xFF、无法自动写入时使用。</p>
+      <div class="ex">
+        <div class="ex-row"><span class="lab">请求</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">22</span><span class="b-len">05 00</span><span class="b-data">00 01 02 03 04</span><span class="b-crc">34 B1 31 1B</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">应答</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">A2</span><span class="b-len">01 00</span><span class="b-data">00</span><span class="b-crc">A5 64 E4 C7</span><span class="b-sync">55 AA</span></div></div>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-head"><span class="code">0x01</span><h3>握手</h3><span class="role boot">Boot</span></div>
+      <h4>请求帧（11 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0x01</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0000</td></tr>
+          <tr><td class="mono">5</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~4</td></tr>
+          <tr><td class="mono">9</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <h4>应答帧（18 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0x81</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0007</td></tr>
+          <tr><td class="mono">5</td><td class="mono">1</td><td>状态码</td><td>uint8</td><td>固定 0</td></tr>
+          <tr><td class="mono">6</td><td class="mono">1</td><td>Boot 协议版本</td><td>uint8</td><td>当前为 1</td></tr>
+          <tr><td class="mono">7</td><td class="mono">1</td><td>标志页状态</td><td>uint8</td><td>0 空白、1 升级中、2 APP 有效、3 损坏</td></tr>
+          <tr><td class="mono">8</td><td class="mono">1</td><td>舵机类型</td><td>uint8</td><td rowspan="4">与查询应答的 4 项一致；0xFF = 未写入</td></tr>
+          <tr><td class="mono">9</td><td class="mono">1</td><td>硬件版本</td><td>uint8</td></tr>
+          <tr><td class="mono">10</td><td class="mono">1</td><td>电压型号</td><td>uint8</td></tr>
+          <tr><td class="mono">11</td><td class="mono">1</td><td>扭力型号</td><td>uint8</td></tr>
+          <tr><td class="mono">12</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~11</td></tr>
+          <tr><td class="mono">16</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">幂等，可重复发送。收到握手后 Boot 留在升级模式。</p>
+      <div class="ex">
+        <div class="ex-row"><span class="lab">请求</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">01</span><span class="b-len">00 00</span><span class="b-crc">25 B3 83 FE</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">应答</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">81</span><span class="b-len">07 00</span><span class="b-data">00 01 02 01 0A 08 14</span><span class="b-crc">83 5B 98 58</span><span class="b-sync">55 AA</span></div></div>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-head"><span class="code">0x02</span><h3>开始</h3><span class="role boot">Boot</span></div>
+      <h4>请求帧（20 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0x02</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0009</td></tr>
+          <tr><td class="mono">5</td><td class="mono">4</td><td>镜像长度</td><td>uint32 小端</td><td>256 的整数倍，1~62464（0xF400）</td></tr>
+          <tr><td class="mono">9</td><td class="mono">4</td><td>镜像 CRC32</td><td>uint32 小端</td><td>对补齐后的整个镜像计算</td></tr>
+          <tr><td class="mono">13</td><td class="mono">1</td><td>擦除模式</td><td>uint8</td><td>0 = 只擦 APP 区；1 = 连参数页一起擦</td></tr>
+          <tr><td class="mono">14</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~13</td></tr>
+          <tr><td class="mono">18</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <h4>应答帧（12 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0x82</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0001</td></tr>
+          <tr><td class="mono">5</td><td class="mono">1</td><td>状态码</td><td>uint8</td><td>0 = 已作废旧 APP 并擦除完成；3 = 长度或擦除模式越界，Flash 无改动</td></tr>
+          <tr><td class="mono">6</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~5</td></tr>
+          <tr><td class="mono">10</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">执行顺序：标志页写 UPGD → 擦除 → 应答。可重复发送，每次都重新擦除，已写入的页全部作废。擦除约 60K，应答耗时达秒级。</p>
+      <div class="ex">
+        <div class="ex-row"><span class="lab">请求</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">02</span><span class="b-len">09 00</span><span class="b-data">00 79 00 00 1C 1B CC 5A 00</span><span class="b-crc">29 9C 55 A5</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">应答</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">82</span><span class="b-len">01 00</span><span class="b-data">00</span><span class="b-crc">9B CB D6 67</span><span class="b-sync">55 AA</span></div></div>
+        <p class="note">长度 0x7900 = 30976，CRC32 = 0x5ACC1B1C，模式 0。</p>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-head"><span class="code">0x03</span><h3>写页</h3><span class="role boot">Boot</span></div>
+      <h4>请求帧（271 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0x03</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0104 = 260</td></tr>
+          <tr><td class="mono">5</td><td class="mono">4</td><td>页偏移</td><td>uint32 小端</td><td>256 的整数倍，小于镜像长度</td></tr>
+          <tr><td class="mono">9</td><td class="mono">256</td><td>页数据</td><td>字节序列</td><td>镜像中 [页偏移, 页偏移+256) 的内容</td></tr>
+          <tr><td class="mono">265</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~264</td></tr>
+          <tr><td class="mono">269</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <h4>应答帧（16 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0x83</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0005</td></tr>
+          <tr><td class="mono">5</td><td class="mono">1</td><td>状态码</td><td>uint8</td><td>0 成功；1 帧无效；3 偏移越界；4 读回不一致；6 尚未开始</td></tr>
+          <tr><td class="mono">6</td><td class="mono">4</td><td>页偏移</td><td>uint32 小端</td><td>回显请求中的页偏移</td></tr>
+          <tr><td class="mono">10</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~9</td></tr>
+          <tr><td class="mono">14</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">执行顺序：擦该页 → 写入 → 读回比较 → 应答。页顺序不限；同一页重复写入结果一致。重发会产生迟到应答，按回显偏移区分。</p>
+      <div class="ex">
+        <div class="ex-row"><span class="lab">请求</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">03</span><span class="b-len">04 01</span><span class="b-data">00 00 00 00 ⟨256 字节数据⟩</span><span class="b-crc">xx xx xx xx</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">应答</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">83</span><span class="b-len">05 00</span><span class="b-data">00 00 00 00 00</span><span class="b-crc">F7 72 AE EA</span><span class="b-sync">55 AA</span></div></div>
+        <p class="note">LEN = 0x0104 = 260，整帧 271 字节。</p>
+      </div>
+    </div>
+
+    <div class="cmd">
+      <div class="cmd-head"><span class="code">0x04</span><h3>完成</h3><span class="role boot">Boot</span></div>
+      <h4>请求帧（11 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0x04</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0000</td></tr>
+          <tr><td class="mono">5</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~4</td></tr>
+          <tr><td class="mono">9</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <h4>应答帧（12 字节）</h4>
+      <div class="tablewrap"><table>
+        <thead><tr><th>偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="mono">2</td><td>帧头</td><td>固定值</td><td class="mono">AA 55</td></tr>
+          <tr><td class="mono">2</td><td class="mono">1</td><td>CMD</td><td>uint8</td><td class="mono">0x84</td></tr>
+          <tr><td class="mono">3</td><td class="mono">2</td><td>LEN</td><td>uint16 小端</td><td class="mono">0x0001</td></tr>
+          <tr><td class="mono">5</td><td class="mono">1</td><td>状态码</td><td>uint8</td><td>0 通过并复位进新 APP；2 固件信息块缺失或不匹配；4 标志页写入失败；5 整包 CRC32 不符；6 尚未成功执行开始命令</td></tr>
+          <tr><td class="mono">6</td><td class="mono">4</td><td>CRC32</td><td>uint32 小端</td><td>覆盖偏移 2~5</td></tr>
+          <tr><td class="mono">10</td><td class="mono">2</td><td>帧尾</td><td>固定值</td><td class="mono">55 AA</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">校验内容：Flash 上 [0, 长度) 的 CRC32，以及镜像偏移 0x100 的固件信息块与舵机硬件信息页的匹配。返回 2、4、5 时舵机留在 Boot，标志页仍为 UPGD，可补发缺页后再次发送本命令。</p>
+      <div class="ex">
+        <div class="ex-row"><span class="lab">请求</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">04</span><span class="b-len">00 00</span><span class="b-crc">CE 71 48 F8</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">应答 成功</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">84</span><span class="b-len">01 00</span><span class="b-data">00</span><span class="b-crc">47 94 BD 42</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">应答 CRC 错</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">84</span><span class="b-len">01 00</span><span class="b-data">05</span><span class="b-crc">C8 60 D7 32</span><span class="b-sync">55 AA</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 状态码 ============================== -->
+  <section id="status">
+    <h2>状态码</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>值</th><th>含义</th><th>出现在</th><th>重发是否有意义</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">0</td><td class="good">成功</td><td>全部命令</td><td>—</td></tr>
+          <tr><td class="mono">1</td><td>帧无效：CRC 错、LEN 不符、未知命令</td><td>Boot</td><td>有</td></tr>
+          <tr><td class="mono">2</td><td>信息不符</td><td>进入升级、完成</td><td class="bad">无</td></tr>
+          <tr><td class="mono">3</td><td>地址或长度越界</td><td>开始、写页</td><td class="bad">无</td></tr>
+          <tr><td class="mono">4</td><td>写入后读回不一致</td><td>写页、完成、写硬件信息</td><td>有</td></tr>
+          <tr><td class="mono">5</td><td>整包 CRC32 不符</td><td>完成</td><td>补发缺页后有</td></tr>
+          <tr><td class="mono">6</td><td>顺序错误：尚未成功执行开始</td><td>写页、完成</td><td>需从开始命令重来</td></tr>
+          <tr><td class="mono">7</td><td>硬件信息已写入</td><td>写硬件信息</td><td class="bad">无</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============================== 时序与约束 ============================== -->
+  <section id="flow">
+    <div class="eyebrow"><span class="role host">上位机</span><span class="arrow">↔</span><span class="role app">APP</span><span class="arrow">↔</span><span class="role boot">Boot</span></div>
+    <h2>时序与设备行为约束</h2>
+    <figure>
+<pre class="mermaid">
+sequenceDiagram
+    autonumber
+    participant H as 上位机
+    participant A as APP
+    participant B as Boot
+    H->>A: 查询 0x20（ID）
+    A-->>H: 硬件信息 4 项 + 固件版本
+    H->>A: 进入升级 0x21（ID + 硬件信息 4 项 + 版本 3 项）
+    A-->>H: 状态 0
+    Note over A: 卸力，应答发完后软复位
+    A->>B: 软复位进入 Boot
+    Note over H: 切到 115200
+    H->>B: 握手 0x01
+    B-->>H: Boot 版本、标志页状态、硬件信息
+    H->>B: 开始 0x02（长度、CRC32、擦除模式）
+    B-->>H: 状态 0
+    loop 每页 256 字节
+        H->>B: 写页 0x03（偏移 + 数据）
+        B-->>H: 状态 0 + 偏移
+    end
+    H->>B: 完成 0x04
+    B-->>H: 状态 0
+    B->>A: 软复位进入新 APP
+    H->>A: 查询 0x20（确认版本）
+    A-->>H: 固件版本 = 新版本
+</pre>
+    </figure>
+
+    <div class="sub">
+      <h3>设备行为约束</h3>
+      <div class="tablewrap">
+        <table>
+          <tbody>
+            <tr><th>进入升级的校验</th><td>APP 逐字节比对请求中的硬件信息 4 项与固件版本 3 项，任一不符返回状态 2 且不进入 Boot</td></tr>
+            <tr><th>进入升级后</th><td>APP 应答状态 0，卸力，待应答发送完毕后复位，几毫秒内进入 Boot</td></tr>
+            <tr><th>Boot 上电</th><td>每次上电先留 <strong>200ms 握手窗口</strong>；窗口内收到握手即留在 Boot，否则在 APP 完好时进入 APP。新固件无法运行时，这是唯一的软件进入途径</td></tr>
+            <tr><th>Boot 空闲</th><td>收到握手后、开始命令之前，若 <strong>10 秒</strong>无数据且旧 APP 完好，自动回到 APP；开始命令之后不再超时</td></tr>
+            <tr><th>开始命令之后</th><td>旧 APP 立即作废。此后断电，设备上电只会停在 Boot，须重新完成一次升级</td></tr>
+            <tr><th>写页</th><td>幂等：同一偏移重复写入结果一致；页顺序不限</td></tr>
+            <tr><th>完成之后</th><td>设备复位并启动新 APP，约需 <strong>数百毫秒</strong>才能响应 APP 命令</td></tr>
+            <tr><th>参数</th><td>擦除模式 0 保留 ID、波特率、校准等参数；模式 1 一并擦除，设备重新启动后使用默认参数（ID 0、115200）</td></tr>
+            <tr><th>硬件信息页</th><td>两种擦除模式都不会擦除；首次上电由 APP 自动写入，写入后不可覆盖</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="sub">
+      <h3>时间参数参考值</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>命令</th><th>波特率</th><th>应答超时</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>查询 0x20</td><td>APP 参数</td><td class="mono">200ms</td><td>APP 在 1ms 任务里处理</td></tr>
+            <tr><td>进入升级 0x21</td><td>APP 参数</td><td class="mono">200ms</td><td>无应答也可能已进入 Boot（应答丢失）</td></tr>
+            <tr><td>握手 0x01</td><td>115200</td><td class="mono">20ms</td><td>需在上电 200ms 窗口内送达</td></tr>
+            <tr><td>开始 0x02</td><td>115200</td><td class="mono">3s</td><td>含擦除约 60K 的时间</td></tr>
+            <tr><td>写页 0x03</td><td>115200</td><td class="mono">300ms</td><td>含擦页、写入、读回</td></tr>
+            <tr><td>完成 0x04</td><td>115200</td><td class="mono">1s</td><td>含整包 CRC32 计算</td></tr>
+            <tr><td>确认版本 0x20</td><td>APP 参数</td><td class="mono">200ms</td><td>完成后先等约 1s 再发</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">30976 字节固件 = 121 页，115200 下写入阶段约 4 秒。单页帧 271 字节，约 24ms。</p>
+    </div>
+  </section>
+
+  <!-- ============================== 示例会话 ============================== -->
+  <section id="session">
+    <h2>示例会话</h2>
+    <p>ID 1、硬件信息 01 0A 08 14 的舵机，升级 30976 字节（0x7900）、CRC32 0x5ACC1B1C、版本 1.0.0 的固件，共 121 页。</p>
+    <div class="bytes-legend"><span class="b-sync">帧头/帧尾</span><span class="b-cmd">CMD</span><span class="b-len">LEN</span><span class="b-data">DATA</span><span class="b-crc">CRC32</span></div>
+    <div class="session">
+      <div class="step">
+        <h4>1. 查询（APP 波特率）</h4>
+        <div class="ex-row"><span class="lab">发</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">20</span><span class="b-len">01 00</span><span class="b-data">01</span><span class="b-crc">83 2A B3 F7</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">收</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">A0</span><span class="b-len">09 00</span><span class="b-data">00 01 01 0A 08 14 01 00 00</span><span class="b-crc">80 85 E1 5D</span><span class="b-sync">55 AA</span></div></div>
+      </div>
+      <div class="step">
+        <h4>2. 进入升级（APP 波特率）</h4>
+        <div class="ex-row"><span class="lab">发</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">21</span><span class="b-len">08 00</span><span class="b-data">01 01 0A 08 14 01 00 00</span><span class="b-crc">7D 68 CD 1A</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">收</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">A1</span><span class="b-len">01 00</span><span class="b-data">00</span><span class="b-crc">4B CB 51 D5</span><span class="b-sync">55 AA</span></div></div>
+      </div>
+      <div class="step">
+        <h4>3. 握手（115200）</h4>
+        <div class="ex-row"><span class="lab">发</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">01</span><span class="b-len">00 00</span><span class="b-crc">25 B3 83 FE</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">收</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">81</span><span class="b-len">07 00</span><span class="b-data">00 01 02 01 0A 08 14</span><span class="b-crc">83 5B 98 58</span><span class="b-sync">55 AA</span></div></div>
+      </div>
+      <div class="step">
+        <h4>4. 开始</h4>
+        <div class="ex-row"><span class="lab">发</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">02</span><span class="b-len">09 00</span><span class="b-data">00 79 00 00 1C 1B CC 5A 00</span><span class="b-crc">29 9C 55 A5</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">收</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">82</span><span class="b-len">01 00</span><span class="b-data">00</span><span class="b-crc">9B CB D6 67</span><span class="b-sync">55 AA</span></div></div>
+      </div>
+      <div class="step">
+        <h4>5. 写页 ×121（偏移 0x0000、0x0100 … 0x7800）</h4>
+        <div class="ex-row"><span class="lab">发</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">03</span><span class="b-len">04 01</span><span class="b-data">00 00 00 00 ⟨镜像 0x0000~0x00FF⟩</span><span class="b-crc">xx xx xx xx</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">收</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">83</span><span class="b-len">05 00</span><span class="b-data">00 00 00 00 00</span><span class="b-crc">F7 72 AE EA</span><span class="b-sync">55 AA</span></div></div>
+        <p class="note">下一页偏移为 00 01 00 00（0x0100），依次到 0x7800。</p>
+      </div>
+      <div class="step">
+        <h4>6. 完成</h4>
+        <div class="ex-row"><span class="lab">发</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">04</span><span class="b-len">00 00</span><span class="b-crc">CE 71 48 F8</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">收</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">84</span><span class="b-len">01 00</span><span class="b-data">00</span><span class="b-crc">47 94 BD 42</span><span class="b-sync">55 AA</span></div></div>
+      </div>
+      <div class="step">
+        <h4>7. 确认版本（等约 1 秒，切回 APP 波特率）</h4>
+        <div class="ex-row"><span class="lab">发</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">20</span><span class="b-len">01 00</span><span class="b-data">01</span><span class="b-crc">83 2A B3 F7</span><span class="b-sync">55 AA</span></div></div>
+        <div class="ex-row"><span class="lab">收</span><div class="bytes"><span class="b-sync">AA 55</span><span class="b-cmd">A0</span><span class="b-len">09 00</span><span class="b-data">00 01 01 0A 08 14 01 00 00</span><span class="b-crc">80 85 E1 5D</span><span class="b-sync">55 AA</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 固件文件 ============================== -->
+  <section id="firmware">
+    <h2>固件文件</h2>
+    <p>发布的固件是 Intel HEX。设备只接收二进制镜像，转换在上位机完成。</p>
+    <div class="sub">
+      <h3>镜像构造规则</h3>
+      <div class="tablewrap">
+        <table>
+          <tbody>
+            <tr><th>hex 记录类型</th><td>00 数据、01 结束、02 / 04 扩展地址；03、05 忽略。每行校验和需核对</td></tr>
+            <tr><th>地址</th><td>≥ 0x08000000 的地址减去 0x08000000（固件链接在 0x00000000）</td></tr>
+            <tr><th>有效范围</th><td>[0x0000, 0xF400)，超出即为非法文件</td></tr>
+            <tr><th>空隙与末尾</th><td>填 0xFF；末尾补齐到 256 的整数倍</td></tr>
+            <tr><th>镜像长度</th><td>补齐后的长度，即开始命令里的长度字段</td></tr>
+            <tr><th>镜像 CRC32</th><td>对补齐后的整个镜像计算</td></tr>
+            <tr><th>分页</th><td>按 256 字节切分，偏移从 0 递增</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="sub">
+      <h3>固件信息块（镜像偏移 0x100，16 字节）</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>镜像偏移</th><th>字节</th><th>字段</th><th>格式</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">0x100</td><td class="mono">4</td><td>魔术字</td><td>ASCII</td><td class="mono">53 56 46 57（"SVFW"）</td></tr>
+            <tr><td class="mono">0x104</td><td class="mono">1</td><td>适用舵机类型</td><td>uint8</td><td>0xFF = 不限</td></tr>
+            <tr><td class="mono">0x105</td><td class="mono">1</td><td>适用硬件版本</td><td>uint8</td><td>0xFF = 不限</td></tr>
+            <tr><td class="mono">0x106</td><td class="mono">1</td><td>适用电压型号</td><td>uint8</td><td>0xFF = 不限</td></tr>
+            <tr><td class="mono">0x107</td><td class="mono">1</td><td>适用扭力型号</td><td>uint8</td><td>0xFF = 不限</td></tr>
+            <tr><td class="mono">0x108</td><td class="mono">1</td><td>固件主版本</td><td>uint8</td><td rowspan="3">与查询应答偏移 11~13 的三个字节一致</td></tr>
+            <tr><td class="mono">0x109</td><td class="mono">1</td><td>固件次版本</td><td>uint8</td></tr>
+            <tr><td class="mono">0x10A</td><td class="mono">1</td><td>固件修订版本</td><td>uint8</td></tr>
+            <tr><td class="mono">0x10B</td><td class="mono">5</td><td>预留</td><td>字节序列</td><td>全部 0xFF</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">实例：<span class="mono">53 56 46 57 01 0A 08 14 01 00 00 FF FF FF FF FF</span> = 适用类型 1、硬件版本 10、电压 8、扭力 20，版本 1.0.0。</p>
+    </div>
+    <div class="sub">
+      <h3>固件与舵机的匹配规则</h3>
+      <div class="tablewrap">
+        <table>
+          <tbody>
+            <tr><th>逐项比较</th><td>固件信息块的 4 项与查询（或握手）得到的 4 项逐一比较：固件为 0xFF 或两者相等即匹配</td></tr>
+            <tr><th>舵机 4 项全为 0xFF</th><td>硬件信息未写入，无法比较；完成命令也不做比对</td></tr>
+            <tr><th>设备侧复检</th><td>完成命令执行同样的规则，不匹配返回状态 2</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== 限制与约定 ============================== -->
+  <section id="notes">
+    <h2>限制与约定</h2>
+    <ul>
+      <li>本协议与 WCH 官方 IAP 工具的协议（0x80~0x84）不兼容。</li>
+      <li>同一时刻总线上只能有一台舵机处于 Boot：Boot 命令不带 ID，不做地址过滤。</li>
+      <li>广播 255 仅查询命令接受，进入升级与写硬件信息不接受。</li>
+      <li>硬件信息 4 项中 0xFF 表示"未写入 / 不限"，产品编号不使用 0xFF。</li>
+      <li>升级过程中总线上其他舵机只应答点名自己的帧；波特率不同的舵机收到的是乱码，不影响其运行。</li>
+      <li>固件仓库 <code>CH32V00X_IAP/tests/</code> 下带有协议仿真器，可在无硬件条件下联调。</li>
+    </ul>
+  </section>
+
+  <!-- ============================== 源码 ============================== -->
+  <section id="src">
+    <h2>附录：设备侧源码</h2>
+    <p>协议的全部实现，按收帧顺序排列：APP 处理 0x20~0x22，Boot 处理 0x01~0x04。</p>
+
+    <div class="sub">
+      <div class="srchead"><h3>附录 A　APP 侧接口</h3><span class="path">CH32V00X_APP_ADC/System/iap.h</span></div>
+      <p class="note">固件信息块结构，以及 APP 对外的两个入口。</p>
+<pre class="code">#ifndef __IAP_H
+#define __IAP_H
+
+#include &lt;stdint.h&gt;
+
+/*
+ * iap.h —— APP 侧 IAP：查询、进入升级、写硬件信息，以及固件信息块
+ * 帧格式、命令与 Boot 工程 System/iap.h 及《舵机 IAP 升级协议》文档一致，改动须三处同步。
+ */
+
+/* 固件信息块，16 字节，链接脚本固定在 APP 偏移 0x100；上位机从 hex 读，Boot 完成升级时读 */
+typedef struct {
+    uint8_t magic[4];    /** &#x27;S&#x27;,&#x27;V&#x27;,&#x27;F&#x27;,&#x27;W&#x27; */
+    uint8_t servo_type;  /** 本固件适用的舵机类型，0xFF=不限 */
+    uint8_t hw_version;  /** 适用的硬件版本，0xFF=不限 */
+    uint8_t voltage;     /** 适用的电压型号，0xFF=不限 */
+    uint8_t torque;      /** 适用的扭力型号，0xFF=不限 */
+    uint8_t version[3];  /** 固件版本 {主, 次, 修订} */
+    uint8_t reserved[5]; /** 0xFF */
+} IAP_FwInfo_t;
+
+void IAP_Init(void);            /* 上电调用一次：硬件信息页出厂空白时，写入本固件适用的硬件 */
+void IAP_Rx_Deal(uint8_t data); /* 串口任务逐字节喂入，与舵机 ASCII 协议并行嗅探同一串 */
+void IAP_Service(void);         /* 串口任务每拍调用：进入升级的应答发完后复位进 Boot */
+
+#endif</pre>
+    </div>
+
+    <div class="sub">
+      <div class="srchead"><h3>附录 B　APP 侧实现</h3><span class="path">CH32V00X_APP_ADC/System/iap.c</span></div>
+      <p class="note">帧解析、CRC32、查询/进入升级/写硬件信息的处理，以及硬件信息页的读写。</p>
+<pre class="code">/*
+ * iap.c —— APP 侧 IAP：查询(0x20)、进入升级(0x21)、写硬件信息(0x22)，以及固件信息块
+ * 帧：AA 55 | CMD | LEN(2,小端) | DATA | CRC32(4,小端) | 55 AA，应答 CMD = 命令 | 0x80，DATA[0] = 状态码。
+ * 总线上挂着多个舵机：坏帧、别人 ID 的帧、APP 不认识的帧一律不应答。
+ * 主机端测试可替换 IAP_HWINFO_PAGE，让硬件信息页落在内存数组里。
+ */
+#include &quot;iap.h&quot;
+#include &quot;A_Config.h&quot;
+#include &quot;A_Servo.h&quot;
+#include &quot;D_uart.h&quot;
+#include &quot;flash.h&quot;
+#include &lt;string.h&gt;
+
+#define IAP_HEAD1        0xAAU
+#define IAP_HEAD2        0x55U
+#define IAP_TAIL1        0x55U
+#define IAP_TAIL2        0xAAU
+#define IAP_DATA_MAX     8U           /** APP 命令 DATA 最长 8 字节；更长的帧(如 Boot 的写页)不缓存 */
+
+#define IAP_CMD_QUERY    0x20U        /** 查询：ID -&gt; ID、硬件信息4项、固件版本3项 */
+#define IAP_CMD_ENTER    0x21U        /** 进入升级：ID + 硬件信息4项 + 固件版本3项，全部一致才复位进 Boot */
+#define IAP_CMD_HWINFO   0x22U        /** 写硬件信息：ID + 4项，量产用，已写过不允许覆盖 */
+
+#define IAP_ST_OK        0U
+#define IAP_ST_MISMATCH  2U           /** 硬件信息不符 */
+#define IAP_ST_VERIFY    4U           /** 写入后读回不一致 */
+#define IAP_ST_EXISTS    7U           /** 硬件信息已写入 */
+
+#define HWINFO_MAGIC     0x46495748UL /** &quot;HWIF&quot; 按小端读出 */
+#define HWINFO_FORMAT    1U           /** 硬件信息页格式版本 */
+
+#ifndef IAP_HWINFO_PAGE
+#define IAP_HWINFO_PAGE  ((const uint8_t *)HW_INFO_ADDR)
+#endif
+
+const IAP_FwInfo_t IAP_FW_INFO __attribute__((section(&quot;.fw_info&quot;), used)) = {
+    { &#x27;S&#x27;, &#x27;V&#x27;, &#x27;F&#x27;, &#x27;W&#x27; },
+    FW_SERVO_TYPE, FW_HW_VERSION, FW_VOLTAGE, FW_TORQUE,
+    { SERVO_VERSION_MAJOR, SERVO_VERSION_MINOR, SERVO_VERSION_PATCH },
+    { 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU }
+};
+
+static uint8_t s_rx[3U + IAP_DATA_MAX + 4U + 2U]; /** CMD LEN(2) DATA CRC32(4) 55 AA，不含帧头 */
+static uint8_t s_pos;                             /** 当前帧已收字节数(含帧头)，0=等帧头 */
+static uint8_t s_reset_pending;                   /** 1=已应答进入升级，发完就复位进 Boot */
+
+static uint32_t Iap_Get32(const uint8_t *p)
+{
+    return (uint32_t)p[0] | (uint32_t)p[1] &lt;&lt; 8 | (uint32_t)p[2] &lt;&lt; 16 | (uint32_t)p[3] &lt;&lt; 24;
+}
+
+static void Iap_Put32(uint8_t *p, uint32_t value)
+{
+    p[0] = (uint8_t)value;
+    p[1] = (uint8_t)(value &gt;&gt; 8);
+    p[2] = (uint8_t)(value &gt;&gt; 16);
+    p[3] = (uint8_t)(value &gt;&gt; 24);
+}
+
+/* 标准 CRC-32(与 Python zlib.crc32 一致)，逐位计算不占表 */
+static uint32_t Iap_Crc32(const uint8_t *data, uint32_t len)
+{
+    uint32_t crc = 0xFFFFFFFFUL;
+    uint8_t  bit;
+
+    while (len--)
+    {
+        crc ^= *data++;
+        for (bit = 0U; bit &lt; 8U; bit++)
+            crc = (crc &gt;&gt; 1) ^ (0xEDB88320UL &amp; (0UL - (crc &amp; 1UL)));
+    }
+    return ~crc;
+}
+
+/* 应答帧：CMD 取当前帧并置最高位，DATA = 状态码 + data，交给串口发送队列 */
+static void Iap_Reply(uint8_t status, const uint8_t *data, uint8_t n)
+{
+    uint8_t frame[12U + 8U]; /** 最长应答：查询带 8 字节 */
+    uint8_t i;
+
+    frame[0] = IAP_HEAD1;
+    frame[1] = IAP_HEAD2;
+    frame[2] = s_rx[0] | 0x80U;
+    frame[3] = (uint8_t)(n + 1U);
+    frame[4] = 0U;
+    frame[5] = status;
+    for (i = 0U; i &lt; n; i++) frame[6U + i] = data[i];
+    Iap_Put32(frame + 6U + n, Iap_Crc32(frame + 2U, 4U + n));
+    frame[10U + n] = IAP_TAIL1;
+    frame[11U + n] = IAP_TAIL2;
+    (void)D_UART1_Tx_Write(frame, (uint8_t)(12U + n));
+}
+
+/* 读硬件信息页的 4 项(舵机类型、硬件版本、电压型号、扭力型号)；页无效时填 0xFF 并返回 0 */
+static uint8_t Iap_HwInfoRead(uint8_t *info)
+{
+    const uint8_t *page  = IAP_HWINFO_PAGE;
+    uint8_t        valid = (uint8_t)(Iap_Get32(page) == HWINFO_MAGIC
+                                  &amp;&amp; Iap_Crc32(page, 28U) == Iap_Get32(page + 28U));
+    uint8_t        i;
+
+    for (i = 0U; i &lt; 4U; i++) info[i] = valid ? page[5U + i] : 0xFFU;
+    return valid;
+}
+
+/* 4 项都不是 0xFF 才算确定的硬件身份；带 0xFF(不限)的固件说明不了舵机是哪一种 */
+static uint8_t Iap_HwInfoKnown(const uint8_t *info)
+{
+    uint8_t i;
+
+    for (i = 0U; i &lt; 4U; i++)
+    {
+        if (info[i] == 0xFFU) return 0U;
+    }
+    return 1U;
+}
+
+/* 整页写硬件信息：魔术字、格式版本、4 项、预留 0xFF、CRC32，写完读回确认 */
+static uint8_t Iap_HwInfoWrite(const uint8_t *info)
+{
+    uint32_t page[FLASH_PAGE_SIZE / sizeof(uint32_t)];
+    uint8_t *bytes = (uint8_t *)page;
+    uint8_t  i;
+
+    memset(page, 0xFF, sizeof(page));
+    Iap_Put32(bytes, HWINFO_MAGIC);
+    bytes[4] = HWINFO_FORMAT;
+    for (i = 0U; i &lt; 4U; i++) bytes[5U + i] = info[i];
+    Iap_Put32(bytes + 28U, Iap_Crc32(bytes, 28U));
+
+    if (FLASH_ROM_ERASE(HW_INFO_ADDR, FLASH_PAGE_SIZE) != FLASH_COMPLETE) return 0U;
+    if (FLASH_ROM_WRITE(HW_INFO_ADDR, page, FLASH_PAGE_SIZE) != FLASH_COMPLETE) return 0U;
+    return (uint8_t)(memcmp(IAP_HWINFO_PAGE, bytes, FLASH_PAGE_SIZE) == 0);
+}
+
+/* 处理收齐的一帧 */
+static void Iap_Process(uint16_t len)
+{
+    const uint8_t *data = s_rx + 3U;
+    uint8_t        cmd  = s_rx[0];
+    uint8_t        info[8]; /** 本机身份：ID、硬件信息4项、固件版本3项。查询照此应答，进入升级照此比对 */
+    uint8_t        valid;
+
+    if (s_rx[7U + len] != IAP_TAIL1 || s_rx[8U + len] != IAP_TAIL2) return;
+    if (Iap_Crc32(s_rx, 3U + len) != Iap_Get32(data + len)) return;
+    if (len == 0U) return;
+    /* 查询允许广播 255(单独接线时找ID)，其余命令必须点名本机 */
+    if (data[0] != g_config.servo_id &amp;&amp; !(cmd == IAP_CMD_QUERY &amp;&amp; data[0] == 255U)) return;
+
+    valid = Iap_HwInfoRead(info + 1U);
+    info[0] = g_config.servo_id;
+    info[5] = SERVO_VERSION_MAJOR;
+    info[6] = SERVO_VERSION_MINOR;
+    info[7] = SERVO_VERSION_PATCH;
+
+    switch (cmd)
+    {
+    case IAP_CMD_QUERY:
+        if (len != 1U) return;
+        Iap_Reply(IAP_ST_OK, info, 8U);
+        break;
+
+    case IAP_CMD_ENTER:
+        if (len != 8U) return;
+        /* 硬件信息4项和固件版本3项必须与查询回去的一模一样：确认上位机查的就是本机当前这套固件 */
+        if (memcmp(data + 1U, info + 1U, 7U) != 0)
+        {
+            Iap_Reply(IAP_ST_MISMATCH, 0, 0U);
+            break;
+        }
+        A_Servo_Release(0U); /* Boot 期间电机驱动引脚不受控，先卸力 */
+        Iap_Reply(IAP_ST_OK, 0, 0U);
+        s_reset_pending = 1U;
+        break;
+
+    case IAP_CMD_HWINFO:
+        if (len != 5U) return;
+        if (valid)
+        {
+            Iap_Reply(IAP_ST_EXISTS, 0, 0U);
+            break;
+        }
+        Iap_Reply(Iap_HwInfoWrite(data + 1U) ? IAP_ST_OK : IAP_ST_VERIFY, 0, 0U);
+        break;
+
+    default:
+        break;
+    }
+}
+
+void IAP_Rx_Deal(uint8_t data)
+{
+    uint16_t len; /* DATA 长度 */
+
+    if (s_pos == 0U)
+    {
+        if (data == IAP_HEAD1) s_pos = 1U;
+        return;
+    }
+    if (s_pos == 1U)
+    {
+        s_pos = (data == IAP_HEAD2) ? 2U : (uint8_t)(data == IAP_HEAD1); /* AA AA 55 也能对上帧头 */
+        return;
+    }
+
+    s_rx[s_pos - 2U] = data;
+    s_pos++;
+    if (s_pos &lt; 5U) return;                             /* CMD、LEN 还没收齐 */
+    len = (uint16_t)(s_rx[1] | (uint16_t)s_rx[2] &lt;&lt; 8);
+    if (len &gt; IAP_DATA_MAX)
+    {
+        s_pos = 0U;
+        return;
+    }
+    if (s_pos &lt; 11U + len) return;
+    s_pos = 0U;
+    Iap_Process(len);
+}
+
+/* 硬件信息页出厂空白时，把 fw_hw 写进去 */
+static void Iap_Provision(const uint8_t *fw_hw)
+{
+    uint8_t info[4];
+
+    if (!Iap_HwInfoKnown(fw_hw)) return; /* 本固件不限型号，写不出确定的硬件身份 */
+    if (Iap_HwInfoRead(info)) return;    /* 已经写过，写一次就固定，要改只能 WCH-Link 擦除 */
+    (void)Iap_HwInfoWrite(fw_hw);        /* 写失败下次上电再试，不影响舵机运行 */
+}
+
+void IAP_Init(void)
+{
+    static const uint8_t fw_hw[4] = { FW_SERVO_TYPE, FW_HW_VERSION, FW_VOLTAGE, FW_TORQUE };
+
+    Iap_Provision(fw_hw);
+}
+
+void IAP_Service(void)
+{
+    if (s_reset_pending &amp;&amp; D_UART_Tx_Idle())
+    {
+        RCC_ClearFlag();                                /* Boot 靠&quot;只有软件复位标志&quot;认出这是升级请求 */
+        SystemReset_StartMode(Start_Mode_BOOT);
+        NVIC_SystemReset();
+    }
+}</pre>
+    </div>
+
+    <div class="sub">
+      <div class="srchead"><h3>附录 C　Boot 侧协议定义</h3><span class="path">CH32V00X_IAP/System/iap.h</span></div>
+      <p class="note">命令码、状态码、魔术字、Flash 布局的定义处。</p>
+<pre class="code">/*
+ * iap.h —— Bootloader 升级协议定义：Flash 布局、帧格式、命令与状态码
+ * 与 APP 工程 System/iap.c 及《舵机 IAP 升级协议》文档保持一致，改动须三处同步。
+ */
+#ifndef __IAP_H
+#define __IAP_H
+
+#include &quot;ch32v00X.h&quot;
+
+#define BOOT_VERSION       1U          /** 握手应答带出；协议有不兼容改动时加1 */
+
+/* ---- Flash 布局：相对 0x08000000 的偏移 ---- */
+#define APP_SIZE_MAX       0xF400U     /** APP 区 [0, 0xF400) */
+#define PARAM_END          0xF600U     /** 擦除模式1 连参数页 F400/F500 一起擦到这里 */
+#define HWINFO_OFFSET      0xF600U     /** 硬件信息页：量产写入，Boot 只读 */
+#define FLAG_OFFSET        0xF700U     /** 升级标志页：只有 Boot 写 */
+#define FWINFO_OFFSET      0x0100U     /** APP 镜像内的固件信息块 */
+
+/* ---- 魔术字：按小端读出的 uint32，Flash 里的字节序列就是这4个ASCII字符 ---- */
+#define FLAG_APOK          0x4B4F5041U /** &quot;APOK&quot; APP 已通过整包校验 */
+#define FLAG_UPGD          0x44475055U /** &quot;UPGD&quot; 升级进行中，APP 不可用 */
+#define HWINFO_MAGIC       0x46495748U /** &quot;HWIF&quot; 硬件信息页 */
+#define FWINFO_MAGIC       0x57465653U /** &quot;SVFW&quot; 固件信息块 */
+
+/* ---- 帧：AA 55 | CMD(1) | LEN(2,小端) | DATA(LEN) | CRC32(4,小端) | 55 AA ---- */
+#define IAP_HEAD1          0xAAU
+#define IAP_HEAD2          0x55U
+#define IAP_TAIL1          0x55U
+#define IAP_TAIL2          0xAAU
+#define IAP_DATA_MAX       260U        /** 写页帧：偏移4 + 数据256 */
+
+/* ---- 命令，应答的 CMD = 命令 | 0x80 ---- */
+#define CMD_HELLO          0x01U       /** 握手：留在 Boot，回 Boot 版本、标志页状态、硬件信息 */
+#define CMD_START          0x02U       /** 开始：长度、CRC32、擦除模式 -&gt; 写 UPGD、擦除 */
+#define CMD_WRITE          0x03U       /** 写页：偏移 + 256 字节 -&gt; 擦页、写入、读回 */
+#define CMD_FINISH         0x04U       /** 完成：整包 CRC32 + 兼容检查 -&gt; 写 APOK、进 APP */
+
+/* ---- 状态码：应答 DATA 第一个字节 ---- */
+#define ST_OK              0U
+#define ST_FRAME           1U          /** 帧无效：CRC 错、长度不对、未知命令 */
+#define ST_MISMATCH        2U          /** 硬件信息或固件类型不符 */
+#define ST_RANGE           3U          /** 地址或长度越界 */
+#define ST_VERIFY          4U          /** 写入后读回不一致 */
+#define ST_IMAGE_CRC       5U          /** 整包 CRC32 不符 */
+#define ST_ORDER           6U          /** 顺序错误：没有开始就写页或完成 */
+
+void IAP_Run(void); /* Boot 主流程：判断复位原因，进 APP 或留在升级循环，不返回 */
+
+#endif</pre>
+    </div>
+
+    <div class="sub">
+      <div class="srchead"><h3>附录 D　Boot 侧实现</h3><span class="path">CH32V00X_IAP/System/iap.c</span></div>
+      <p class="note">上电判断、握手窗口、开始/写页/完成的处理，以及标志页与整包校验。</p>
+<pre class="code">/*
+ * iap.c —— Bootloader 主流程与升级协议
+ *   复位：软件复位 = APP 收到进入升级后主动复位，直接进升级循环；
+ *         上电复位先等 200ms 握手(救砖用)，没有握手且 APP 完好就进 APP，否则留下。
+ *   升级循环：握手 / 开始(写UPGD、擦除) / 写页(擦页、写入、读回) / 完成(整包CRC、兼容检查、写APOK、进APP)。
+ *   还没开始升级时 10 秒没有数据且 APP 完好，自动回 APP。
+ * 主机端测试定义 BOOT_HOST_TEST，并替换 FLASH_PTR / IWDG_FEED，硬件相关的函数由测试提供。
+ */
+#include &quot;iap.h&quot;
+#include &quot;flash.h&quot;
+#include &lt;string.h&gt;
+
+#define HELLO_WINDOW_MS    200U     /** 上电握手窗口 */
+#define IDLE_TO_APP_MS     10000U   /** 还没开始升级时，无数据多久回 APP */
+#define BYTE_GAP_MS        50U      /** 帧内字节间隔超过它就丢弃半帧 */
+#define TICK_CMP           6000U    /** SysTick 默认时钟 HCLK/8 = 6MHz，计满即 1ms */
+#define USART_BRR_115200   0x01A1U  /** 48MHz 下 115200 */
+#define PAGE_SIZE          256U
+
+#ifndef FLASH_PTR
+#define FLASH_PTR(off) ((const uint8_t *)(FLASH_BASE + (off)))
+#endif
+#ifndef IWDG_FEED
+#define IWDG_FEED() (IWDG-&gt;CTLR = 0xAAAAU) /* APP 开过独立看门狗时软复位后可能仍在计数；没开时写入无副作用 */
+#endif
+
+/* 接收缓冲按字对齐，CMD 存在第1字节：写页帧的 256 字节数据正好从第8字节开始，
+ * 可直接当 uint32_t 数组交给 CH32_IAP_Program */
+static uint32_t s_rx_words[(1U + 3U + IAP_DATA_MAX + 4U + 2U + 3U) / 4U];
+#define RX ((uint8_t *)s_rx_words)
+
+static uint32_t s_page[PAGE_SIZE / 4U]; /** 标志页写入缓冲 */
+static uint16_t s_pos;                  /** 当前帧已收字节数(含帧头)，0=等帧头 */
+static uint8_t  s_started;              /** 1=开始命令已成功，允许写页和完成 */
+static uint32_t s_img_len;              /** 开始命令给的镜像长度 */
+static uint32_t s_img_crc;              /** 开始命令给的镜像 CRC32 */
+
+/* ============================== 硬件 ============================== */
+#ifndef BOOT_HOST_TEST
+
+/* SysTick 1ms 基准 + USART1 重映射3(TX=PC0)，单线半双工，115200 8N1，查询方式收发 */
+static void Hw_Init(void)
+{
+    SysTick-&gt;CMP  = TICK_CMP;
+    SysTick-&gt;CNT  = 0U;
+    SysTick-&gt;CTLR = 1U;                             /* 使能，时钟默认 HCLK/8 */
+
+    RCC-&gt;PB2PCENR |= RCC_PB2Periph_GPIOC | RCC_PB2Periph_AFIO | RCC_PB2Periph_USART1;
+    AFIO-&gt;PCFR1 = (AFIO-&gt;PCFR1 &amp; ~AFIO_PCFR1_USART1_REMAP)
+                | AFIO_PCFR1_USART1_REMAP_0 | AFIO_PCFR1_USART1_REMAP_1;
+    GPIOC-&gt;CFGLR = (GPIOC-&gt;CFGLR &amp; ~0x0FU) | 0x09U;  /* PC0 复用推挽 30MHz */
+    USART1-&gt;BRR   = USART_BRR_115200;
+    USART1-&gt;CTLR3 = USART_CTLR3_HDSEL;
+    USART1-&gt;CTLR1 = USART_CTLR1_UE | USART_CTLR1_TE | USART_CTLR1_RE;
+}
+
+/* 取一个已收字节，0=没有 */
+static uint8_t Uart_Poll(uint8_t *byte)
+{
+    if (!(USART1-&gt;STATR &amp; USART_STATR_RXNE)) return 0U;
+    *byte = (uint8_t)USART1-&gt;DATAR;
+    return 1U;
+}
+
+/* 又过了 1ms 返回 1；顺便喂狗 */
+static uint8_t Tick_Poll(void)
+{
+    if (!(SysTick-&gt;SR &amp; 1U)) return 0U;
+    SysTick-&gt;SR  = 0U;
+    SysTick-&gt;CNT = 0U;
+    IWDG_FEED();
+    return 1U;
+}
+
+/* 本次复位是不是软件复位(APP 收到进入升级后主动复位)；读完清标志 */
+static uint8_t Reset_WasSoftware(void)
+{
+    uint8_t soft = (RCC-&gt;RSTSCKR &amp; RCC_SFTRSTF) != 0U;
+
+    RCC-&gt;RSTSCKR |= RCC_RMVF;
+    return soft;
+}
+
+/* 阻塞发送；发送期间关接收，免得单线回环把自己发的字节收回来 */
+static void Uart_Send(const uint8_t *data, uint8_t len)
+{
+    USART1-&gt;CTLR1 &amp;= ~USART_CTLR1_RE;
+    while (len--)
+    {
+        while (!(USART1-&gt;STATR &amp; USART_STATR_TXE)) {}
+        USART1-&gt;DATAR = *data++;
+    }
+    while (!(USART1-&gt;STATR &amp; USART_STATR_TC)) {}
+    USART1-&gt;CTLR1 |= USART_CTLR1_RE;
+}
+
+/* 下次复位从 APP 区启动 */
+static void Jump_App(void)
+{
+    RCC-&gt;RSTSCKR |= RCC_RMVF;
+    SystemReset_StartMode(Start_Mode_USER);
+    NVIC_SystemReset();
+    while (1) {}
+}
+
+#endif /* BOOT_HOST_TEST */
+
+/* ============================== 工具 ============================== */
+
+static uint32_t Get32(const uint8_t *p)
+{
+    return (uint32_t)p[0] | (uint32_t)p[1] &lt;&lt; 8 | (uint32_t)p[2] &lt;&lt; 16 | (uint32_t)p[3] &lt;&lt; 24;
+}
+
+static void Put32(uint8_t *p, uint32_t value)
+{
+    p[0] = (uint8_t)value;
+    p[1] = (uint8_t)(value &gt;&gt; 8);
+    p[2] = (uint8_t)(value &gt;&gt; 16);
+    p[3] = (uint8_t)(value &gt;&gt; 24);
+}
+
+/* 标准 CRC-32(与 Python zlib.crc32 一致)，逐位计算不占表 */
+static uint32_t Crc32(const uint8_t *data, uint32_t len)
+{
+    uint32_t crc = 0xFFFFFFFFU;
+    uint8_t  bit;
+
+    while (len--)
+    {
+        crc ^= *data++;
+        for (bit = 0U; bit &lt; 8U; bit++)
+            crc = (crc &gt;&gt; 1) ^ (0xEDB88320U &amp; (0U - (crc &amp; 1U)));
+    }
+    return ~crc;
+}
+
+/* 应答帧：CMD 取当前帧并置最高位，DATA = 状态码 + extra */
+static void Reply(uint8_t status, const uint8_t *extra, uint8_t n)
+{
+    uint8_t frame[12U + 6U]; /** 最长应答：握手带 6 字节 */
+    uint8_t i;
+
+    frame[0] = IAP_HEAD1;
+    frame[1] = IAP_HEAD2;
+    frame[2] = RX[1] | 0x80U;
+    frame[3] = (uint8_t)(n + 1U);
+    frame[4] = 0U;
+    frame[5] = status;
+    for (i = 0U; i &lt; n; i++) frame[6U + i] = extra[i];
+    Put32(frame + 6U + n, Crc32(frame + 2U, 4U + n));
+    frame[10U + n] = IAP_TAIL1;
+    frame[11U + n] = IAP_TAIL2;
+    Uart_Send(frame, (uint8_t)(12U + n));
+}
+
+/* ============================== Flash ============================== */
+
+/* 标志页状态：0=空白 1=升级中 2=APP有效 3=其他(损坏) */
+static uint8_t Flag_State(void)
+{
+    uint32_t flag = Get32(FLASH_PTR(FLAG_OFFSET));
+
+    return (flag == 0xFFFFFFFFU) ? 0U : (flag == FLAG_UPGD) ? 1U : (flag == FLAG_APOK) ? 2U : 3U;
+}
+
+/* APP 可以运行：标志页 APOK，或标志页空白(量产刚烧录)且 APP 区不是空的 */
+static uint8_t App_Bootable(void)
+{
+    uint8_t state = Flag_State();
+
+    return state == 2U || (state == 0U &amp;&amp; Get32(FLASH_PTR(0U)) != 0xFFFFFFFFU);
+}
+
+/* 标志页整页改写：状态、镜像长度、镜像 CRC32，其余 0xFF */
+static void Flag_Write(uint32_t state)
+{
+    memset(s_page, 0xFF, sizeof(s_page));
+    s_page[0] = state;
+    s_page[1] = s_img_len;
+    s_page[2] = s_img_crc;
+    FLASH_ErasePage_Fast(FLASH_BASE + FLAG_OFFSET);
+    CH32_IAP_Program(FLASH_BASE + FLAG_OFFSET, s_page);
+}
+
+/* 读硬件信息页的 4 项(舵机类型、硬件版本、电压型号、扭力型号)；页无效时填 0xFF 并返回 0 */
+static uint8_t HwInfo_Read(uint8_t *info)
+{
+    const uint8_t *page  = FLASH_PTR(HWINFO_OFFSET);
+    uint8_t        valid = Get32(page) == HWINFO_MAGIC &amp;&amp; Crc32(page, 28U) == Get32(page + 28U);
+    uint8_t        i;
+
+    for (i = 0U; i &lt; 4U; i++) info[i] = valid ? page[5U + i] : 0xFFU;
+    return valid;
+}
+
+/* 镜像里的固件信息块魔术字正确，且 4 项逐一等于硬件信息页或为 0xFF(不限)；硬件信息页没写过时不比对 */
+static uint8_t Fw_Compatible(void)
+{
+    const uint8_t *fw = FLASH_PTR(FWINFO_OFFSET);
+    uint8_t        hw[4];
+    uint8_t        valid = HwInfo_Read(hw);
+    uint8_t        i;
+
+    if (Get32(fw) != FWINFO_MAGIC) return 0U;
+    for (i = 0U; i &lt; 4U; i++)
+    {
+        if (valid &amp;&amp; fw[4U + i] != 0xFFU &amp;&amp; fw[4U + i] != hw[i]) return 0U;
+    }
+    return 1U;
+}
+
+/* 擦除 [0, end)：前 32K 整块擦，其余逐页擦 */
+static void App_Erase(uint32_t end)
+{
+    uint32_t off;
+
+    FLASH_EraseBlock_32K_Fast(FLASH_BASE);
+    for (off = 0x8000U; off &lt; end; off += PAGE_SIZE)
+    {
+        IWDG_FEED();
+        FLASH_ErasePage_Fast(FLASH_BASE + off);
+    }
+}
+
+/* ============================== 协议 ============================== */
+
+/* 喂入一个字节，收齐一帧(帧头帧尾正确)返回 1；帧内容在 RX，CMD 位于 RX[1] */
+static uint8_t Frame_Byte(uint8_t byte)
+{
+    uint16_t len;
+
+    if (s_pos == 0U)
+    {
+        if (byte == IAP_HEAD1) s_pos = 1U;
+        return 0U;
+    }
+    if (s_pos == 1U)
+    {
+        s_pos = (byte == IAP_HEAD2) ? 2U : (byte == IAP_HEAD1); /* AA AA 55 也能对上帧头 */
+        return 0U;
+    }
+
+    RX[s_pos - 1U] = byte;
+    s_pos++;
+    if (s_pos &lt; 5U) return 0U;                          /* CMD、LEN 还没收齐 */
+    len = (uint16_t)(RX[2] | (uint16_t)RX[3] &lt;&lt; 8);
+    if (len &gt; IAP_DATA_MAX)
+    {
+        s_pos = 0U;
+        return 0U;
+    }
+    if (s_pos &lt; 11U + len) return 0U;
+    s_pos = 0U;
+    return RX[8U + len] == IAP_TAIL1 &amp;&amp; RX[9U + len] == IAP_TAIL2;
+}
+
+/* 处理收齐的一帧。hello_only=1(上电窗口)时只认握手。返回 1 = 处理了握手 */
+static uint8_t Frame_Process(uint8_t hello_only)
+{
+    uint8_t   cmd  = RX[1];
+    uint16_t  len  = (uint16_t)(RX[2] | (uint16_t)RX[3] &lt;&lt; 8);
+    uint8_t  *data = RX + 4U;
+    uint8_t   info[6];
+    uint32_t  off;
+
+    if (cmd &amp; 0x80U) return 0U;                         /* 应答帧，不处理 */
+    if (Crc32(RX + 1U, 3U + len) != Get32(data + len))
+    {
+        if (!hello_only) Reply(ST_FRAME, 0, 0U);
+        return 0U;
+    }
+    if (hello_only &amp;&amp; cmd != CMD_HELLO) return 0U;
+
+    switch (cmd)
+    {
+    case CMD_HELLO:
+        if (len != 0U) break;
+        info[0] = BOOT_VERSION;
+        info[1] = Flag_State();
+        (void)HwInfo_Read(info + 2U);
+        Reply(ST_OK, info, 6U);
+        return 1U;
+
+    case CMD_START:
+        if (len != 9U) break;
+        s_started = 0U;
+        s_img_len = Get32(data);
+        s_img_crc = Get32(data + 4U);
+        if (s_img_len == 0U || (s_img_len &amp; (PAGE_SIZE - 1U)) || s_img_len &gt; APP_SIZE_MAX || data[8] &gt; 1U)
+        {
+            Reply(ST_RANGE, 0, 0U);
+            return 0U;
+        }
+        FLASH_Unlock_Fast();
+        Flag_Write(FLAG_UPGD);                          /* 先作废 APP 再擦，中途断电也会留在 Boot */
+        App_Erase(data[8] ? PARAM_END : APP_SIZE_MAX);
+        s_started = 1U;
+        Reply(ST_OK, 0, 0U);
+        return 0U;
+
+    case CMD_WRITE:
+        if (len != 4U + PAGE_SIZE) break;
+        off = Get32(data);
+        if (!s_started)
+        {
+            Reply(ST_ORDER, data, 4U);
+        }
+        else if ((off &amp; (PAGE_SIZE - 1U)) || off &gt;= s_img_len)
+        {
+            Reply(ST_RANGE, data, 4U);
+        }
+        else
+        {
+            FLASH_ErasePage_Fast(FLASH_BASE + off);     /* 先擦再写，同一页重发多少次结果都一样 */
+            CH32_IAP_Program(FLASH_BASE + off, s_rx_words + 2U);
+            Reply(memcmp(FLASH_PTR(off), data + 4U, PAGE_SIZE) ? ST_VERIFY : ST_OK, data, 4U);
+        }
+        return 0U;
+
+    case CMD_FINISH:
+        if (len != 0U) break;
+        if (!s_started)
+        {
+            Reply(ST_ORDER, 0, 0U);
+        }
+        else if (Crc32(FLASH_PTR(0U), s_img_len) != s_img_crc)
+        {
+            Reply(ST_IMAGE_CRC, 0, 0U);
+        }
+        else if (!Fw_Compatible())
+        {
+            Reply(ST_MISMATCH, 0, 0U);
+        }
+        else
+        {
+            Flag_Write(FLAG_APOK);
+            if (Flag_State() != 2U)
+            {
+                Reply(ST_VERIFY, 0, 0U);
+                return 0U;
+            }
+            Reply(ST_OK, 0, 0U);                        /* 发送完才返回，应答不会被复位截断 */
+            Jump_App();
+        }
+        return 0U;
+
+    default:
+        break;
+    }
+    Reply(ST_FRAME, 0, 0U);                             /* 未知命令或 LEN 不对 */
+    return 0U;
+}
+
+/* ============================== 主流程 ============================== */
+
+/* 收帧循环。window_ms!=0：上电握手窗口，只认握手，收到返回 1，超时返回 0；
+ * window_ms==0：升级循环，不返回 */
+static uint8_t Loop(uint16_t window_ms)
+{
+    uint16_t idle    = 0U; /** 距上一个字节的毫秒数 */
+    uint16_t elapsed = 0U; /** 窗口已过去的毫秒数   */
+    uint8_t  byte;
+
+    for (;;)
+    {
+        if (Uart_Poll(&amp;byte))
+        {
+            idle = 0U;
+            if (Frame_Byte(byte) &amp;&amp; Frame_Process(window_ms != 0U) &amp;&amp; window_ms != 0U) return 1U;
+        }
+        else if (Tick_Poll())                           /* 又过了 1ms */
+        {
+            if (idle &lt; 0xFFFFU) idle++;
+            if (idle &gt; BYTE_GAP_MS) s_pos = 0U;
+            if (window_ms != 0U)
+            {
+                if (++elapsed &gt;= window_ms) return 0U;
+            }
+            else if (idle &gt;= IDLE_TO_APP_MS &amp;&amp; App_Bootable())
+            {
+                Jump_App();
+            }
+        }
+    }
+}
+
+void IAP_Run(void)
+{
+    uint8_t app_request = Reset_WasSoftware(); /** 软件复位 = APP 收到进入升级后主动复位 */
+
+    Hw_Init();
+    if (!app_request &amp;&amp; !Loop(HELLO_WINDOW_MS) &amp;&amp; App_Bootable())
+    {
+        Jump_App();
+    }
+    (void)Loop(0U);
+}</pre>
+    </div>
+  </section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
+    fontFamily: '"IBM Plex Sans","PingFang SC","Microsoft YaHei",sans-serif'
+  });
+</script>
+</body>
+</html>

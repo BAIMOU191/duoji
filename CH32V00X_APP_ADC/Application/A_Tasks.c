@@ -29,8 +29,8 @@ static void Task_ServoControl(void)
 
 static void Task_Uart(void)
 {
-    IAP_Check();
     A_Uart_Process();  /* 收帧->执行->回复->延迟波特率切换 */
+    IAP_Service();     /* 进入升级的应答发完后复位进 Boot */
 }
 
 /* 保护：过流/限流/堵转/过温，内部再分频 */

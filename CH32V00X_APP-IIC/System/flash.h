@@ -7,8 +7,8 @@
  * 62K Flash 末尾 4 页保留，APP 链接长度止于 0xF400(见 Link.ld)：
  *   0x0800F400  参数页 A
  *   0x0800F500  参数页 B
- *   0x0800F600  硬件信息页，量产写一次，升级不擦
- *   0x0800F700  IAP 标志页，只由 Boot 写(iap.h 的 CalAddr 在这一页)
+ *   0x0800F600  硬件信息页，量产由 IAP 命令写一次，升级不擦(读写见 iap.c)
+ *   0x0800F700  IAP 标志页，只由 Boot 写，APP 不碰
  */
 #define FLASH_PAGE_SIZE          256U
 #define CONFIG_SLOT_A_ADDR       (FLASH_BASE + 0xF400U)

@@ -22,6 +22,7 @@
 #include "A_Protect.h"
 #include "A_Tasks.h"
 #include "A_Calib_Min.h"
+#include "iap.h"
 
 /* 定义 APP_MODE_CALIB 编译为开环硬件标定固件(见 A_Calib_Min.h)，标定完填回 A_Parameter.h 后注释掉 */
 /* #define APP_MODE_CALIB */
@@ -38,6 +39,7 @@ int main(void)
 
     /* ---- 2. 参数：驱动要按已保存的配置初始化，所以必须排在驱动前面 ---- */
     A_Config_Init();
+    IAP_Init();                        /* 硬件信息页出厂空白时写入本固件适用的硬件 */
 
     /* ---- 3. 驱动层：先总线，再外设，最后挂在总线上的器件 ---- */
     D_Bus_I2C_Init();                  /* I2C1  400kHz，MT6701+TMP112共用  */

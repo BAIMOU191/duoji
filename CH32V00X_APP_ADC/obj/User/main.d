@@ -42,7 +42,8 @@ User/main.o: ../User/main.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/Application/A_Sensor.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/Application/A_Protect.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/Application/A_Tasks.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/Application/A_Calib_Min.h
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/Application/A_Calib_Min.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/System/iap.h
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/SRC/Debug/debug.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/SRC/Peripheral/inc/ch32v00X.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/SRC/Core/core_riscv.h:
@@ -87,3 +88,4 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/Application/A_Sensor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/Application/A_Protect.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/Application/A_Tasks.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/Application/A_Calib_Min.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC/System/iap.h:

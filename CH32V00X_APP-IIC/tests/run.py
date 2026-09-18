@@ -176,6 +176,7 @@ def main():
     # 查的是"指令分发对不对""旧参数升级后还在不在"，掺进整机仿真反而看不清。
     proto = build('proto_audit', [str(HERE / 'audit' / 'proto_audit.c')], extra=SYSINC)
     config = build('config_audit', [str(HERE / 'audit' / 'config_audit.c')], extra=SYSINC)
+    iap = build('iap_audit', [str(HERE / 'audit' / 'iap_audit.c')], extra=SYSINC)
     planner = build('planner_audit', [str(HERE / 'audit' / 'planner_audit.c')])
     sched = build('sched_audit', [str(HERE / 'audit' / 'sched_audit.c')])
     protect = build('protect_audit', [str(HERE / 'audit' / 'protect_audit.c')])
@@ -197,7 +198,7 @@ def main():
         feature_cases += ['mt_distance', 'mt_timing', 'mt_pause',
                           'mt_interrupt', 'mt_reject', 'mt_longest']
 
-    suites = [(sim, ['regression']), (proto, []), (config, []),
+    suites = [(sim, ['regression']), (proto, []), (config, []), (iap, []),
               (planner, []), (protect, []), (sched, [])]
     suites += [(feature, [c]) for c in feature_cases]
     suites += [(servo, [c]) for c in servo_cases]

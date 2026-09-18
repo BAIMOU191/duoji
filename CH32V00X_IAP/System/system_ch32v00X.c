@@ -155,7 +155,7 @@ RCC->PB2PCENR |= RCC_PB2Periph_GPIOD;
 GPIOD->CFGLR&=(~0xF0);
 GPIOD->CFGLR|=0x80;
 GPIOD->BSHR =0x2;
-GPIO_IPD_Unused();
+/* Bootloader 只运行片刻，省掉 GPIO_IPD_Unused()(约734字节)给升级协议腾空间；APP 自己的 SystemInit 照常调用 */
 #ifdef SYSCLK_FREQ_8MHz_HSI
     SetSysClockTo_8MHz_HSI();
 #elif defined SYSCLK_FREQ_24MHZ_HSI

@@ -158,11 +158,16 @@ void D_UART_SetBaud_Deferred(uint32_t baudrate)
 /* 周期收尾：发送队列排空后执行登记的波特率切换 */
 void D_UART_Service(void)
 {
-    if (s_pending_baud == 0U) return;
-    if (s_tx_busy || C_Ring_Buf_Get_Count(&s_tx_rb) != 0U) return;
+    if (s_pending_baud == 0U || !D_UART_Tx_Idle()) return;
 
     Uart_ApplyParams(s_pending_baud);
     s_pending_baud = 0U;
+}
+
+/* 发送队列已空且末字节已移出引脚：此后切波特率或复位都不会截断回复 */
+uint8_t D_UART_Tx_Idle(void)
+{
+    return (uint8_t)(!s_tx_busy && C_Ring_Buf_Get_Count(&s_tx_rb) == 0U);
 }
 
 /* USART1收发中断，三个分支互斥 */

@@ -21,6 +21,7 @@ uint8_t D_UART1_Tx_Write(const uint8_t *data, uint8_t len);  /* 整帧入队并�
 /* ---- 周期服务 ---- */
 void    D_UART_SetBaud_Deferred(uint32_t baudrate); /* 登记新波特率，等回复发完再切 */
 void    D_UART_Service(void);                       /* 任务中周期调用，执行延迟切换 */
+uint8_t D_UART_Tx_Idle(void);                       /* 1=发送队列已空且末字节已移出引脚 */
 
 /* ---- 中断入口 ---- */
 void    D_UART1_ISR(void); /* USART1_IRQHandler中直接调用，收发合一 */

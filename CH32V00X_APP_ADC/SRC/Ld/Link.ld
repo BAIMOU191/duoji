@@ -39,6 +39,12 @@ SECTIONS
       _einit = .;
     } >FLASH AT>FLASH
 
+    /* 固件信息块固定在 0x100(System/iap.c)：上位机从 hex 读取，Boot 完成升级时校验。向量表超过 0x100 会链接报错 */
+    .fw_info 0x00000100 : AT(0x00000100)
+    {
+      KEEP(*(.fw_info))
+    } >FLASH
+
     .text :
     {
       . = ALIGN(4);

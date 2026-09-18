@@ -8,6 +8,12 @@
 #define SERVO_VERSION_MINOR 0U
 #define SERVO_VERSION_PATCH 0U
 
+/* 固件适用硬件，写进固件信息块(System/iap.c)：升级时上位机和 Boot 逐项与舵机硬件信息页比对，0xFF=不限 */
+#define FW_SERVO_TYPE 1U        /** 舵机类型：1=电位器ADC版 */
+#define FW_HW_VERSION 10U       /** 硬件版本 v1.0 */
+#define FW_VOLTAGE    8U        /** 电压型号 8V */
+#define FW_TORQUE     20U       /** 扭力型号 20kg */
+
 /*
  * A_Config.h —— 掉电保存参数与访问接口
  * 模式编号是对外协议，不重新编号：11(自定义)只能由 AMI/AMX 进入；360度(5/6)仅整圈可测的编码器支持，

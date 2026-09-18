@@ -1,60 +1,26 @@
-/********************************** (C) COPYRIGHT  *******************************
- * File Name          : iap.h
- * Author             : WCH
- * Version            : V1.0.1
- * Date               : 2025/01/13
- * Description        : IAP
- *******************************************************************************
- * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
- * Attention: This software (modified or not) and binary are used for
- * microcontroller manufactured by Nanjing Qinheng Microelectronics.
- *******************************************************************************/
 #ifndef __IAP_H
 #define __IAP_H
 
-#include "ch32v00X.h"
-#include "stdio.h"
+#include <stdint.h>
 
-#define USBD_DATA_SIZE    64
-#define FLASH_Base        0x08000000
+/*
+ * iap.h —— APP 侧 IAP：查询、进入升级、写硬件信息，以及固件信息块
+ * 帧格式、命令与 Boot 工程 System/iap.h 及《舵机 IAP 升级协议》文档一致，改动须三处同步。
+ */
 
-#define Uart_Sync_Head1   0xaa
-#define Uart_Sync_Head2   0x55
+/* 固件信息块，16 字节，链接脚本固定在 APP 偏移 0x100；上位机从 hex 读，Boot 完成升级时读 */
+typedef struct {
+    uint8_t magic[4];    /** 'S','V','F','W' */
+    uint8_t servo_type;  /** 本固件适用的舵机类型，0xFF=不限 */
+    uint8_t hw_version;  /** 适用的硬件版本，0xFF=不限 */
+    uint8_t voltage;     /** 适用的电压型号，0xFF=不限 */
+    uint8_t torque;      /** 适用的扭力型号，0xFF=不限 */
+    uint8_t version[3];  /** 固件版本 {主, 次, 修订} */
+    uint8_t reserved[5]; /** 0xFF */
+} IAP_FwInfo_t;
 
-#define CMD_IAP_PROM      0x80
-#define CMD_IAP_ERASE     0x81
-#define CMD_IAP_VERIFY    0x82
-#define CMD_IAP_END       0x83
-#define CMD_JUMP_IAP      0x84
-
-#define ERR_SUCCESS       0x00
-#define ERR_ERROR         0x01
-#define ERR_End           0x02
-
-#define CalAddr           (0x0800F800-4)
-#define CheckNum          (0x5aa55aa5)
-
-typedef union __attribute__ ((aligned(4)))_ISP_CMD {
-
-struct{
-
-    u8 Cmd;
-    u8 Len;
-    u8 data[64];
-}UART;
-
-struct{
-    u8 buf[64+4];
-}other;
-} isp_cmd;
-typedef void (*iapfun)(void);
-
-extern u8 EP2_Rx_Buffer[USBD_DATA_SIZE+4];
-
-void APP_2_IAP(void);
-void IAP_Rx_Deal(uint8_t data);
-u8 RecData_Deal(void);
-void IAP_Check(void);
+void IAP_Init(void);            /* 上电调用一次：硬件信息页出厂空白时，写入本固件适用的硬件 */
+void IAP_Rx_Deal(uint8_t data); /* 串口任务逐字节喂入，与舵机 ASCII 协议并行嗅探同一串 */
+void IAP_Service(void);         /* 串口任务每拍调用：进入升级的应答发完后复位进 Boot */
 
 #endif
-
