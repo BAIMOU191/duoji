@@ -1,0 +1,1725 @@
+{
+  "baseline_header": "#pragma once\n\n#include <stdint.h>\n\n/*\n * A_Parameter.h —— 控制设计参数：标定输入、调参面板、派生系数、编译期护栏\n * 只改\"标定输入\"和\"调参面板\"两段，DSGC_/DSG_/PLANT_/OBS_/TRAJ_/CTRL_ 均为派生量。\n *\n * 30kg电位器版标定记录(本次报告09:59:38，单次；供电电压/负载未记录)：\n *   T1合并斜率9443、动摩擦145，最大残差37PWM；输出斜率向上取9444。\n *   T2两向L+tau为19.90/39.24ms，T3回归L钳至0ms且残差呈趋势；按报告采用tau=31ms、delay=0。\n *   T4两向制动a0为1050689/603624厘度/秒^2，合并制动增益193；方向差异待实机复核。\n *   T9起转219/235PWM取235；静止噪声峰峰10.42厘度、最小步长25厘度，分辨率取25。\n *   T8峰值在250Hz扫描边缘，不能认定为谐振，MODEL_RESONANCE_HZ保留0。\n *   暂沿用位置环9rad/s、速度环22rad/s、观测器11Hz、积分8rad/s，后续按实机响应调整。\n *   阶跃实测满速159.13度/秒；角度仍假设ADC 350..3750对应270度，自动标定不验证该标度。\n *   10:21遥测后提速：巡航84%->88%，保留至少250PWM反馈余量；减速平滑60->40，微步最短时间70->50ms。\n *   10:36遥测时配置为速度85%、分辨率30；8组参数/88工况仿真后，速度改92%、前馈余量改180PWM。\n *   92%巡航前馈占2219/2400PWM，留181PWM实际余量；较旧250PWM预算减小，低电压/带载速度需实测。\n *   降观测器带宽虽能压低噪声，但大惯性超调变大，故仍保留11Hz观测器和原控制环带宽。\n *   T0000使用最速规划；显式时间指令仍按指定时长执行(受硬件极限约束)，提速不缩短T1000。\n */\n\n/* ============================== 基本量程 ============================== */\n#define CDEG_RANGE 36000        /** 整圈角度，厘度 */\n#define CFG_WRAP_RANGE_CDEG 0   /** 反馈坐标回绕量程；0=线性行程不回绕，须与ENCODER_MODE一致 */\n#define SERVO_PWM_MIN 500       /** 协议最小脉宽，也是电机模式负向满速指令 */\n#define SERVO_PWM_MAX 2500      /** 协议最大脉宽，也是电机模式正向满速指令 */\n#define SERVO_PWM_MID 1500      /** 电机模式零速指令，两侧线性映射到正负满PWM */\n#define CFG_PWM_FULL 2400       /** PWM满量程，必须与驱动层实际限制一致 */\n\n/* 整机旋向反转开关，含义见磁编码版同名宏。电位器版保持原旋向。 */\n#define CFG_DIR_INVERT 0        /** 0=保持标称旋向 */\n\n/* ======================= 标定输入(A_Calib_Min 输出) ======================= */\n#define CAL_SPEED_SLOPE_Q16 9444 /** PWM-速度斜率，Q16 */\n#define CAL_FRICTION_PWM 145     /** 等效动摩擦PWM，速度直线的截距 */\n#define CAL_BREAKAWAY_PWM 235    /** 起转(静摩擦)PWM；<=动摩擦时静摩擦前馈自动退化 */\n#define MODEL_TAU_MS 31          /** 机械时间常数(ms)，偏小会显著降低稳定裕度 */\n#define MODEL_DELAY_TICKS 0      /** 指令至轴响应的纯延迟(控制拍)，改后需复核全部护栏 */\n#define CAL_MOTOR_SIGN 1         /** 装配方向，+1/-1，由标定程序自动判定 */\n#define MODEL_BRAKE_GAIN_Q8 193  /** 制动侧相对驱动侧的PWM增益，Q8 */\n#define MODEL_RESONANCE_HZ 0     /** 第一机械谐振频率(Hz)，0=未测，非0时自动收紧观测器带宽 */\n\n/* ============================== 调参面板 ============================== */\n#define TUNE_SMOOTH_ACC 0       /** 加速平滑度0~100，增大降低加速段jerk但延长反向响应 */\n#define TUNE_SMOOTH_DEC 40      /** 减速平滑度0~100，增大减小末端制动力突变 */\n#define TUNE_MOVE_MIN_MS 50     /** 小位移最短运动时间(ms)，0=关闭 */\n#define TUNE_REV_SLIDE_DIV 8    /** 带时间指令中途换向时，参考最多反向滑出 剩余行程/该值 来放缓刹车；0=关闭(按硬件极限急转) */\n#define TUNE_HOLD_STIFF 12      /** 保持刚度(PWM/厘度)：到位后被外力推开时按偏差直接回推，期间冻结积分；0=关闭。电位器版环路带宽被噪声压得很低，靠它补保持刚度 */\n#define TUNE_ACCEL_MIN_MS 30    /** 小位移加速段最短时间(ms)，不得短于纯延迟 */\n#define TUNE_SPEED_PCT 92       /** 最大速度占物理稳态速度的百分比，受前馈余量护栏约束 */\n#define TUNE_ACCEL_PCT 95       /** 加速度百分比，仅在 Traj_AutoAmax 拿不到对象常数时兜底 */\n#define TUNE_STIFFNESS_RADS 9   /** 位置环带宽(rad/s)，受速度环/观测器级联分离约束 */\n#define TUNE_DAMPING 25         /** 速度环带宽与位置环带宽之比的10倍 */\n#define TUNE_INTEGRAL_RADS 8    /** 速度积分零点(rad/s)，不得高于位置环带宽 */\n#define TUNE_OBS_BW_HZ 11       /** 观测器带宽(Hz)，受纯延迟和机械谐振上限约束 */\n#define TUNE_RESOLUTION_CDEG 30 /** 最小可靠位移(厘度)，是全部位置阈值的公共标度 */\n\n/* ========================= 结构常数与设计量 ========================= */\n#define DSGC_HOLD_DB_X2 3       /** 静止捕获窗=1.5倍最小步长，运动死区仍为1倍 */\n#define DSGC_IN_WIN_X2 5        /** 到位窗=2.5倍最小步长 */\n#define DSGC_OUT_WIN_X 4        /** 退出窗=4倍最小步长，与到位窗构成滞环 */\n#define DSGC_IN_VEL_X 50        /** 到位零速阈值=50倍最小步长(每秒) */\n#define DSGC_VEL_NOISE_NUM 3    /** 速度噪声底 = 观测器带宽 * 分辨率 * 3/8 的分子 */\n#define DSGC_VEL_NOISE_DEN 8    /** 同上的分母，位置噪声被观测器微分成速度噪声 */\n#define DSGC_VEL_DB_X 2         /** 保持态速度死区取噪声底的倍数，1倍会漏过一半噪声 */\n#define DSGC_FRIC_MOVE_X 4      /** 判\"已挣脱静摩擦\"的速度门限相对速度噪声底的倍数 */\n#define DSGC_KICK_MAX_PCT 50    /** 顶起值最多在标定起转值之上再自适应抬这么多(%) */\n#define DSGC_KICK_RISE_MS 50    /** 抬到上限所需时间(ms)，只在\"要求动却不动\"时计时 */\n#define DSGC_STUCK_MS 20        /** 实测速度连续低于噪声底这么多拍才认定轴真的粘住了 */\n#define DSGC_FF_MARGIN_PWM 180  /** 前馈之外必须留给反馈的PWM余量；30kg提速方案，见顶部实测/仿真记录 */\n#define DSGC_WCMD_MIN_DIV 4     /** 最小速度指令 = 位置环带宽*分辨率/4 */\n#define DSGC_FRIC_BLEND_X 3     /** 观测器摩擦过渡速度相对最小速度指令的倍数 */\n#define DSGC_DEC_OF_ACC_Q8 128  /** 减速加速度占加速侧的比例，Q8，留出对象误差裕量 */\n#define DSG_SMOOTH_MAX 100      /** 平滑度取值上限 */\n#define DSG_IN_HOLD_MS 20       /** 进入到位状态前需连续满足条件的控制拍数 */\n#define DSG_WCORR_PCT 25        /** 位置环速度修正限幅占最大速度的百分比 */\n#define DSG_POS_BW_RADS TUNE_STIFFNESS_RADS                                 /** 位置环带宽 */\n#define DSG_VEL_BW_RADS (TUNE_STIFFNESS_RADS * TUNE_DAMPING / 10)           /** 速度环带宽 */\n#define DSG_VEL_I_RADS TUNE_INTEGRAL_RADS                                   /** 速度积分零点 */\n#define DSG_OBS_BW_HZ TUNE_OBS_BW_HZ                                        /** 观测器带宽 */\n#define DSG_VMAX_PCT TUNE_SPEED_PCT                                         /** 最大速度百分比 */\n#define DSG_ACC_RATIO_Q8 (TUNE_ACCEL_PCT * 256 / 100)                       /** 加速度比例，Q8 */\n#define DSG_DEC_RATIO_Q8 ((DSG_ACC_RATIO_Q8 * DSGC_DEC_OF_ACC_Q8) >> 8)     /** 减速度比例，Q8 */\n#define DSG_POS_DEADBAND_CDEG TUNE_RESOLUTION_CDEG                          /** 位置死区，厘度 */\n#define DSG_HOLD_DEADBAND_CDEG (TUNE_RESOLUTION_CDEG * DSGC_HOLD_DB_X2 / 2) /** 静音捕获窗，厘度 */\n#define DSG_IN_WIN_CDEG (TUNE_RESOLUTION_CDEG * DSGC_IN_WIN_X2 / 2)         /** 到位窗，厘度 */\n#define DSG_QUIET_EXIT_CDEG ((TUNE_HOLD_STIFF > 0) ? (TUNE_RESOLUTION_CDEG * 2) : DSG_IN_WIN_CDEG) /** 静音退出窗，开保持弹簧时提前退出以便尽早回推，厘度 */\n#define DSG_OUT_WIN_CDEG (TUNE_RESOLUTION_CDEG * DSGC_OUT_WIN_X)            /** 退出窗，厘度 */\n#define DSG_IN_VEL_CDPS (TUNE_RESOLUTION_CDEG * DSGC_IN_VEL_X)              /** 到位零速阈值，厘度/秒 */\n#define DSG_VEL_NOISE_CDPS (TUNE_OBS_BW_HZ * TUNE_RESOLUTION_CDEG * DSGC_VEL_NOISE_NUM / DSGC_VEL_NOISE_DEN) /** 观测速度噪声底，厘度/秒 */\n#define DSG_VEL_DB_CDPS (DSG_VEL_NOISE_CDPS * DSGC_VEL_DB_X)                /** 保持态速度死区，厘度/秒 */\n#define DSG_FRIC_MOVE_CDPS (DSG_VEL_NOISE_CDPS * DSGC_FRIC_MOVE_X)          /** 判已挣脱静摩擦的速度门限，厘度/秒 */\n#define DSG_WCMD_MIN_CDPS (TUNE_STIFFNESS_RADS * TUNE_RESOLUTION_CDEG / DSGC_WCMD_MIN_DIV) /** 最小速度指令，厘度/秒 */\n#define DSG_FRICTION_BLEND_CDPS (DSG_WCMD_MIN_CDPS * DSGC_FRIC_BLEND_X)     /** 观测器摩擦过渡速度，厘度/秒 */\n\n/* ============================ 编译期派生系数 ============================ */\n#define CFG_TICK_HZ 1000                                                                              /** 控制任务频率(Hz) */\n#define CFG_Q24_ONE 16777216L                                                                         /** Q24格式中的1.0 */\n#define CFG_Q24_MUL(a, b) ((int32_t)(((int64_t)(a) * (int64_t)(b)) >> 24))                            /** Q24定点乘法 */\n#define PLANT_NET_PWM (((CFG_PWM_FULL - CAL_FRICTION_PWM) > 0) ? (CFG_PWM_FULL - CAL_FRICTION_PWM) : 1)/** 扣除摩擦后的净PWM */\n#define PLANT_VSS_CDPS ((int32_t)(((int64_t)PLANT_NET_PWM << 16) / CAL_SPEED_SLOPE_Q16))              /** 满PWM稳态速度，厘度/秒 */\n#define PLANT_A0_CDPSS ((int32_t)(((int64_t)PLANT_VSS_CDPS * 1000) / MODEL_TAU_MS))                   /** 零速起步加速度，厘度/秒^2 */\n#define PLANT_KA_Q8_RAW ((int32_t)(((int64_t)65536 * 1000 * 256) / ((int64_t)CAL_SPEED_SLOPE_Q16 * MODEL_TAU_MS))) /** 加速度增益原始值，Q8 */\n#define PLANT_KA_Q8 ((PLANT_KA_Q8_RAW > 0) ? PLANT_KA_Q8_RAW : 1)                                     /** 加速度增益，Q8 */\n#define PLANT_SPEED_SLOPE_Q16 CAL_SPEED_SLOPE_Q16                                                     /** PWM-速度斜率，Q16 */\n#define PLANT_FRICTION_PWM CAL_FRICTION_PWM                                                           /** 动摩擦PWM */\n#define PLANT_TAU_MS MODEL_TAU_MS                                                                     /** 机械时间常数(ms) */\n#define PLANT_DEAD_TICKS MODEL_DELAY_TICKS                                                            /** 纯延迟(控制拍) */\n\n/* 观测器增益：对(tau, Kv)做三重极点配置，令三个特征值均为 exp(-2*pi*f*T)，\n * T=1ms，f=TUNE_OBS_BW_HZ。OBSG_* 是推导中间量，禁止手动修改。 */\n#define OBSG_X_Q24 ((int32_t)((105414357LL * DSG_OBS_BW_HZ) / CFG_TICK_HZ))                                                                                   /** 2*pi*f*T，Q24 */\n#define OBSG_E1 OBSG_X_Q24                                                                                                                                    /** 指数展开第1项 */\n#define OBSG_E2 (CFG_Q24_MUL (OBSG_E1, OBSG_X_Q24) / 2)                                                                                                       /** 指数展开第2项 */\n#define OBSG_E3 (CFG_Q24_MUL (OBSG_E2, OBSG_X_Q24) / 3)                                                                                                       /** 指数展开第3项 */\n#define OBSG_E4 (CFG_Q24_MUL (OBSG_E3, OBSG_X_Q24) / 4)                                                                                                       /** 指数展开第4项 */\n#define OBSG_E5 (CFG_Q24_MUL (OBSG_E4, OBSG_X_Q24) / 5)                                                                                                       /** 指数展开第5项 */\n#define OBSG_E6 (CFG_Q24_MUL (OBSG_E5, OBSG_X_Q24) / 6)                                                                                                       /** 指数展开第6项 */\n#define OBSG_ALPHA (CFG_Q24_ONE - OBSG_E1 + OBSG_E2 - OBSG_E3 + OBSG_E4 - OBSG_E5 + OBSG_E6)                                                                  /** 离散极点 exp(-2*pi*f*T)，Q24 */\n#define OBSG_BETA (CFG_Q24_ONE - OBSG_ALPHA)                                                                                                                  /** 1-极点，Q24 */\n#define OBSG_A2 CFG_Q24_MUL (OBSG_ALPHA, OBSG_ALPHA)                                                                                                          /** 极点平方 */\n#define OBSG_A3 CFG_Q24_MUL (OBSG_A2, OBSG_ALPHA)                                                                                                             /** 极点立方 */\n#define OBSG_B2 CFG_Q24_MUL (OBSG_BETA, OBSG_BETA)                                                                                                            /** beta平方 */\n#define OBSG_B3 CFG_Q24_MUL (OBSG_B2, OBSG_BETA)                                                                                                              /** beta立方 */\n#define OBSG_A_Q24 ((MODEL_TAU_MS > 0) ? (CFG_Q24_ONE / MODEL_TAU_MS) : (CFG_Q24_ONE / 36))                                                                   /** T/tau，Q24 */\n#define OBSG_L1_NUM (((CFG_Q24_ONE - OBSG_A3 - OBSG_A_Q24) > 0) ? (CFG_Q24_ONE - OBSG_A3 - OBSG_A_Q24) : 0)                                                   /** L1分子 */\n#define OBSG_L1_DEN (((CFG_Q24_ONE - OBSG_A_Q24) > 1) ? (CFG_Q24_ONE - OBSG_A_Q24) : 1)                                                                       /** L1分母 */\n#define OBSG_L1_RAW ((int32_t)(((int64_t)OBSG_L1_NUM << 24) / OBSG_L1_DEN))                                                                                   /** L1原始值，Q24 */\n#define OBSG_L1_Q24 ((OBSG_L1_RAW > CFG_Q24_ONE) ? (int32_t)CFG_Q24_ONE : OBSG_L1_RAW)                                                                        /** L1限幅后，Q24 */\n#define OBSG_L2_T ((3 * OBSG_B2 - OBSG_B3 - CFG_Q24_MUL (OBSG_L1_Q24, OBSG_A_Q24)) > 0 ? (3 * OBSG_B2 - OBSG_B3 - CFG_Q24_MUL (OBSG_L1_Q24, OBSG_A_Q24)) : 0) /** L2中间量，Q24 */\n#define OBSG_L3_NUM ((((int64_t)OBSG_B3 * CFG_TICK_HZ) * CFG_TICK_HZ) << 15)                                                                                  /** L3分子 */\n#define OBS_L1_Q15 (OBSG_L1_Q24 >> 9)                                                                                                                         /** 位置校正增益，Q15 */\n#define OBS_L2_Q15 ((int32_t)(((int64_t)OBSG_L2_T * CFG_TICK_HZ) >> 9))                                                                                       /** 速度校正增益，Q15 */\n#define OBS_L3_Q15 (-(int32_t)((((OBSG_L3_NUM / PLANT_KA_Q8) * 256) >> 24)))                                                                                  /** 负载校正增益，Q15，设计值为负 */\n#define OBS_LOAD_MAX (CFG_PWM_FULL / 3)                                                                                                                       /** 负载估计限幅，PWM计数 */\n#define OBS_VMAX_CDPS (PLANT_VSS_CDPS + (PLANT_VSS_CDPS >> 3))                                                                                                /** 速度估计限幅，厘度/秒 */\n#define OBS_FRIC_INV_Q15 ((int32_t)((1L << 23) / DSG_FRICTION_BLEND_CDPS))                                                                                    /** 摩擦过渡斜率倒数，Q15 */\n\n/* 轨迹规划器限制。 */\n#define TRAJ_VMAX_CDPS ((int32_t)(((int64_t)PLANT_VSS_CDPS * DSG_VMAX_PCT) / 100))            /** 最大速度，厘度/秒 */\n#define TRAJ_AMAX_ACC_RAW ((int32_t)(((int64_t)PLANT_A0_CDPSS * DSG_ACC_RATIO_Q8) >> 8))      /** 加速上限原始值 */\n#define TRAJ_AMAX_DEC_RAW ((int32_t)(((int64_t)PLANT_A0_CDPSS * DSG_DEC_RATIO_Q8) >> 8))      /** 减速上限原始值 */\n#define TRAJ_AMAX_ACC_CDPSS ((TRAJ_AMAX_ACC_RAW > 0) ? TRAJ_AMAX_ACC_RAW : 1)                 /** 加速上限，厘度/秒^2 */\n#define TRAJ_AMAX_DEC_CDPSS ((TRAJ_AMAX_DEC_RAW > 0) ? TRAJ_AMAX_DEC_RAW : 1)                 /** 减速上限，厘度/秒^2 */\n#define TRAJ_SMOOTH_MAX DSG_SMOOTH_MAX                                                        /** 平滑度上限 */\n#define TRAJ_MOVE_MIN_MS TUNE_MOVE_MIN_MS                                                     /** 小位移最短运动时间(ms) */\n#define TRAJ_ACCEL_MIN_MS TUNE_ACCEL_MIN_MS                                                   /** 小位移加速段最短时间(ms) */\n\n/* 位置/速度控制器系数。 */\n#define CTRL_KP_POS_Q8 (DSG_POS_BW_RADS * 256)                                                        /** 位置环P增益，Q8 */\n#define CTRL_KP_VEL_RAW ((int32_t)(((int64_t)DSG_VEL_BW_RADS * 65536 * 256) / PLANT_KA_Q8))           /** 速度环P增益原始值 */\n#define CTRL_KP_VEL_Q16 ((CTRL_KP_VEL_RAW > 0) ? CTRL_KP_VEL_RAW : 1)                                 /** 速度环P增益，Q16 */\n#define CTRL_KP_VEL_BRAKE_Q16 ((int32_t)(((int64_t)CTRL_KP_VEL_Q16 * MODEL_BRAKE_GAIN_Q8) >> 8))      /** 制动侧速度环P增益，Q16 */\n#define CTRL_KI_VEL_RAW ((int32_t)(((int64_t)DSG_VEL_I_RADS * CTRL_KP_VEL_Q16 * CFG_TICK_HZ) / 1000000))/** 速度环I增益原始值 */\n#define CTRL_KI_VEL_Q16 ((CTRL_KI_VEL_RAW > 0) ? CTRL_KI_VEL_RAW : 1)                                 /** 速度环I增益，Q16 */\n#define CTRL_INTEGRAL_MAX (CFG_PWM_FULL / 3)                                                          /** 积分限幅，PWM计数 */\n#define CTRL_INTEGRAL_ACC_GATE (PLANT_A0_CDPSS / 19)                                                  /** 大加速度时冻结积分的阈值 */\n#define CTRL_KVFF_Q16 CAL_SPEED_SLOPE_Q16                                                             /** 速度前馈增益，Q16 */\n#define CTRL_KA_Q20 ((int32_t)((1048576LL * 256) / PLANT_KA_Q8))                                      /** 加速度前馈增益，Q20 */\n#define CTRL_KA_BRAKE_Q20 ((int32_t)(((int64_t)CTRL_KA_Q20 * MODEL_BRAKE_GAIN_Q8) >> 8))              /** 制动侧加速度前馈增益，Q20 */\n#define CTRL_FRIC_DYN CAL_FRICTION_PWM                                                                /** 动摩擦前馈，PWM计数 */\n#define CTRL_FRIC_STATIC ((CAL_BREAKAWAY_PWM > CAL_FRICTION_PWM) ? CAL_BREAKAWAY_PWM : CAL_FRICTION_PWM) /** 静摩擦前馈，PWM计数 */\n#define CTRL_FRIC_MOVE_CDPS DSG_FRIC_MOVE_CDPS                                                        /** 判已挣脱静摩擦的速度门限，厘度/秒 */\n#define CTRL_FRIC_KICK_MAX ((int32_t)CTRL_FRIC_STATIC * DSGC_KICK_MAX_PCT / 100)                      /** 顶起值的自适应抬升上限，PWM计数 */\n#define CTRL_FRIC_KICK_STEP (((CTRL_FRIC_KICK_MAX / DSGC_KICK_RISE_MS) > 0) ? (CTRL_FRIC_KICK_MAX / DSGC_KICK_RISE_MS) : 1) /** 每拍抬升步长，PWM计数 */\n#define CTRL_STUCK_MS DSGC_STUCK_MS                                                                   /** 判定轴粘住所需的连续静止拍数 */\n#define CTRL_NUDGE_PWM ((CTRL_FRIC_STATIC > CTRL_FRIC_DYN) ? CTRL_FRIC_STATIC : 0)                    /** 静止时值得驱动的最小PWM，0=未标定起转 */\n#define CTRL_WCMD_MIN_CDPS DSG_WCMD_MIN_CDPS                                                          /** 最小速度指令，厘度/秒 */\n#define CTRL_MOTOR_SIGN CAL_MOTOR_SIGN                                                                /** 算法坐标到H桥物理方向的符号 */\n#define CTRL_VMAX_CDPS TRAJ_VMAX_CDPS                                                                 /** 最大速度，厘度/秒 */\n#define CTRL_WCORR_MAX ((int32_t)(((int64_t)TRAJ_VMAX_CDPS * DSG_WCORR_PCT) / 100))                   /** 位置环速度修正限幅 */\n#define CTRL_PREVIEW_Q16 ((int32_t)(((int64_t)MODEL_DELAY_TICKS * 65536) / CFG_TICK_HZ))              /** 速度指令的加速度预演时长，Q16秒 */\n#define CTRL_POS_LEAD_Q16 ((MODEL_DELAY_TICKS + MODEL_TAU_MS / 8) * 65536 / CFG_TICK_HZ)              /** 相对速度预测时长(执行延迟+惯性裕量)，Q16秒 */\n#define CTRL_TARGET_DB_CDEG DSG_POS_DEADBAND_CDEG                                                     /** 目标死区，小于它不重新规划，厘度 */\n#define CTRL_POS_DEADBAND DSG_POS_DEADBAND_CDEG                                                       /** 位置死区，厘度 */\n#define CTRL_HOLD_DEADBAND DSG_HOLD_DEADBAND_CDEG                                                     /** 静音捕获窗，厘度 */\n#define CTRL_IN_WIN_CDEG DSG_IN_WIN_CDEG                                                              /** 到位窗，厘度 */\n#define CTRL_OUT_WIN_CDEG DSG_OUT_WIN_CDEG                                                            /** 退出窗，厘度 */\n#define CTRL_QUIET_EXIT_CDEG DSG_QUIET_EXIT_CDEG                                                      /** 静音退出窗，厘度 */\n#define CTRL_HOLD_SPRING_Q8 ((int32_t)TUNE_HOLD_STIFF * 256)                                          /** 保持弹簧刚度，Q8 PWM/厘度 */\n#define CTRL_HOLD_SPRING_DB CTRL_POS_DEADBAND                                                        /** 保持弹簧死区，厘度 */\n#define CTRL_HOLD_SPRING_MAX (CFG_PWM_FULL / 2)                                                      /** 保持弹簧出力上限，PWM */\n#define CTRL_IN_VEL_CDPS DSG_IN_VEL_CDPS                                                              /** 到位零速阈值，厘度/秒 */\n#define CTRL_VEL_DB_CDPS DSG_VEL_DB_CDPS                                                              /** 保持态速度反馈死区，厘度/秒 */\n#define CTRL_IN_HOLD_MS DSG_IN_HOLD_MS                                                                /** 进入到位状态的连续拍数 */\n#define CTRL_PWM_LIMIT CFG_PWM_FULL                                                                   /** 控制器输出限幅 */\n\n/* ============================== 编译期护栏 ============================== */\n#define GUARD_2L_TICKS (2 * MODEL_DELAY_TICKS + 1)                                                       /** 延迟裕度对应的拍数 */\n#define GUARD_OBS_BW_DELAY ((int)((CFG_TICK_HZ * 10000L) / (62832L * GUARD_2L_TICKS)))                   /** 纯延迟允许的观测器带宽上限 */\n#define GUARD_OBS_BW_MAX (((MODEL_RESONANCE_HZ > 0) && ((MODEL_RESONANCE_HZ / 3) < GUARD_OBS_BW_DELAY)) ? (MODEL_RESONANCE_HZ / 3) : GUARD_OBS_BW_DELAY) /** 观测器带宽上限 */\n#define GUARD_FF_PWM (((long)TUNE_SPEED_PCT * PLANT_NET_PWM) / 100 + CAL_FRICTION_PWM)                   /** 巡航段前馈占用的PWM */\ntypedef char guard_obs_bw_exceeds_delay_margin[(TUNE_OBS_BW_HZ <= GUARD_OBS_BW_MAX) ? 1 : -1];\ntypedef char guard_observer_not_3x_faster_than_velocity_loop[(((long)DSG_VEL_BW_RADS * 30000L) <= (62832L * TUNE_OBS_BW_HZ)) ? 1 : -1];\ntypedef char guard_velocity_loop_not_2x_faster_than_position_loop[(TUNE_DAMPING >= 20) ? 1 : -1];\ntypedef char guard_integral_faster_than_position_loop[(TUNE_INTEGRAL_RADS <= TUNE_STIFFNESS_RADS) ? 1 : -1];\ntypedef char guard_hysteresis_window_inverted[(DSG_OUT_WIN_CDEG > DSG_IN_WIN_CDEG) ? 1 : -1];\ntypedef char guard_deadband_wider_than_in_window[(DSG_POS_DEADBAND_CDEG < DSG_IN_WIN_CDEG) ? 1 : -1];\ntypedef char guard_smooth_acc_out_of_range[((TUNE_SMOOTH_ACC >= 0) && (TUNE_SMOOTH_ACC <= DSG_SMOOTH_MAX)) ? 1 : -1];\ntypedef char guard_smooth_dec_out_of_range[((TUNE_SMOOTH_DEC >= 0) && (TUNE_SMOOTH_DEC <= DSG_SMOOTH_MAX)) ? 1 : -1];\ntypedef char guard_speed_pct_out_of_range[((TUNE_SPEED_PCT > 0) && (TUNE_SPEED_PCT <= 100)) ? 1 : -1];\ntypedef char guard_accel_pct_out_of_range[((TUNE_ACCEL_PCT > 0) && (TUNE_ACCEL_PCT <= 100)) ? 1 : -1];\ntypedef char guard_accel_min_ms_below_pure_delay[((TUNE_ACCEL_MIN_MS * 2) >= (2 * MODEL_DELAY_TICKS + 1)) ? 1 : -1];\ntypedef char guard_rev_slide_div_out_of_range[((TUNE_REV_SLIDE_DIV >= 0) && (TUNE_REV_SLIDE_DIV <= 64)) ? 1 : -1];\ntypedef char guard_move_min_ms_out_of_range[((TUNE_MOVE_MIN_MS >= 0) && (TUNE_MOVE_MIN_MS <= 1000)) ? 1 : -1];\ntypedef char guard_resolution_too_small[(TUNE_RESOLUTION_CDEG >= 1) ? 1 : -1];\ntypedef char guard_speed_slope_invalid[(CAL_SPEED_SLOPE_Q16 > 0) ? 1 : -1];\ntypedef char guard_tau_invalid[(MODEL_TAU_MS > 0) ? 1 : -1];\ntypedef char guard_friction_exceeds_full[(CAL_FRICTION_PWM < CFG_PWM_FULL) ? 1 : -1];\ntypedef char guard_breakaway_exceeds_full[(CAL_BREAKAWAY_PWM < CFG_PWM_FULL) ? 1 : -1];\ntypedef char guard_motor_sign_invalid[((CAL_MOTOR_SIGN == 1) || (CAL_MOTOR_SIGN == -1)) ? 1 : -1];\n/* 前馈把输出占满，闭环就不存在了 */\ntypedef char guard_feedforward_leaves_no_headroom[((GUARD_FF_PWM + DSGC_FF_MARGIN_PWM) <= CFG_PWM_FULL) ? 1 : -1];\n/* 保持态死区至少等于最小可靠步长，否则修一个刚超死区的误差就会窜到对面死区之外。 */\ntypedef char guard_hold_stiff_out_of_range[((TUNE_HOLD_STIFF >= 0) && (TUNE_HOLD_STIFF <= 32)) ? 1 : -1];\n/* 静音退出窗必须大于进入窗(捕获窗)，两者之间的回差挡住静止噪声，否则静音反复进出 */\ntypedef char guard_quiet_exit_no_hysteresis[(DSG_QUIET_EXIT_CDEG > DSG_HOLD_DEADBAND_CDEG) ? 1 : -1];\ntypedef char guard_hold_deadband_below_min_step[(DSGC_HOLD_DB_X2 >= 2) ? 1 : -1];\n",
+  "baseline_controller": "/* C_Pos_Ctrl.c 舵机位置闭环控制器，纯算法，无硬件依赖 */\n\n#include \"C_Pos_Ctrl.h\"\n#include \"A_Parameter.h\"\n\n#define POSCTRL_Q15        15U\n#define POSCTRL_Q16        16U\n#define POSCTRL_Q20        20U\ntypedef char guard_brake_gate_numerator_fits_int32[\n    (CTRL_FRIC_MOVE_CDPS > 0 && CTRL_FRIC_MOVE_CDPS <= 65536) ? 1 : -1];\n\nstatic struct {\n    /* 速度PI积分项，Q16 PWM。跨指令保持，只在 Reset 时清零 */\n    int32_t vel_i_q16;\n\n    /* 到位保持状态机 */\n    uint8_t  state;\n    uint16_t hold_cnt;\n    uint8_t  quiet;          /* 真正静止的锁存，进入与退出使用不同位置窗口 */\n    uint8_t  sliding;        /* 1=轴已挣脱静摩擦正在滑动，摩擦前馈改用动摩擦 */\n    int16_t  kick;           /* 顶起值在标定起转值之上的自适应抬升量，PWM计数 */\n    uint16_t stop_cnt;       /* 实测速度连续低于噪声底的拍数，用于判\"真的粘住了\" */\n    uint8_t  held;           /* 1=本段轨迹走完后已进入过保持，此后被外力推开才启用保持弹簧 */\n\n    /* 本拍允许的输出上限，由限功率逻辑下发 */\n    int16_t  out_limit;\n\n    /* 由编译期参数换算的内部系数，Init 时算一次 */\n    int32_t  fric_dir_k;     /* Q15/(厘度/秒)：摩擦方向在零速附近连续建立 */\n} s_ctl;\n\n/* 对称限幅 */\nstatic int32_t PosCtrl_Clamp32(int32_t v, int32_t lim)\n{\n    if (v >  lim) return  lim;\n    if (v < -lim) return -lim;\n    return v;\n}\n\nstatic int32_t PosCtrl_Abs32(int32_t v)\n{\n    return (v < 0) ? -v : v;\n}\n\n/* 位置差折算：圆周坐标折到最短路径(否则过0点时位置环反向满舵)；\n * 线性坐标禁止折算(捷径要穿过测不到角度的死区) */\nstatic int32_t PosCtrl_WrapDiff(int32_t d)\n{\n#if CFG_WRAP_RANGE_CDEG > 0\n    if (d >  (CFG_WRAP_RANGE_CDEG / 2)) d -= CFG_WRAP_RANGE_CDEG;\n    if (d < -(CFG_WRAP_RANGE_CDEG / 2)) d += CFG_WRAP_RANGE_CDEG;\n#endif\n    return d;\n}\n\n/* 清空积分与到位状态，参数不动 */\nvoid C_PosCtrl_Reset(void)\n{\n    s_ctl.vel_i_q16 = 0;\n    s_ctl.state    = (uint8_t)POSCTRL_RUN;\n    s_ctl.hold_cnt = 0;\n    s_ctl.quiet    = 0;\n    s_ctl.sliding  = 0;   /* 复位后按\"粘住\"起步，第一次修正才有起转力 */\n    s_ctl.kick     = 0;\n    s_ctl.stop_cnt = 0;\n    s_ctl.held     = 0;\n}\n\n/* 按编译期参数换算内部系数并复位；改 CTRL_WCMD_MIN_CDPS 后须重新调用 */\nvoid C_PosCtrl_Init(void)\n{\n    int32_t vs = CTRL_WCMD_MIN_CDPS;\n    if (vs < 1) vs = 1;\n    s_ctl.fric_dir_k = (1 << POSCTRL_Q15) / vs;\n\n    s_ctl.out_limit = CTRL_PWM_LIMIT;\n\n    C_PosCtrl_Reset();\n}\n\nvoid C_PosCtrl_Set_Output_Limit(int16_t limit)\n{\n    if (limit <= 0 || limit > CTRL_PWM_LIMIT)\n    {\n        limit = CTRL_PWM_LIMIT;\n    }\n    s_ctl.out_limit = limit;\n}\n\nuint8_t C_PosCtrl_In_Position(void)\n{\n    return (uint8_t)(s_ctl.state == (uint8_t)POSCTRL_HOLD);\n}\n\n/* 摩擦前馈，返回带符号PWM。\n * 方向取速度指令 w_cmd(取误差或实测速度的符号会在零速附近来回翻、形成极限环)，\n * 从0到 CTRL_WCMD_MIN_CDPS 线性建立。幅值按实测速度二值锁存：\n *   |v| >= CTRL_FRIC_MOVE_CDPS                   -> 已滑动，动摩擦直接加上\n *   |v| <= CTRL_VEL_DB_CDPS 连续 CTRL_STUCK_MS 拍  -> 粘住，只把总输出补足到起转值\n * 粘住且要求动却没动时起转值逐拍抬升(上限 CTRL_FRIC_KICK_MAX)，补偿标定偏小。\n * CAL_BREAKAWAY_PWM 未标定时退化为纯动摩擦。 */\nstatic int32_t PosCtrl_Friction(int32_t w_cmd, int32_t av_obs, int32_t u_rest)\n{\n    int32_t dir_q15, want, have;\n\n    /* 正反向共用一组摩擦值：两向差异在标定重复性以内 */\n    dir_q15 = w_cmd * s_ctl.fric_dir_k;\n    dir_q15 = PosCtrl_Clamp32(dir_q15, 1 << POSCTRL_Q15);\n\n    if (av_obs >= CTRL_FRIC_MOVE_CDPS)\n    {\n        s_ctl.sliding  = 1U;\n        s_ctl.stop_cnt = 0U;\n    }\n    else if (av_obs <= CTRL_VEL_DB_CDPS)\n    {\n        if (s_ctl.stop_cnt < CTRL_STUCK_MS) s_ctl.stop_cnt++;\n        else s_ctl.sliding = 0U;\n    }\n    else s_ctl.stop_cnt = 0U;\n\n    if (s_ctl.sliding)  /* 已滑动：动摩擦是持续阻力，直接加上 */\n    {\n        s_ctl.kick = 0;\n        return (int32_t)(((int64_t)dir_q15 * CTRL_FRIC_DYN) >> POSCTRL_Q15);\n    }\n\n    /* 要求动却没动：逐拍抬高顶起值，直到轴真的挣脱。指令归零就清零。 */\n    if (PosCtrl_Abs32(w_cmd) > CTRL_WCMD_MIN_CDPS)\n    {\n        if (s_ctl.kick < CTRL_FRIC_KICK_MAX)\n            s_ctl.kick = (int16_t)(s_ctl.kick + CTRL_FRIC_KICK_STEP);\n    }\n    else s_ctl.kick = 0;\n\n    /* 粘住：把总输出顶到起转值，方向由 w_cmd 给，已经够大就不再补 */\n    want = (int32_t)(((int64_t)dir_q15 * (CTRL_FRIC_STATIC + s_ctl.kick)) >> POSCTRL_Q15);\n    have = u_rest;\n    if (want > 0) return (have < want) ? (want - have) : 0;\n    if (want < 0) return (have > want) ? (want - have) : 0;\n    return 0;\n}\n\n/* 到位保持状态机：进入窗小于退出窗形成滞环；退出判据用未加死区的原始误差 */\nstatic void PosCtrl_Hold_Update(int32_t e_pos_raw, int32_t av_obs, uint8_t traj_done)\n{\n    int32_t ae = PosCtrl_Abs32(e_pos_raw);\n\n    if (s_ctl.state == (uint8_t)POSCTRL_RUN)\n    {\n        if (traj_done && ae <= CTRL_IN_WIN_CDEG &&\n            av_obs <= CTRL_IN_VEL_CDPS)\n        {\n            if (s_ctl.hold_cnt < 0xFFFFU) s_ctl.hold_cnt++;\n            if (s_ctl.hold_cnt >= CTRL_IN_HOLD_MS)\n            {\n                s_ctl.state = (uint8_t)POSCTRL_HOLD;\n            }\n        }\n        else\n        {\n            s_ctl.hold_cnt = 0;\n        }\n    }\n    else\n    {\n        if (!traj_done || ae >= CTRL_OUT_WIN_CDEG)\n        {\n            s_ctl.state    = (uint8_t)POSCTRL_RUN;\n            s_ctl.hold_cnt = 0;\n        }\n    }\n}\n\n/* 推进一拍，返回下发给H桥的PWM；无除法、无开方 */\nint16_t C_PosCtrl_Update(const TrajRef_t *ref, const SpeedObsOut_t *obs,\n                         uint8_t traj_done, PosCtrlDbg_t *dbg)\n{\n    int32_t pos_lead, e_pos, e_pos_ctl, e_vel;\n    int32_t w_corr, w_ff, w_cmd;\n    int32_t av_obs, dead, e_measured, ae_measured;\n    uint8_t decelerating;\n    uint8_t holding_load;\n    int32_t u_fric, u_vel, u_acc, u_fb, u_i, u_spring;\n    int32_t u_unsat, u_sat, u_out;\n    int32_t lim = s_ctl.out_limit;\n\n    if (ref == 0 || obs == 0) return 0;\n\n    av_obs = PosCtrl_Abs32(obs->vel);\n    /* 用扰动估计识别持续负载(只做判断不前馈)：带载时保留闭环和积分，防止静音后滑落 */\n    holding_load = (uint8_t)(traj_done && CTRL_NUDGE_PWM > 0\n        && PosCtrl_Abs32(obs->load) >= CTRL_FRIC_STATIC / 2);\n\n    /* 1. 位置误差：对 obs-ref 相对位移做预测，匀速吻合时附加项为0，超速时提前加制动 */\n    pos_lead = obs->pos\n             + (int32_t)(((int64_t)(obs->vel - ref->vel)\n                          * CTRL_POS_LEAD_Q16) >> POSCTRL_Q16);\n    e_pos = PosCtrl_WrapDiff(ref->pos - pos_lead);\n\n    /* 2. 到位保持：先用原始误差更新状态机，再加死区 */\n    /* 到位判断用实际残差；预测项仅供运动控制，不能让速度噪声改变静音窗口。 */\n    e_measured = PosCtrl_WrapDiff(ref->pos - obs->pos);\n    ae_measured = PosCtrl_Abs32(e_measured);\n    PosCtrl_Hold_Update(e_measured, av_obs, traj_done);\n    if (!traj_done) s_ctl.held = 0U;\n    else if (s_ctl.state == (uint8_t)POSCTRL_HOLD) s_ctl.held = 1U;\n    if (!traj_done || holding_load\n        || ae_measured >= CTRL_QUIET_EXIT_CDEG\n        || av_obs > CTRL_IN_VEL_CDPS)\n        s_ctl.quiet = 0U;\n    else if (s_ctl.state == (uint8_t)POSCTRL_HOLD\n             && ae_measured <= CTRL_HOLD_DEADBAND\n             && av_obs <= CTRL_VEL_DB_CDPS)\n        s_ctl.quiet = 1U;\n\n    /* 位置死区任何状态都生效：比最小可靠位移还小的残差去踹静摩擦必然窜过头，形成极限环。\n     * 修正阶段仍用小死区，让轴能走进 CTRL_HOLD_DEADBAND 捕获窗。 */\n    dead = CTRL_POS_DEADBAND;\n    e_pos_ctl = e_pos;\n    if (e_pos_ctl >  dead) e_pos_ctl -= dead;\n    else if (e_pos_ctl < -dead) e_pos_ctl += dead;\n    else e_pos_ctl = 0;\n\n    /* 3. 位置P -> 速度修正，单独限幅，跟踪误差再大也不把速度指令推满 */\n    w_corr = (int32_t)(((int64_t)CTRL_KP_POS_Q8 * e_pos_ctl) >> 8);\n    w_corr = PosCtrl_Clamp32(w_corr, CTRL_WCORR_MAX);\n\n    /* 4. 预览：用参考加速度把参考速度提前 Tact 补执行延迟，只作用于前馈 */\n    w_ff  = ref->vel\n          + (int32_t)(((int64_t)ref->acc * CTRL_PREVIEW_Q16) >> POSCTRL_Q16);\n    w_cmd = PosCtrl_Clamp32(w_ff + w_corr, CTRL_VMAX_CDPS);\n\n    /* 5. 速度误差：观测器速度无滞后，直接与参考比较 */\n    e_vel = (ref->vel + w_corr) - obs->vel;\n\n    /* 6. 减速状态：减速段及轨迹结束后仍有残余速度时用独立增益 */\n    decelerating = 0U;\n    if (av_obs > CTRL_WCMD_MIN_CDPS &&\n        (((int64_t)ref->acc * obs->vel < 0) || traj_done))\n    {\n        decelerating = 1U;\n    }\n\n    /* 7. 前馈组。摩擦前馈放到第9节(粘住时需先知道其余各项之和)，且不按HOLD关闭：末端挪动正需要它 */\n    u_vel  = (int32_t)(((int64_t)CTRL_KVFF_Q16 * w_cmd) >> POSCTRL_Q16);\n\n    /* 减速段 acc 与 vel 反号即主动制动；慢衰减H桥制动侧增益较弱，单独用 Ka_brake。判据用参考量，无噪声 */\n    u_acc  = (int32_t)(((int64_t)(((int64_t)ref->acc * ref->vel < 0)\n                                  ? CTRL_KA_BRAKE_Q20\n                                  : CTRL_KA_Q20)\n                        * ref->acc) >> POSCTRL_Q20);\n\n    /* 制动前馈按行进方向上的实测剩余速度放行：轴已先停时，残余制动前馈会把轴往回推(到位回摆)。\n     * 尺度取 CTRL_FRIC_MOVE_CDPS，与判\"轴在动\"是同一门限。 */\n    if ((int64_t)ref->acc * ref->vel < 0)\n    {\n        int32_t v_along = (ref->vel >= 0) ? obs->vel : -obs->vel;\n        int32_t g_q15;\n\n        if (v_along <= 0)                       g_q15 = 0;\n        else if (v_along >= CTRL_FRIC_MOVE_CDPS) g_q15 = 1 << POSCTRL_Q15;\n        else g_q15 = (v_along * (1L << POSCTRL_Q15)) / CTRL_FRIC_MOVE_CDPS;\n\n        u_acc = (int32_t)(((int64_t)u_acc * g_q15) >> POSCTRL_Q15);\n    }\n\n    /* 8. 速度PI的P项：减速段与残余运动用独立增益 */\n    /* 保持态给 e_vel 加噪声底死区(轴停住后 obs.vel 只剩量化噪声)；只在保持态生效，积分仍用原始 e_vel */\n    {\n        int32_t e_vel_fb = e_vel;   /* 供P反馈用的速度误差 */\n\n        if (s_ctl.state == (uint8_t)POSCTRL_HOLD)\n        {\n            if (e_vel_fb >  CTRL_VEL_DB_CDPS)      e_vel_fb -= CTRL_VEL_DB_CDPS;\n            else if (e_vel_fb < -CTRL_VEL_DB_CDPS) e_vel_fb += CTRL_VEL_DB_CDPS;\n            else                                      e_vel_fb  = 0;\n        }\n\n        u_fb = (int32_t)(((int64_t)(decelerating ? CTRL_KP_VEL_BRAKE_Q16\n                                                : CTRL_KP_VEL_Q16) * e_vel_fb)\n                         >> POSCTRL_Q16);\n    }\n\n    /* 8.5 保持弹簧：到位后被外力推开时按目标误差直接回推。级联环为压传感器噪声调得很软，\n     * 走位和到位过程不受影响(只在进入过保持之后生效)，静止时仍由静音锁存保证不出力。 */\n    u_spring = 0;\n    if (CTRL_HOLD_SPRING_Q8 > 0 && s_ctl.held && !s_ctl.quiet)\n    {\n        int32_t e_sp = e_measured;\n        if (e_sp >  CTRL_HOLD_SPRING_DB)      e_sp -= CTRL_HOLD_SPRING_DB;\n        else if (e_sp < -CTRL_HOLD_SPRING_DB) e_sp += CTRL_HOLD_SPRING_DB;\n        else                                   e_sp  = 0;\n        u_spring = PosCtrl_Clamp32((int32_t)(((int64_t)CTRL_HOLD_SPRING_Q8 * e_sp) >> 8),\n                                   CTRL_HOLD_SPRING_MAX);\n    }\n\n    /* 9. 摩擦前馈与合成限幅 */\n    u_i     = s_ctl.vel_i_q16 >> POSCTRL_Q16;\n    u_fric  = PosCtrl_Friction(w_cmd, av_obs, u_vel + u_acc + u_fb + u_i + u_spring);\n    u_unsat = u_fric + u_vel + u_acc + u_fb + u_i + u_spring;\n    u_sat   = PosCtrl_Clamp32(u_unsat, lim);\n\n    /* 10. 速度PI积分项，全系统唯一的积分器(观测器 d 不外送)。三重保护：\n     *   死区泄放 —— 位置误差进死区只泄放不积分，消除极限环；\n     *   瞬态冻结 —— |acc_ref| 大时不积分，动态模型残差不是负载；\n     *   条件积分 —— 饱和时只冻结加深饱和的方向。不用回退式：本结构饱和主体是前馈，\n     *               回退会把积分器钉在反向钳位上。\n     * 不随新指令清零，换姿态后仍带着负载补偿。 */\n    if (s_ctl.quiet)\n    {\n        s_ctl.vel_i_q16 = 0; /* 已选择短路制动，不能保留会在下一次释放的历史力矩 */\n    }\n    else if (PosCtrl_Abs32(e_pos) <= dead)\n    {\n        if (!holding_load) s_ctl.vel_i_q16 -= s_ctl.vel_i_q16 >> 12;\n    }\n    else if (u_spring != 0)\n    {\n        /* 被推开期间冻结积分：推力由弹簧顶，松手后积分仍是推之前的负载补偿，\n         * 不会把轴弹过原位，也不会剩一截积分在死区里带电顶着 */\n    }\n    else if (PosCtrl_Abs32(ref->acc) <= CTRL_INTEGRAL_ACC_GATE)\n    {\n        int32_t di = CTRL_KI_VEL_Q16 * e_vel;   /* 本拍积分增量，Q16 PWM */\n\n        /* 轨迹结束、轴已低速且仍在静音窗外：加快建立缺少的静摩擦力 */\n        if (traj_done && av_obs <= CTRL_VEL_DB_CDPS\n            && PosCtrl_Abs32(e_pos) > CTRL_HOLD_DEADBAND)\n            di *= 4;\n\n        /* 饱和且增量还往饱和侧推 -> 冻结 */\n        if (!((u_unsat > u_sat && di > 0) || (u_unsat < u_sat && di < 0)))\n        {\n            s_ctl.vel_i_q16 += di;\n            s_ctl.vel_i_q16 = PosCtrl_Clamp32(s_ctl.vel_i_q16,\n                                              CTRL_INTEGRAL_MAX << POSCTRL_Q16);\n        }\n    }\n\n    /* 10.5 保持态输出：无负载、进捕获窗且速度降到噪声底时锁存短路制动，误差超出 CTRL_IN_WIN_CDEG、\n     * 明显运动或新轨迹时退出。静止轴净输出不足 CTRL_NUDGE_PWM 时先不驱动，让积分建立；带负载保留保持力。 */\n    u_out = u_sat;\n    if (s_ctl.quiet)\n    {\n        u_out = 0;\n    }\n    else if (s_ctl.state == (uint8_t)POSCTRL_HOLD && !holding_load)\n    {\n        if (PosCtrl_Abs32(e_pos) <= dead && av_obs <= CTRL_VEL_DB_CDPS)\n        {\n            u_out = 0;\n        }\n        else if (av_obs <= CTRL_VEL_DB_CDPS && PosCtrl_Abs32(u_sat) < CTRL_NUDGE_PWM && u_spring == 0)\n        {\n            u_out = 0;              /* 还不够起转，先积累 */\n        }\n    }\n\n    /* 11. 遥测 */\n    if (dbg != 0)\n    {\n        dbg->e_pos  = e_pos;\n        dbg->e_vel  = e_vel;\n        dbg->w_corr = w_corr;\n        dbg->w_cmd  = w_cmd;\n        dbg->u_fric = (int16_t)u_fric;\n        dbg->u_vel  = (int16_t)u_vel;\n        dbg->u_acc  = (int16_t)u_acc;\n        dbg->u_fb   = (int16_t)u_fb;\n        dbg->u_i    = (int16_t)u_i;\n        dbg->u_out  = (int16_t)u_out;\n        dbg->state  = s_ctl.state;\n        dbg->sat    = (uint8_t)((u_unsat != u_sat) ? 1U : 0U);\n        dbg->braking = decelerating;\n    }\n\n    return (int16_t)(u_out * CTRL_MOTOR_SIGN);\n}\n",
+  "cases": [
+    [
+      "nominal_d5",
+      5,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "slow_d5",
+      5,
+      0,
+      1,
+      1.27,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "fast_d5",
+      5,
+      0,
+      1,
+      0.64,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "load_d5",
+      5,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      150
+    ],
+    [
+      "delay_d5",
+      5,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      2,
+      0
+    ],
+    [
+      "nominal_d10",
+      10,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "slow_d10",
+      10,
+      0,
+      1,
+      1.27,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "fast_d10",
+      10,
+      0,
+      1,
+      0.64,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "load_d10",
+      10,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      150
+    ],
+    [
+      "delay_d10",
+      10,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      2,
+      0
+    ],
+    [
+      "nominal_d20",
+      20,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "slow_d20",
+      20,
+      0,
+      1,
+      1.27,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "fast_d20",
+      20,
+      0,
+      1,
+      0.64,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "load_d20",
+      20,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      150
+    ],
+    [
+      "delay_d20",
+      20,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      2,
+      0
+    ],
+    [
+      "nominal_d50",
+      50,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "slow_d50",
+      50,
+      0,
+      1,
+      1.27,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "fast_d50",
+      50,
+      0,
+      1,
+      0.64,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "load_d50",
+      50,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      150
+    ],
+    [
+      "delay_d50",
+      50,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      2,
+      0
+    ],
+    [
+      "nominal_d100",
+      100,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "slow_d100",
+      100,
+      0,
+      1,
+      1.27,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "fast_d100",
+      100,
+      0,
+      1,
+      0.64,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "load_d100",
+      100,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      150
+    ],
+    [
+      "delay_d100",
+      100,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      2,
+      0
+    ],
+    [
+      "nominal_d150",
+      150,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "slow_d150",
+      150,
+      0,
+      1,
+      1.27,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "fast_d150",
+      150,
+      0,
+      1,
+      0.64,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "load_d150",
+      150,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      150
+    ],
+    [
+      "delay_d150",
+      150,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      2,
+      0
+    ],
+    [
+      "nominal_d-10",
+      -10,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "slow_d-10",
+      -10,
+      0,
+      1,
+      1.27,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "fast_d-10",
+      -10,
+      0,
+      1,
+      0.64,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "load_d-10",
+      -10,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      150
+    ],
+    [
+      "delay_d-10",
+      -10,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      2,
+      0
+    ],
+    [
+      "nominal_d-50",
+      -50,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "slow_d-50",
+      -50,
+      0,
+      1,
+      1.27,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "fast_d-50",
+      -50,
+      0,
+      1,
+      0.64,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "load_d-50",
+      -50,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      150
+    ],
+    [
+      "delay_d-50",
+      -50,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      2,
+      0
+    ],
+    [
+      "nominal_d-100",
+      -100,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "slow_d-100",
+      -100,
+      0,
+      1,
+      1.27,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "fast_d-100",
+      -100,
+      0,
+      1,
+      0.64,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "load_d-100",
+      -100,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      150
+    ],
+    [
+      "delay_d-100",
+      -100,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      2,
+      0
+    ],
+    [
+      "nominal_d-150",
+      -150,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "slow_d-150",
+      -150,
+      0,
+      1,
+      1.27,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "fast_d-150",
+      -150,
+      0,
+      1,
+      0.64,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "load_d-150",
+      -150,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      150
+    ],
+    [
+      "delay_d-150",
+      -150,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      2,
+      0
+    ],
+    [
+      "nominal_d500",
+      500,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "slow_d500",
+      500,
+      0,
+      1,
+      1.27,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "fast_d500",
+      500,
+      0,
+      1,
+      0.64,
+      1,
+      5.21,
+      0,
+      0
+    ],
+    [
+      "load_d500",
+      500,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      0,
+      150
+    ],
+    [
+      "delay_d500",
+      500,
+      0,
+      1,
+      1,
+      1,
+      5.21,
+      2,
+      0
+    ]
+  ],
+  "variants": {
+    "baseline": {
+      "settings": {},
+      "arm": false,
+      "results": {
+        "nominal_d5": {
+          "ref_ms": 85,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0449,
+          "last_motion_ms": 86,
+          "settle_ms": 33,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d5": {
+          "ref_ms": 85,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0789,
+          "last_motion_ms": 92,
+          "settle_ms": 36,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d5": {
+          "ref_ms": 85,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0068,
+          "last_motion_ms": 77,
+          "settle_ms": 29,
+          "tail_pp_deg": 0.0
+        },
+        "load_d5": {
+          "ref_ms": 85,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.4885,
+          "last_motion_ms": 71,
+          "settle_ms": 62,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d5": {
+          "ref_ms": 85,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0452,
+          "last_motion_ms": 88,
+          "settle_ms": 35,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.068,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.068,
+          "last_motion_ms": 89,
+          "settle_ms": 46,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0229,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0229,
+          "last_motion_ms": 98,
+          "settle_ms": 51,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.129,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.129,
+          "last_motion_ms": 75,
+          "settle_ms": 39,
+          "tail_pp_deg": 0.0
+        },
+        "load_d10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3966,
+          "last_motion_ms": 78,
+          "settle_ms": 59,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0817,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0817,
+          "last_motion_ms": 90,
+          "settle_ms": 48,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d20": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.1844,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.1844,
+          "last_motion_ms": 94,
+          "settle_ms": 55,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d20": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.1293,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.1293,
+          "last_motion_ms": 109,
+          "settle_ms": 62,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d20": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.2401,
+          "reverse_travel_deg": 0.006,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.2341,
+          "last_motion_ms": 79,
+          "settle_ms": 47,
+          "tail_pp_deg": 0.0
+        },
+        "load_d20": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3153,
+          "last_motion_ms": 84,
+          "settle_ms": 65,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d20": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.2073,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.2073,
+          "last_motion_ms": 94,
+          "settle_ms": 57,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d50": {
+          "ref_ms": 110,
+          "overshoot_deg": 0.2808,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.2808,
+          "last_motion_ms": 123,
+          "settle_ms": 82,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d50": {
+          "ref_ms": 114,
+          "overshoot_deg": 0.6219,
+          "reverse_travel_deg": 0.4022,
+          "reverse_peak_dps": 11.192,
+          "final_error_deg": 0.2196,
+          "last_motion_ms": 192,
+          "settle_ms": 152,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d50": {
+          "ref_ms": 109,
+          "overshoot_deg": 0.1953,
+          "reverse_travel_deg": 0.0014,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.1953,
+          "last_motion_ms": 109,
+          "settle_ms": 72,
+          "tail_pp_deg": 0.0
+        },
+        "load_d50": {
+          "ref_ms": 112,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.1934,
+          "last_motion_ms": 112,
+          "settle_ms": 90,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d50": {
+          "ref_ms": 112,
+          "overshoot_deg": 0.5299,
+          "reverse_travel_deg": 0.2659,
+          "reverse_peak_dps": 9.018,
+          "final_error_deg": 0.264,
+          "last_motion_ms": 180,
+          "settle_ms": 142,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d100": {
+          "ref_ms": 160,
+          "overshoot_deg": 0.2431,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.2431,
+          "last_motion_ms": 173,
+          "settle_ms": 133,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d100": {
+          "ref_ms": 167,
+          "overshoot_deg": 0.9405,
+          "reverse_travel_deg": 0.7569,
+          "reverse_peak_dps": 12.155,
+          "final_error_deg": 0.1836,
+          "last_motion_ms": 302,
+          "settle_ms": 257,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d100": {
+          "ref_ms": 158,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0859,
+          "last_motion_ms": 158,
+          "settle_ms": 127,
+          "tail_pp_deg": 0.0
+        },
+        "load_d100": {
+          "ref_ms": 164,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.2762,
+          "last_motion_ms": 165,
+          "settle_ms": 145,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d100": {
+          "ref_ms": 162,
+          "overshoot_deg": 0.4893,
+          "reverse_travel_deg": 0.1954,
+          "reverse_peak_dps": 6.608,
+          "final_error_deg": 0.294,
+          "last_motion_ms": 227,
+          "settle_ms": 131,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d150": {
+          "ref_ms": 207,
+          "overshoot_deg": 0.2575,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.2575,
+          "last_motion_ms": 221,
+          "settle_ms": 180,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d150": {
+          "ref_ms": 214,
+          "overshoot_deg": 0.9587,
+          "reverse_travel_deg": 0.7776,
+          "reverse_peak_dps": 12.458,
+          "final_error_deg": 0.1811,
+          "last_motion_ms": 349,
+          "settle_ms": 304,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d150": {
+          "ref_ms": 205,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.1381,
+          "last_motion_ms": 206,
+          "settle_ms": 176,
+          "tail_pp_deg": 0.0
+        },
+        "load_d150": {
+          "ref_ms": 210,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3422,
+          "last_motion_ms": 221,
+          "settle_ms": 197,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d150": {
+          "ref_ms": 209,
+          "overshoot_deg": 0.4925,
+          "reverse_travel_deg": 0.2002,
+          "reverse_peak_dps": 6.792,
+          "final_error_deg": 0.2923,
+          "last_motion_ms": 274,
+          "settle_ms": 179,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d-10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0026,
+          "last_motion_ms": 88,
+          "settle_ms": 48,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d-10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0478,
+          "last_motion_ms": 97,
+          "settle_ms": 53,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d-10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0668,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0668,
+          "last_motion_ms": 75,
+          "settle_ms": 41,
+          "tail_pp_deg": 0.0
+        },
+        "load_d-10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.4995,
+          "reverse_travel_deg": 0.0263,
+          "reverse_peak_dps": 1.991,
+          "final_error_deg": -0.4732,
+          "last_motion_ms": 126,
+          "settle_ms": 41,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d-10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.012,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.012,
+          "last_motion_ms": 89,
+          "settle_ms": 50,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d-50": {
+          "ref_ms": 110,
+          "overshoot_deg": 0.2519,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.2519,
+          "last_motion_ms": 123,
+          "settle_ms": 83,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d-50": {
+          "ref_ms": 114,
+          "overshoot_deg": 0.5969,
+          "reverse_travel_deg": 0.383,
+          "reverse_peak_dps": 10.107,
+          "final_error_deg": -0.2139,
+          "last_motion_ms": 192,
+          "settle_ms": 149,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d-50": {
+          "ref_ms": 109,
+          "overshoot_deg": 0.1687,
+          "reverse_travel_deg": 0.0011,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.1676,
+          "last_motion_ms": 99,
+          "settle_ms": 72,
+          "tail_pp_deg": 0.0
+        },
+        "load_d-50": {
+          "ref_ms": 109,
+          "overshoot_deg": 0.7648,
+          "reverse_travel_deg": 0.7827,
+          "reverse_peak_dps": 16.419,
+          "final_error_deg": 0.0179,
+          "last_motion_ms": 512,
+          "settle_ms": 392,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d-50": {
+          "ref_ms": 112,
+          "overshoot_deg": 0.5013,
+          "reverse_travel_deg": 0.2288,
+          "reverse_peak_dps": 6.922,
+          "final_error_deg": -0.2725,
+          "last_motion_ms": 184,
+          "settle_ms": 134,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d-100": {
+          "ref_ms": 161,
+          "overshoot_deg": 0.3462,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3462,
+          "last_motion_ms": 169,
+          "settle_ms": 132,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d-100": {
+          "ref_ms": 166,
+          "overshoot_deg": 0.8124,
+          "reverse_travel_deg": 0.6565,
+          "reverse_peak_dps": 12.991,
+          "final_error_deg": -0.1559,
+          "last_motion_ms": 285,
+          "settle_ms": 240,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d-100": {
+          "ref_ms": 158,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0857,
+          "last_motion_ms": 159,
+          "settle_ms": 128,
+          "tail_pp_deg": 0.0
+        },
+        "load_d-100": {
+          "ref_ms": 159,
+          "overshoot_deg": 0.9826,
+          "reverse_travel_deg": 0.8938,
+          "reverse_peak_dps": 15.41,
+          "final_error_deg": -0.0888,
+          "last_motion_ms": 460,
+          "settle_ms": 394,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d-100": {
+          "ref_ms": 163,
+          "overshoot_deg": 0.5973,
+          "reverse_travel_deg": 0.3658,
+          "reverse_peak_dps": 11.181,
+          "final_error_deg": -0.2316,
+          "last_motion_ms": 231,
+          "settle_ms": 195,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d-150": {
+          "ref_ms": 207,
+          "overshoot_deg": 0.3275,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3275,
+          "last_motion_ms": 217,
+          "settle_ms": 179,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d-150": {
+          "ref_ms": 214,
+          "overshoot_deg": 1.0211,
+          "reverse_travel_deg": 0.8643,
+          "reverse_peak_dps": 12.535,
+          "final_error_deg": -0.1568,
+          "last_motion_ms": 357,
+          "settle_ms": 310,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d-150": {
+          "ref_ms": 204,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.1515,
+          "last_motion_ms": 204,
+          "settle_ms": 176,
+          "tail_pp_deg": 0.0
+        },
+        "load_d-150": {
+          "ref_ms": 205,
+          "overshoot_deg": 1.1394,
+          "reverse_travel_deg": 0.9363,
+          "reverse_peak_dps": 13.209,
+          "final_error_deg": -0.2031,
+          "last_motion_ms": 470,
+          "settle_ms": 424,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d-150": {
+          "ref_ms": 209,
+          "overshoot_deg": 0.5742,
+          "reverse_travel_deg": 0.3299,
+          "reverse_peak_dps": 10.227,
+          "final_error_deg": -0.2443,
+          "last_motion_ms": 276,
+          "settle_ms": 239,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d500": {
+          "ref_ms": 535,
+          "overshoot_deg": 0.3119,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.3119,
+          "last_motion_ms": 549,
+          "settle_ms": 507,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d500": {
+          "ref_ms": 542,
+          "overshoot_deg": 0.931,
+          "reverse_travel_deg": 0.7576,
+          "reverse_peak_dps": 12.271,
+          "final_error_deg": 0.1734,
+          "last_motion_ms": 675,
+          "settle_ms": 629,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d500": {
+          "ref_ms": 533,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3001,
+          "last_motion_ms": 559,
+          "settle_ms": 511,
+          "tail_pp_deg": 0.0
+        },
+        "load_d500": {
+          "ref_ms": 540,
+          "overshoot_deg": 0.0737,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0737,
+          "last_motion_ms": 554,
+          "settle_ms": 517,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d500": {
+          "ref_ms": 537,
+          "overshoot_deg": 0.4838,
+          "reverse_travel_deg": 0.1741,
+          "reverse_peak_dps": 5.704,
+          "final_error_deg": 0.3097,
+          "last_motion_ms": 605,
+          "settle_ms": 507,
+          "tail_pp_deg": 0.0
+        }
+      }
+    },
+    "arm_settled": {
+      "settings": {},
+      "arm": "settled",
+      "results": {
+        "nominal_d5": {
+          "ref_ms": 85,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0449,
+          "last_motion_ms": 86,
+          "settle_ms": 33,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d5": {
+          "ref_ms": 85,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0789,
+          "last_motion_ms": 92,
+          "settle_ms": 36,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d5": {
+          "ref_ms": 85,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0068,
+          "last_motion_ms": 77,
+          "settle_ms": 29,
+          "tail_pp_deg": 0.0
+        },
+        "load_d5": {
+          "ref_ms": 85,
+          "overshoot_deg": 0.3459,
+          "reverse_travel_deg": 0.0252,
+          "reverse_peak_dps": 2.491,
+          "final_error_deg": 0.3208,
+          "last_motion_ms": 992,
+          "settle_ms": 62,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d5": {
+          "ref_ms": 85,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0452,
+          "last_motion_ms": 88,
+          "settle_ms": 35,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.068,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.068,
+          "last_motion_ms": 89,
+          "settle_ms": 46,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0229,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0229,
+          "last_motion_ms": 98,
+          "settle_ms": 51,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.129,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.129,
+          "last_motion_ms": 75,
+          "settle_ms": 39,
+          "tail_pp_deg": 0.0
+        },
+        "load_d10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3966,
+          "last_motion_ms": 78,
+          "settle_ms": 59,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0817,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0817,
+          "last_motion_ms": 90,
+          "settle_ms": 48,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d20": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.1844,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.1844,
+          "last_motion_ms": 94,
+          "settle_ms": 55,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d20": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.1293,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.1293,
+          "last_motion_ms": 109,
+          "settle_ms": 62,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d20": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.2401,
+          "reverse_travel_deg": 0.006,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.2341,
+          "last_motion_ms": 79,
+          "settle_ms": 47,
+          "tail_pp_deg": 0.0
+        },
+        "load_d20": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3153,
+          "last_motion_ms": 84,
+          "settle_ms": 65,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d20": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.2073,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.2073,
+          "last_motion_ms": 94,
+          "settle_ms": 57,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d50": {
+          "ref_ms": 110,
+          "overshoot_deg": 0.2808,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.2808,
+          "last_motion_ms": 123,
+          "settle_ms": 82,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d50": {
+          "ref_ms": 114,
+          "overshoot_deg": 0.6219,
+          "reverse_travel_deg": 0.3033,
+          "reverse_peak_dps": 6.707,
+          "final_error_deg": 0.3186,
+          "last_motion_ms": 215,
+          "settle_ms": 176,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d50": {
+          "ref_ms": 109,
+          "overshoot_deg": 0.1953,
+          "reverse_travel_deg": 0.0014,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.1953,
+          "last_motion_ms": 109,
+          "settle_ms": 72,
+          "tail_pp_deg": 0.0
+        },
+        "load_d50": {
+          "ref_ms": 112,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.1934,
+          "last_motion_ms": 112,
+          "settle_ms": 90,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d50": {
+          "ref_ms": 112,
+          "overshoot_deg": 0.5299,
+          "reverse_travel_deg": 0.1906,
+          "reverse_peak_dps": 5.467,
+          "final_error_deg": 0.3393,
+          "last_motion_ms": 198,
+          "settle_ms": 155,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d100": {
+          "ref_ms": 160,
+          "overshoot_deg": 0.2431,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.2431,
+          "last_motion_ms": 173,
+          "settle_ms": 133,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d100": {
+          "ref_ms": 167,
+          "overshoot_deg": 0.9405,
+          "reverse_travel_deg": 0.6301,
+          "reverse_peak_dps": 7.303,
+          "final_error_deg": 0.3103,
+          "last_motion_ms": 301,
+          "settle_ms": 261,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d100": {
+          "ref_ms": 158,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0859,
+          "last_motion_ms": 158,
+          "settle_ms": 127,
+          "tail_pp_deg": 0.0
+        },
+        "load_d100": {
+          "ref_ms": 164,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.2762,
+          "last_motion_ms": 165,
+          "settle_ms": 145,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d100": {
+          "ref_ms": 162,
+          "overshoot_deg": 0.4893,
+          "reverse_travel_deg": 0.1672,
+          "reverse_peak_dps": 5.794,
+          "final_error_deg": 0.3221,
+          "last_motion_ms": 239,
+          "settle_ms": 131,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d150": {
+          "ref_ms": 207,
+          "overshoot_deg": 0.2575,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.2575,
+          "last_motion_ms": 221,
+          "settle_ms": 180,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d150": {
+          "ref_ms": 214,
+          "overshoot_deg": 0.9587,
+          "reverse_travel_deg": 0.6483,
+          "reverse_peak_dps": 7.081,
+          "final_error_deg": 0.3104,
+          "last_motion_ms": 350,
+          "settle_ms": 309,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d150": {
+          "ref_ms": 205,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.1381,
+          "last_motion_ms": 206,
+          "settle_ms": 176,
+          "tail_pp_deg": 0.0
+        },
+        "load_d150": {
+          "ref_ms": 210,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3422,
+          "last_motion_ms": 221,
+          "settle_ms": 197,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d150": {
+          "ref_ms": 209,
+          "overshoot_deg": 0.4925,
+          "reverse_travel_deg": 0.1603,
+          "reverse_peak_dps": 5.631,
+          "final_error_deg": 0.3321,
+          "last_motion_ms": 285,
+          "settle_ms": 179,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d-10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0026,
+          "last_motion_ms": 88,
+          "settle_ms": 48,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d-10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0478,
+          "last_motion_ms": 97,
+          "settle_ms": 53,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d-10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.0668,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.0668,
+          "last_motion_ms": 75,
+          "settle_ms": 41,
+          "tail_pp_deg": 0.0
+        },
+        "load_d-10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.4995,
+          "reverse_travel_deg": 0.8344,
+          "reverse_peak_dps": 9.18,
+          "final_error_deg": 0.3237,
+          "last_motion_ms": 972,
+          "settle_ms": 41,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d-10": {
+          "ref_ms": 84,
+          "overshoot_deg": 0.012,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.012,
+          "last_motion_ms": 89,
+          "settle_ms": 50,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d-50": {
+          "ref_ms": 110,
+          "overshoot_deg": 0.2519,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.2519,
+          "last_motion_ms": 123,
+          "settle_ms": 83,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d-50": {
+          "ref_ms": 114,
+          "overshoot_deg": 0.5969,
+          "reverse_travel_deg": 0.3137,
+          "reverse_peak_dps": 6.397,
+          "final_error_deg": -0.2832,
+          "last_motion_ms": 222,
+          "settle_ms": 175,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d-50": {
+          "ref_ms": 109,
+          "overshoot_deg": 0.1687,
+          "reverse_travel_deg": 0.0011,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.1676,
+          "last_motion_ms": 99,
+          "settle_ms": 72,
+          "tail_pp_deg": 0.0
+        },
+        "load_d-50": {
+          "ref_ms": 109,
+          "overshoot_deg": 0.7648,
+          "reverse_travel_deg": 0.5313,
+          "reverse_peak_dps": 3.981,
+          "final_error_deg": -0.2335,
+          "last_motion_ms": 525,
+          "settle_ms": 425,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d-50": {
+          "ref_ms": 112,
+          "overshoot_deg": 0.5013,
+          "reverse_travel_deg": 0.1987,
+          "reverse_peak_dps": 6.118,
+          "final_error_deg": -0.3026,
+          "last_motion_ms": 194,
+          "settle_ms": 140,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d-100": {
+          "ref_ms": 161,
+          "overshoot_deg": 0.3462,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3462,
+          "last_motion_ms": 169,
+          "settle_ms": 132,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d-100": {
+          "ref_ms": 166,
+          "overshoot_deg": 0.8124,
+          "reverse_travel_deg": 0.5314,
+          "reverse_peak_dps": 6.831,
+          "final_error_deg": -0.281,
+          "last_motion_ms": 292,
+          "settle_ms": 246,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d-100": {
+          "ref_ms": 158,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0857,
+          "last_motion_ms": 159,
+          "settle_ms": 128,
+          "tail_pp_deg": 0.0
+        },
+        "load_d-100": {
+          "ref_ms": 159,
+          "overshoot_deg": 0.9826,
+          "reverse_travel_deg": 0.7072,
+          "reverse_peak_dps": 7.657,
+          "final_error_deg": -0.2754,
+          "last_motion_ms": 454,
+          "settle_ms": 403,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d-100": {
+          "ref_ms": 163,
+          "overshoot_deg": 0.5973,
+          "reverse_travel_deg": 0.2545,
+          "reverse_peak_dps": 5.269,
+          "final_error_deg": -0.3428,
+          "last_motion_ms": 251,
+          "settle_ms": 209,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d-150": {
+          "ref_ms": 207,
+          "overshoot_deg": 0.3275,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3275,
+          "last_motion_ms": 217,
+          "settle_ms": 179,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d-150": {
+          "ref_ms": 214,
+          "overshoot_deg": 1.0211,
+          "reverse_travel_deg": 0.7394,
+          "reverse_peak_dps": 7.638,
+          "final_error_deg": -0.2817,
+          "last_motion_ms": 358,
+          "settle_ms": 314,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d-150": {
+          "ref_ms": 204,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.1515,
+          "last_motion_ms": 204,
+          "settle_ms": 176,
+          "tail_pp_deg": 0.0
+        },
+        "load_d-150": {
+          "ref_ms": 205,
+          "overshoot_deg": 1.1394,
+          "reverse_travel_deg": 0.8624,
+          "reverse_peak_dps": 7.414,
+          "final_error_deg": -0.2769,
+          "last_motion_ms": 479,
+          "settle_ms": 430,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d-150": {
+          "ref_ms": 209,
+          "overshoot_deg": 0.5742,
+          "reverse_travel_deg": 0.2211,
+          "reverse_peak_dps": 4.977,
+          "final_error_deg": -0.3531,
+          "last_motion_ms": 295,
+          "settle_ms": 254,
+          "tail_pp_deg": 0.0
+        },
+        "nominal_d500": {
+          "ref_ms": 535,
+          "overshoot_deg": 0.3119,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.3119,
+          "last_motion_ms": 549,
+          "settle_ms": 507,
+          "tail_pp_deg": 0.0
+        },
+        "slow_d500": {
+          "ref_ms": 542,
+          "overshoot_deg": 0.931,
+          "reverse_travel_deg": 0.6375,
+          "reverse_peak_dps": 7.492,
+          "final_error_deg": 0.2936,
+          "last_motion_ms": 676,
+          "settle_ms": 633,
+          "tail_pp_deg": 0.0
+        },
+        "fast_d500": {
+          "ref_ms": 533,
+          "overshoot_deg": 0.0,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": -0.3001,
+          "last_motion_ms": 559,
+          "settle_ms": 511,
+          "tail_pp_deg": 0.0
+        },
+        "load_d500": {
+          "ref_ms": 540,
+          "overshoot_deg": 0.0737,
+          "reverse_travel_deg": 0.0,
+          "reverse_peak_dps": 0.0,
+          "final_error_deg": 0.0737,
+          "last_motion_ms": 554,
+          "settle_ms": 517,
+          "tail_pp_deg": 0.0
+        },
+        "delay_d500": {
+          "ref_ms": 537,
+          "overshoot_deg": 0.4838,
+          "reverse_travel_deg": 0.1478,
+          "reverse_peak_dps": 5.302,
+          "final_error_deg": 0.336,
+          "last_motion_ms": 611,
+          "settle_ms": 507,
+          "tail_pp_deg": 0.0
+        }
+      }
+    }
+  }
+}

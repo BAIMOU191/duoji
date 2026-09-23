@@ -1,0 +1,344 @@
+{
+  "encoder": "电位器ADC",
+  "audit_failures": 1,
+  "scenarios": {
+    "cycle": {
+      "final_pos": 6741.1,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "max_abs_pwm": 2400.0,
+      "escape_entries": 0,
+      "moves": [
+        {
+          "done_ms": 1028,
+          "overshoot": 0.0,
+          "final_error": -24.3,
+          "post_done_travel": 97.4,
+          "tail_pwm": 0
+        },
+        {
+          "done_ms": 1515,
+          "overshoot": 12.9,
+          "final_error": -9.2,
+          "post_done_travel": 0.0,
+          "tail_pwm": 0
+        },
+        {
+          "done_ms": 1517,
+          "overshoot": 0.0,
+          "final_error": -24.0,
+          "post_done_travel": 90.6,
+          "tail_pwm": 0
+        },
+        {
+          "done_ms": 1515,
+          "overshoot": 13.2,
+          "final_error": -8.9,
+          "post_done_travel": 0.0,
+          "tail_pwm": 0
+        }
+      ]
+    },
+    "micro": {
+      "final_pos": 13456.6,
+      "tail_motion_pp": 67.34,
+      "tail_nonzero_pwm": 126,
+      "tail_max_pwm": 401.0,
+      "max_abs_pwm": 462.0,
+      "escape_entries": 0,
+      "steps": [
+        {
+          "overshoot": 2.8,
+          "reversals": 0,
+          "ratio": 1.27,
+          "err": -2.8,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 7.5,
+          "reversals": 0,
+          "ratio": 1.29,
+          "err": -7.5,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 13.7,
+          "reversals": 0,
+          "ratio": 1.3,
+          "err": -13.7,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 18.1,
+          "reversals": 0,
+          "ratio": 1.29,
+          "err": -18.1,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 22.6,
+          "reversals": 0,
+          "ratio": 1.31,
+          "err": -22.6,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 25.2,
+          "reversals": 0,
+          "ratio": 1.31,
+          "err": -25.2,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 28.0,
+          "reversals": 1,
+          "ratio": 1.29,
+          "err": -20.2,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 23.4,
+          "reversals": 0,
+          "ratio": 1.3,
+          "err": -23.4,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 26.0,
+          "reversals": 0,
+          "ratio": 1.26,
+          "err": -26.0,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 27.1,
+          "reversals": 1,
+          "ratio": 1.3,
+          "err": -22.0,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 0.0,
+          "reversals": 0,
+          "ratio": 1.97,
+          "err": -9.8,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 3.0,
+          "reversals": 0,
+          "ratio": 1.93,
+          "err": 3.0,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 12.6,
+          "reversals": 0,
+          "ratio": 1.94,
+          "err": 12.6,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 18.5,
+          "reversals": 0,
+          "ratio": 1.91,
+          "err": 18.5,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 20.9,
+          "reversals": 0,
+          "ratio": 1.92,
+          "err": 20.9,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 23.2,
+          "reversals": 0,
+          "ratio": 1.85,
+          "err": 23.2,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 23.7,
+          "reversals": 0,
+          "ratio": 1.89,
+          "err": 23.7,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 24.2,
+          "reversals": 0,
+          "ratio": 1.84,
+          "err": 24.2,
+          "tail_pwm": 0
+        },
+        {
+          "overshoot": 24.1,
+          "reversals": 0,
+          "ratio": 1.84,
+          "err": 24.1,
+          "tail_pwm": 0
+        }
+      ]
+    },
+    "rapid": {
+      "final_pos": 17059.0,
+      "tail_motion_pp": 5519.11,
+      "tail_nonzero_pwm": 1000,
+      "tail_max_pwm": 2400.0,
+      "max_abs_pwm": 2400.0,
+      "escape_entries": 0
+    },
+    "flip": {
+      "final_pos": 23.3,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "max_abs_pwm": 2400.0,
+      "escape_entries": 0,
+      "max_dpwm": 173.0
+    },
+    "jitter": {
+      "final_pos": 13500.0,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "max_abs_pwm": 5.0,
+      "escape_entries": 0
+    },
+    "disturb": {
+      "final_pos": 13528.4,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "max_abs_pwm": 2400.0,
+      "escape_entries": 0
+    },
+    "load": {
+      "final_pos": 13514.2,
+      "tail_motion_pp": 44.41,
+      "tail_nonzero_pwm": 1000,
+      "tail_max_pwm": 476.0,
+      "max_abs_pwm": 541.0,
+      "escape_entries": 0
+    },
+    "unload": {
+      "final_pos": 13522.5,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "max_abs_pwm": 366.0,
+      "escape_entries": 0
+    },
+    "boot-low": {
+      "final_pos": -30.8,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "max_abs_pwm": 1102.0,
+      "escape_entries": 1
+    },
+    "boot-high": {
+      "final_pos": 27031.5,
+      "tail_motion_pp": 0.0,
+      "tail_nonzero_pwm": 0,
+      "tail_max_pwm": 0.0,
+      "max_abs_pwm": 1089.0,
+      "escape_entries": 1
+    }
+  },
+  "resolution": {
+    "bus-micro": {
+      "levels": 20,
+      "accepted": 9,
+      "step_min": 25.0,
+      "step_max": 27.0
+    },
+    "pwm-micro": {
+      "levels": 20,
+      "accepted": 7,
+      "step_min": 28.0,
+      "step_max": 29.0
+    },
+    "pwm-micro-jit": {
+      "levels": 20,
+      "accepted": 10,
+      "step_min": 28.0,
+      "step_max": 31.0
+    }
+  },
+  "sweep": {
+    "标称": {
+      "done_ms": 1517,
+      "overshoot": 13.2,
+      "final_error": 24.3,
+      "tail_nonzero_pwm": 0,
+      "tail_motion_pp": 0.0
+    },
+    "增益+30%": {
+      "done_ms": 1511,
+      "overshoot": 0.0,
+      "final_error": 31.6,
+      "tail_nonzero_pwm": 0,
+      "tail_motion_pp": 0.0
+    },
+    "增益-30%": {
+      "done_ms": 1815,
+      "overshoot": 0.0,
+      "final_error": 23.9,
+      "tail_nonzero_pwm": 0,
+      "tail_motion_pp": 0.0
+    },
+    "tau+30%": {
+      "done_ms": 1521,
+      "overshoot": 67.1,
+      "final_error": 24.9,
+      "tail_nonzero_pwm": 0,
+      "tail_motion_pp": 0.0
+    },
+    "tau-30%": {
+      "done_ms": 1511,
+      "overshoot": 0.0,
+      "final_error": 27.2,
+      "tail_nonzero_pwm": 0,
+      "tail_motion_pp": 0.0
+    },
+    "摩擦+30%": {
+      "done_ms": 1515,
+      "overshoot": 0.0,
+      "final_error": 23.8,
+      "tail_nonzero_pwm": 0,
+      "tail_motion_pp": 0.0
+    },
+    "摩擦-30%": {
+      "done_ms": 1517,
+      "overshoot": 13.6,
+      "final_error": 25.1,
+      "tail_nonzero_pwm": 0,
+      "tail_motion_pp": 0.0
+    },
+    "延迟+1拍": {
+      "done_ms": 1518,
+      "overshoot": 23.0,
+      "final_error": 22.1,
+      "tail_nonzero_pwm": 0,
+      "tail_motion_pp": 0.0
+    },
+    "延迟-1拍": {
+      "done_ms": 1515,
+      "overshoot": 4.7,
+      "final_error": 26.0,
+      "tail_nonzero_pwm": 0,
+      "tail_motion_pp": 0.0
+    },
+    "噪声x2": {
+      "done_ms": 1517,
+      "overshoot": 11.9,
+      "final_error": 24.9,
+      "tail_nonzero_pwm": 0,
+      "tail_motion_pp": 0.0
+    }
+  }
+}

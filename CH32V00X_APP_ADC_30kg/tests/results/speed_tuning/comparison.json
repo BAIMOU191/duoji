@@ -1,0 +1,1358 @@
+{
+  "baseline": {
+    "replay": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 186,
+          "ref_ms": 218,
+          "overshoot_cdeg": 29.1,
+          "tail_error_cdeg": 29.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 132,
+          "ref_ms": 164,
+          "overshoot_cdeg": 29.1,
+          "tail_error_cdeg": 29.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 136,
+          "ref_ms": 168,
+          "overshoot_cdeg": 30.6,
+          "tail_error_cdeg": -30.6,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 135,
+          "ref_ms": 169,
+          "overshoot_cdeg": 40.3,
+          "tail_error_cdeg": 26.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 800,
+          "ref_ms": 832,
+          "overshoot_cdeg": 30.2,
+          "tail_error_cdeg": 30.2,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 119
+    },
+    "replay_tau_fast": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 185,
+          "ref_ms": 216,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -17.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 133,
+          "ref_ms": 164,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -20.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 128,
+          "ref_ms": 164,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 1.5,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 130,
+          "ref_ms": 164,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -12.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 852,
+          "ref_ms": 832,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -21.1,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 101
+    },
+    "replay_tau_slow": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 307,
+          "ref_ms": 222,
+          "overshoot_cdeg": 85.5,
+          "tail_error_cdeg": 19.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 244,
+          "ref_ms": 169,
+          "overshoot_cdeg": 75.9,
+          "tail_error_cdeg": 19.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 249,
+          "ref_ms": 172,
+          "overshoot_cdeg": 79.7,
+          "tail_error_cdeg": -16.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 248,
+          "ref_ms": 172,
+          "overshoot_cdeg": 78.3,
+          "tail_error_cdeg": 17.5,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 949,
+          "ref_ms": 837,
+          "overshoot_cdeg": 122.3,
+          "tail_error_cdeg": 19.7,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 142
+    },
+    "micro": {
+      "moves": [
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 0,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 0.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13567.5,
+          "settle_0.5deg_ms": 37,
+          "ref_ms": 106,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -2.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13635.0,
+          "settle_0.5deg_ms": 43,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -10.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13702.5,
+          "settle_0.5deg_ms": 50,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -14.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13770.0,
+          "settle_0.5deg_ms": 56,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -20.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13837.5,
+          "settle_0.5deg_ms": 62,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -24.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13905.0,
+          "settle_0.5deg_ms": 65,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -26.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13972.5,
+          "settle_0.5deg_ms": 66,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14040.0,
+          "settle_0.5deg_ms": 67,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14107.5,
+          "settle_0.5deg_ms": 66,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.3,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14175.0,
+          "settle_0.5deg_ms": 67,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.6,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14107.5,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 107,
+          "overshoot_cdeg": 21.2,
+          "tail_error_cdeg": -21.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14040.0,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 107,
+          "overshoot_cdeg": 16.5,
+          "tail_error_cdeg": -16.5,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13972.5,
+          "settle_0.5deg_ms": 10,
+          "ref_ms": 107,
+          "overshoot_cdeg": 9.9,
+          "tail_error_cdeg": -9.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13905.0,
+          "settle_0.5deg_ms": 28,
+          "ref_ms": 107,
+          "overshoot_cdeg": 3.3,
+          "tail_error_cdeg": -3.3,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13837.5,
+          "settle_0.5deg_ms": 36,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 3.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13770.0,
+          "settle_0.5deg_ms": 45,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 10.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13702.5,
+          "settle_0.5deg_ms": 51,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 16.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13635.0,
+          "settle_0.5deg_ms": 58,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 21.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13567.5,
+          "settle_0.5deg_ms": 64,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 25.4,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 0
+    },
+    "cycle": {
+      "moves": [
+        {
+          "target": 0.0,
+          "settle_0.5deg_ms": 1058,
+          "ref_ms": 1091,
+          "overshoot_cdeg": 34.4,
+          "tail_error_cdeg": -34.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 20250.0,
+          "settle_0.5deg_ms": 1575,
+          "ref_ms": 1607,
+          "overshoot_cdeg": 29.8,
+          "tail_error_cdeg": 29.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 0.0,
+          "settle_0.5deg_ms": 1572,
+          "ref_ms": 1607,
+          "overshoot_cdeg": 47.7,
+          "tail_error_cdeg": -24.3,
+          "tail_pwm": 0
+        },
+        {
+          "target": 20250.0,
+          "settle_0.5deg_ms": 1575,
+          "ref_ms": 1606,
+          "overshoot_cdeg": 29.1,
+          "tail_error_cdeg": 29.1,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 98
+    }
+  },
+  "speed88": {
+    "replay": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 183,
+          "ref_ms": 215,
+          "overshoot_cdeg": 28.4,
+          "tail_error_cdeg": 28.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 132,
+          "ref_ms": 164,
+          "overshoot_cdeg": 27.4,
+          "tail_error_cdeg": 27.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 136,
+          "ref_ms": 168,
+          "overshoot_cdeg": 30.9,
+          "tail_error_cdeg": -30.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 135,
+          "ref_ms": 169,
+          "overshoot_cdeg": 39.8,
+          "tail_error_cdeg": 26.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 768,
+          "ref_ms": 801,
+          "overshoot_cdeg": 34.0,
+          "tail_error_cdeg": 34.0,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 125
+    },
+    "replay_tau_fast": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 181,
+          "ref_ms": 213,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -17.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 133,
+          "ref_ms": 164,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -19.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 128,
+          "ref_ms": 164,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 0.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 130,
+          "ref_ms": 164,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -11.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 822,
+          "ref_ms": 801,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -21.2,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 106
+    },
+    "replay_tau_slow": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 310,
+          "ref_ms": 220,
+          "overshoot_cdeg": 90.0,
+          "tail_error_cdeg": 19.3,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 244,
+          "ref_ms": 169,
+          "overshoot_cdeg": 76.1,
+          "tail_error_cdeg": 19.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 249,
+          "ref_ms": 172,
+          "overshoot_cdeg": 80.1,
+          "tail_error_cdeg": -17.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 250,
+          "ref_ms": 172,
+          "overshoot_cdeg": 78.7,
+          "tail_error_cdeg": 17.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 923,
+          "ref_ms": 806,
+          "overshoot_cdeg": 128.9,
+          "tail_error_cdeg": 16.9,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 150
+    },
+    "micro": {
+      "moves": [
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 0,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 0.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13567.5,
+          "settle_0.5deg_ms": 37,
+          "ref_ms": 106,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -2.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13635.0,
+          "settle_0.5deg_ms": 43,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -10.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13702.5,
+          "settle_0.5deg_ms": 50,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -14.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13770.0,
+          "settle_0.5deg_ms": 56,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -20.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13837.5,
+          "settle_0.5deg_ms": 62,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -24.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13905.0,
+          "settle_0.5deg_ms": 65,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -26.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13972.5,
+          "settle_0.5deg_ms": 66,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14040.0,
+          "settle_0.5deg_ms": 67,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14107.5,
+          "settle_0.5deg_ms": 66,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.3,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14175.0,
+          "settle_0.5deg_ms": 67,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.6,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14107.5,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 107,
+          "overshoot_cdeg": 21.2,
+          "tail_error_cdeg": -21.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14040.0,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 107,
+          "overshoot_cdeg": 16.5,
+          "tail_error_cdeg": -16.5,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13972.5,
+          "settle_0.5deg_ms": 10,
+          "ref_ms": 107,
+          "overshoot_cdeg": 9.9,
+          "tail_error_cdeg": -9.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13905.0,
+          "settle_0.5deg_ms": 28,
+          "ref_ms": 107,
+          "overshoot_cdeg": 3.3,
+          "tail_error_cdeg": -3.3,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13837.5,
+          "settle_0.5deg_ms": 36,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 3.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13770.0,
+          "settle_0.5deg_ms": 45,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 10.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13702.5,
+          "settle_0.5deg_ms": 51,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 16.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13635.0,
+          "settle_0.5deg_ms": 58,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 21.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13567.5,
+          "settle_0.5deg_ms": 64,
+          "ref_ms": 107,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 25.4,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 0
+    },
+    "cycle": {
+      "moves": [
+        {
+          "target": 0.0,
+          "settle_0.5deg_ms": 1013,
+          "ref_ms": 1048,
+          "overshoot_cdeg": 45.5,
+          "tail_error_cdeg": -25.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 20250.0,
+          "settle_0.5deg_ms": 1508,
+          "ref_ms": 1541,
+          "overshoot_cdeg": 32.5,
+          "tail_error_cdeg": 32.5,
+          "tail_pwm": 0
+        },
+        {
+          "target": 0.0,
+          "settle_0.5deg_ms": 1506,
+          "ref_ms": 1541,
+          "overshoot_cdeg": 43.2,
+          "tail_error_cdeg": -24.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 20250.0,
+          "settle_0.5deg_ms": 1508,
+          "ref_ms": 1541,
+          "overshoot_cdeg": 33.4,
+          "tail_error_cdeg": 33.4,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 108
+    }
+  },
+  "speed88_smooth40": {
+    "replay": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 183,
+          "ref_ms": 210,
+          "overshoot_cdeg": 27.8,
+          "tail_error_cdeg": 27.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 132,
+          "ref_ms": 159,
+          "overshoot_cdeg": 26.1,
+          "tail_error_cdeg": 26.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 135,
+          "ref_ms": 163,
+          "overshoot_cdeg": 30.4,
+          "tail_error_cdeg": -30.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 134,
+          "ref_ms": 164,
+          "overshoot_cdeg": 39.0,
+          "tail_error_cdeg": 39.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 768,
+          "ref_ms": 796,
+          "overshoot_cdeg": 29.4,
+          "tail_error_cdeg": 29.4,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 126
+    },
+    "replay_tau_fast": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 180,
+          "ref_ms": 208,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -17.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 132,
+          "ref_ms": 159,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -20.6,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 127,
+          "ref_ms": 159,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 0.5,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 129,
+          "ref_ms": 159,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -11.5,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 823,
+          "ref_ms": 796,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -19.8,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 106
+    },
+    "replay_tau_slow": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 306,
+          "ref_ms": 215,
+          "overshoot_cdeg": 89.0,
+          "tail_error_cdeg": 18.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 242,
+          "ref_ms": 164,
+          "overshoot_cdeg": 76.0,
+          "tail_error_cdeg": 18.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 248,
+          "ref_ms": 167,
+          "overshoot_cdeg": 79.9,
+          "tail_error_cdeg": -16.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 248,
+          "ref_ms": 167,
+          "overshoot_cdeg": 79.0,
+          "tail_error_cdeg": 17.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 921,
+          "ref_ms": 801,
+          "overshoot_cdeg": 128.0,
+          "tail_error_cdeg": 15.9,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 150
+    },
+    "micro": {
+      "moves": [
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 0,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 0.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13567.5,
+          "settle_0.5deg_ms": 38,
+          "ref_ms": 104,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -2.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13635.0,
+          "settle_0.5deg_ms": 43,
+          "ref_ms": 104,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -10.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13702.5,
+          "settle_0.5deg_ms": 51,
+          "ref_ms": 105,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -14.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13770.0,
+          "settle_0.5deg_ms": 56,
+          "ref_ms": 104,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -21.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13837.5,
+          "settle_0.5deg_ms": 63,
+          "ref_ms": 105,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -25.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13905.0,
+          "settle_0.5deg_ms": 65,
+          "ref_ms": 104,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.3,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13972.5,
+          "settle_0.5deg_ms": 66,
+          "ref_ms": 105,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14040.0,
+          "settle_0.5deg_ms": 67,
+          "ref_ms": 104,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.3,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14107.5,
+          "settle_0.5deg_ms": 66,
+          "ref_ms": 105,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14175.0,
+          "settle_0.5deg_ms": 66,
+          "ref_ms": 104,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14107.5,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 104,
+          "overshoot_cdeg": 21.0,
+          "tail_error_cdeg": -21.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14040.0,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 105,
+          "overshoot_cdeg": 16.2,
+          "tail_error_cdeg": -16.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13972.5,
+          "settle_0.5deg_ms": 11,
+          "ref_ms": 104,
+          "overshoot_cdeg": 9.3,
+          "tail_error_cdeg": -9.3,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13905.0,
+          "settle_0.5deg_ms": 29,
+          "ref_ms": 105,
+          "overshoot_cdeg": 2.8,
+          "tail_error_cdeg": -2.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13837.5,
+          "settle_0.5deg_ms": 36,
+          "ref_ms": 104,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 3.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13770.0,
+          "settle_0.5deg_ms": 46,
+          "ref_ms": 105,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 10.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13702.5,
+          "settle_0.5deg_ms": 52,
+          "ref_ms": 104,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 17.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13635.0,
+          "settle_0.5deg_ms": 59,
+          "ref_ms": 105,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 21.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13567.5,
+          "settle_0.5deg_ms": 64,
+          "ref_ms": 104,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 26.3,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 0
+    },
+    "cycle": {
+      "moves": [
+        {
+          "target": 0.0,
+          "settle_0.5deg_ms": 1012,
+          "ref_ms": 1043,
+          "overshoot_cdeg": 44.3,
+          "tail_error_cdeg": -24.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 20250.0,
+          "settle_0.5deg_ms": 1508,
+          "ref_ms": 1536,
+          "overshoot_cdeg": 31.8,
+          "tail_error_cdeg": 31.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 0.0,
+          "settle_0.5deg_ms": 1506,
+          "ref_ms": 1536,
+          "overshoot_cdeg": 42.1,
+          "tail_error_cdeg": -25.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 20250.0,
+          "settle_0.5deg_ms": 1508,
+          "ref_ms": 1536,
+          "overshoot_cdeg": 32.3,
+          "tail_error_cdeg": 32.3,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 108
+    }
+  },
+  "speed88_smooth40_small50": {
+    "replay": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 183,
+          "ref_ms": 210,
+          "overshoot_cdeg": 27.8,
+          "tail_error_cdeg": 27.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 132,
+          "ref_ms": 159,
+          "overshoot_cdeg": 26.1,
+          "tail_error_cdeg": 26.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 135,
+          "ref_ms": 163,
+          "overshoot_cdeg": 30.4,
+          "tail_error_cdeg": -30.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 134,
+          "ref_ms": 164,
+          "overshoot_cdeg": 39.0,
+          "tail_error_cdeg": 39.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 768,
+          "ref_ms": 796,
+          "overshoot_cdeg": 29.4,
+          "tail_error_cdeg": 29.4,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 126
+    },
+    "replay_tau_fast": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 180,
+          "ref_ms": 208,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -17.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 132,
+          "ref_ms": 159,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -20.6,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 127,
+          "ref_ms": 159,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 0.5,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 129,
+          "ref_ms": 159,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -11.5,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 823,
+          "ref_ms": 796,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -19.8,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 106
+    },
+    "replay_tau_slow": {
+      "moves": [
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 306,
+          "ref_ms": 215,
+          "overshoot_cdeg": 89.0,
+          "tail_error_cdeg": 18.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 242,
+          "ref_ms": 164,
+          "overshoot_cdeg": 76.0,
+          "tail_error_cdeg": 18.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 2025.0,
+          "settle_0.5deg_ms": 248,
+          "ref_ms": 167,
+          "overshoot_cdeg": 79.9,
+          "tail_error_cdeg": -16.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 3375.0,
+          "settle_0.5deg_ms": 248,
+          "ref_ms": 167,
+          "overshoot_cdeg": 79.0,
+          "tail_error_cdeg": 17.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 921,
+          "ref_ms": 801,
+          "overshoot_cdeg": 128.0,
+          "tail_error_cdeg": 15.9,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 150
+    },
+    "micro": {
+      "moves": [
+        {
+          "target": 13500.0,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 0,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 0.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13567.5,
+          "settle_0.5deg_ms": 32,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -3.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13635.0,
+          "settle_0.5deg_ms": 36,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -11.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13702.5,
+          "settle_0.5deg_ms": 42,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -18.0,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13770.0,
+          "settle_0.5deg_ms": 47,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -23.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13837.5,
+          "settle_0.5deg_ms": 51,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -26.5,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13905.0,
+          "settle_0.5deg_ms": 53,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13972.5,
+          "settle_0.5deg_ms": 53,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -28.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14040.0,
+          "settle_0.5deg_ms": 54,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.7,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14107.5,
+          "settle_0.5deg_ms": 52,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.9,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14175.0,
+          "settle_0.5deg_ms": 53,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": -27.6,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14107.5,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 84,
+          "overshoot_cdeg": 22.2,
+          "tail_error_cdeg": -22.2,
+          "tail_pwm": 0
+        },
+        {
+          "target": 14040.0,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 84,
+          "overshoot_cdeg": 17.8,
+          "tail_error_cdeg": -17.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13972.5,
+          "settle_0.5deg_ms": 0,
+          "ref_ms": 84,
+          "overshoot_cdeg": 10.8,
+          "tail_error_cdeg": -10.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13905.0,
+          "settle_0.5deg_ms": 22,
+          "ref_ms": 84,
+          "overshoot_cdeg": 5.4,
+          "tail_error_cdeg": -5.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13837.5,
+          "settle_0.5deg_ms": 29,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 1.6,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13770.0,
+          "settle_0.5deg_ms": 33,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 5.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13702.5,
+          "settle_0.5deg_ms": 37,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 11.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13635.0,
+          "settle_0.5deg_ms": 41,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 15.5,
+          "tail_pwm": 0
+        },
+        {
+          "target": 13567.5,
+          "settle_0.5deg_ms": 46,
+          "ref_ms": 84,
+          "overshoot_cdeg": 0,
+          "tail_error_cdeg": 21.9,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 0
+    },
+    "cycle": {
+      "moves": [
+        {
+          "target": 0.0,
+          "settle_0.5deg_ms": 1012,
+          "ref_ms": 1043,
+          "overshoot_cdeg": 44.3,
+          "tail_error_cdeg": -24.4,
+          "tail_pwm": 0
+        },
+        {
+          "target": 20250.0,
+          "settle_0.5deg_ms": 1508,
+          "ref_ms": 1536,
+          "overshoot_cdeg": 31.8,
+          "tail_error_cdeg": 31.8,
+          "tail_pwm": 0
+        },
+        {
+          "target": 0.0,
+          "settle_0.5deg_ms": 1506,
+          "ref_ms": 1536,
+          "overshoot_cdeg": 42.1,
+          "tail_error_cdeg": -25.1,
+          "tail_pwm": 0
+        },
+        {
+          "target": 20250.0,
+          "settle_0.5deg_ms": 1508,
+          "ref_ms": 1536,
+          "overshoot_cdeg": 32.3,
+          "tail_error_cdeg": 32.3,
+          "tail_pwm": 0
+        }
+      ],
+      "saturated_samples": 108
+    }
+  }
+}

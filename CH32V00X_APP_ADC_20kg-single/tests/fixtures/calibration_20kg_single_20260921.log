@@ -1,0 +1,55 @@
+# 20kg单轴版两次完整标定(2026-09-21 14:52~14:54)，用户提供的串口日志摘录，数值原样保留
+[14:53:26.394] [T1] PWM-speed line   (dir0 = increasing angle)
+[14:53:26.397]    PWM    dir0    dir1  (cdeg/s)
+[14:53:26.399]    700    8710    9053
+[14:53:26.402]   1120   14426   14850
+[14:53:26.405]   1540   20063   20460
+[14:53:26.408]   1960   26073   25570
+[14:53:26.411]   2380   31500   30970
+[14:53:26.417]   dir0 slope=4808 inter=61 | dir1 slope=5042 inter=-12
+[14:53:26.423]   merged slope=4920 inter=26  (n=10 pts, max residual=29 PWM)
+[14:53:26.441] [T2] dir0  v_ss=32690 cdeg/s  x(400ms)=11109  L+tau=60.18ms
+[14:53:26.446] [T2] dir1  v_ss=31539 cdeg/s  x(400ms)=11586  L+tau=32.65ms
+[14:53:26.455] [T3] pure delay L=2.30ms  (6/6 counts used, residual spread 6.15ms)
+[14:53:26.518] [T4] dir0 v0=30653  dx(8ms)=214 dx(16ms)=394  a_bar=753500  -> a0=846804 (q=0.363)
+[14:53:26.527] [T4] dir1 v0=31473  dx(8ms)=253 dx(16ms)=450  a_bar=418500  -> a0=470321 (q=0.363)
+[14:53:26.537]      peak-to-peak = 9.42 cdeg  (1.18 raw LSB)
+[14:53:26.573]      dir0  breakaway=163 PWM   step-after-release=23 cdeg  (2 runs)
+[14:53:26.580]      dir1  breakaway=192 PWM   step-after-release=26 cdeg  (2 runs)
+[14:53:26.589] #define CAL_SPEED_SLOPE_Q16  4921
+[14:53:26.591] #define CAL_FRICTION_PWM       26
+[14:53:26.595] #define MODEL_TAU_MS           45
+[14:53:26.598] #define MODEL_DELAY_TICKS       2
+[14:53:26.601] #define CAL_MOTOR_SIGN     -1
+[14:53:26.606] #define CAL_BREAKAWAY_PWM     192
+[14:53:26.612] #define MODEL_BRAKE_GAIN_Q8 317  /* model-level; use golden sample */
+[14:53:26.618] [T5] backlash = 0 cdeg  (换向延迟2拍 - 同向3拍 = 0拍)
+[14:53:26.653] [T6/T9] 最小可靠步长 = 26 cdeg  (脉冲法31 / 缓升法26，取小)
+[14:53:26.748]       250        437   <-- peak
+[14:54:25.135] [T1] PWM-speed line   (dir0 = increasing angle)
+[14:54:25.139]    PWM    dir0    dir1  (cdeg/s)
+[14:54:25.141]    700    8656    9076
+[14:54:25.144]   1120   14293   14770
+[14:54:25.147]   1540   19986   20326
+[14:54:25.148]   1960   25966   25596
+[14:54:25.151]   2380   31580   31023
+[14:54:25.158]   dir0 slope=4784 inter=73 | dir1 slope=5029 inter=-6
+[14:54:25.163]   merged slope=4900 inter=35  (n=10 pts, max residual=26 PWM)
+[14:54:25.180] [T2] dir0  v_ss=32850 cdeg/s  x(400ms)=11165  L+tau=60.13ms
+[14:54:25.187] [T2] dir1  v_ss=31631 cdeg/s  x(400ms)=11625  L+tau=32.49ms
+[14:54:25.195] [T3] pure delay L=2.48ms  (6/6 counts used, residual spread 1.43ms)
+[14:54:25.237] [T4] dir0 v0=30523  dx(8ms)=222 dx(16ms)=426  a_bar=487250  -> a0=547584 (q=0.363)
+[14:54:25.246] [T4] dir1 v0=31236  dx(8ms)=230 dx(16ms)=423  a_bar=599812  -> a0=674085 (q=0.363)
+[14:54:25.256]      peak-to-peak = 9.42 cdeg  (1.18 raw LSB)
+[14:54:25.294]      dir0  breakaway=165 PWM   step-after-release=23 cdeg  (2 runs)
+[14:54:25.300]      dir1  breakaway=147 PWM   step-after-release=27 cdeg  (2 runs)
+[14:54:25.308] #define CAL_SPEED_SLOPE_Q16  4901
+[14:54:25.312] #define CAL_FRICTION_PWM       35
+[14:54:25.315] #define MODEL_TAU_MS           45
+[14:54:25.318] #define MODEL_DELAY_TICKS       2
+[14:54:25.321] #define CAL_MOTOR_SIGN     -1
+[14:54:25.324] #define CAL_BREAKAWAY_PWM     165
+[14:54:25.332] #define MODEL_BRAKE_GAIN_Q8 343  /* model-level; use golden sample */
+[14:54:25.338] [T5] backlash = 5 cdeg  (换向延迟7拍 - 同向3拍 = 4拍)
+[14:54:25.372] [T6/T9] 最小可靠步长 = 27 cdeg  (脉冲法39 / 缓升法27，取小)
+[14:54:25.468]       250         96   <-- peak
