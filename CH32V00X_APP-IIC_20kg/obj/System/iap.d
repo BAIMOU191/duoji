@@ -1,6 +1,5 @@
 System/iap.o: ../System/iap.c ../System/iap.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Application/A_Config.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Application/A_Parameter.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Application/A_Servo.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_uart.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X.h \
@@ -30,7 +29,6 @@ System/iap.o: ../System/iap.c ../System/iap.h \
  ../System/flash.h
 ../System/iap.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Application/A_Config.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Application/A_Parameter.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Application/A_Servo.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_uart.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X.h:

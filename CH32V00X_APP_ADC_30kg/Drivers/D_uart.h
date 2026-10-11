@@ -12,7 +12,6 @@
 /* ---- 生命周期 ---- */
 void    D_USART1_Cfg(uint32_t baudrate); /* 配置引脚/波特率/半双工/接收中断 */
 void    D_UART_Enable(uint8_t en);       /* 1=接管PC0，0=停收发并释放PC0(共线仲裁用) */
-uint8_t D_UART_Is_Enabled(void);         /* 当前串口是否由本驱动占用 */
 
 /* ---- 数据通路 ---- */
 uint8_t D_UART1_Rx_Get(uint8_t *data);                       /* 取1个已收字节，0=队列空 */

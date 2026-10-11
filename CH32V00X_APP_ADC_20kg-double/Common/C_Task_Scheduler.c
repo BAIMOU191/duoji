@@ -100,25 +100,3 @@ volatile uint8_t *C_Task_EventFlag(void (*task_hook)(void))
     }
     return NULL;
 }
-
-uint32_t C_Task_GetTotalOverrun(void)
-{
-    uint8_t i;
-    uint32_t total = 0U;
-    uint32_t irq_state = __get_MSTATUS();
-
-    __disable_irq();
-    for (i = 0U; i < s_task_count; i++) total += s_tasks[i].overrun;
-    __set_MSTATUS(irq_state);
-    return total;
-}
-
-void C_Task_ClearOverrun(void)
-{
-    uint8_t i;
-    uint32_t irq_state = __get_MSTATUS();
-
-    __disable_irq();
-    for (i = 0U; i < s_task_count; i++) s_tasks[i].overrun = 0U;
-    __set_MSTATUS(irq_state);
-}

@@ -2,43 +2,55 @@
 
 #include <stdint.h>
 
-/* A_Servo.h —— 舵机编排层：模式状态机、控制拍链路、卸力/暂停/停止 */
+/* A_Servo.h —— 舵机编排层：模式、运动指令、控制拍、卸力/暂停/停止 */
 
-#define SERVO_INPUT_TX  0U /** 输入源：串口总线 */
-#define SERVO_INPUT_PWM 1U /** 输入源：PWM脉宽捕获 */
+#define SERVO_INPUT_TX  0U   /* 输入源：串口总线 */
+#define SERVO_INPUT_PWM 1U   /* 输入源：PWM脉宽捕获 */
 
-/* 一个检测区间内的运动量，供保护模块判堵转(位移在本模块做差，跨0折算只有这里知道) */
+typedef enum {
+    SERVO_WORK_IDLE = 0, SERVO_WORK_MOVING, SERVO_WORK_PAUSED, SERVO_WORK_RELEASE_LOW,
+    SERVO_WORK_RELEASE_HIGH, SERVO_WORK_RECOVERING, SERVO_WORK_FAULT
+} ServoWorkState_t;
+
+/* 一个堵转检测区间内的运动量 */
 typedef struct {
-    int32_t  ref_delta;  /** 区间内参考位置的位移，厘度(已折算最短路径) */
-    int32_t  act_delta;  /** 区间内实测位置的位移，厘度 */
-    uint16_t hold_ticks; /** 区间内轨迹时钟被饱和冻结的控制拍数 */
-    uint8_t  valid;      /** 1=整个区间都在跑一条未走完的位置轨迹 */
+    int32_t  ref_delta;   /* 参考位移，厘度 */
+    int32_t  act_delta;   /* 实测位移，厘度 */
+    uint16_t hold_ticks;  /* 轨迹时钟被饱和冻结的拍数 */
+    uint8_t  valid;       /* 1=整个区间都在跑同一条未走完的轨迹 */
 } ServoMotion_t;
 
-void    A_Servo_Init(void);                       /* 上电初始化：选输入源、建环路、执行上电动作 */
-uint8_t A_Servo_InputSource(void);                /* 读本次上电选定的输入源 */
-void    A_Servo_Submit(uint16_t pwm, uint16_t value); /* 下发一条运动指令 */
-/* 多圈：先转 turns 整圈再到 pwm 位置，turn_ms 为每圈时间(0=最快)；仅整圈可测的编码器支持 */
-void    A_Servo_SubmitTurns(uint16_t pwm, uint8_t turns, uint16_t turn_ms);
-void    A_Servo_Control(void);                    /* 1ms控制拍入口 */
+/* 集合查询用的缓存快照；位置为协议脉宽，速度按位置值增大方向为正 */
+typedef struct {
+    uint16_t target_pwm;
+    uint16_t position_pwm;
+    int32_t  speed_cdps;  /* 0.01度/秒；INT32_MIN=观测器当前不在更新 */
+} ServoTelemetry_t;
 
-uint8_t  A_Servo_SetMode(uint8_t mode);           /* 切换工作模式并落盘 */
-uint16_t A_Servo_GetPositionPwm(void);            /* 读当前位置并换算回协议脉宽 */
-uint8_t  A_Servo_CalibrateMid(void);              /* SCK：把当前位置标定为行程中点(1500us) */
-uint8_t  A_Servo_CalibrateZero(void);             /* SCZ：把当前位置标定为行程起点(500us) */
-uint8_t  A_Servo_SetTravelEnd(uint8_t is_min);    /* AMI/AMX：把行程一端收到当前位置 */
-uint8_t  A_Servo_SetPulseLimit(uint8_t is_min);   /* SMI/SMX：把当前位置的脉宽设为可响应边界 */
-uint8_t  A_Servo_SaveStartup(void);               /* 把当前位置存为上电目标 */
-void     A_Servo_ApplyConfig(void);               /* 让新的模式/中位参数立即生效 */
-
-uint8_t A_Servo_TorqueOn(void);                   /* 1=当前有扭矩输出(非卸力) */
-void    A_Servo_SetOutputLimit(int16_t limit);    /* 设对称PWM上限，位置/电机模式都生效 */
-void    A_Servo_SampleMotion(ServoMotion_t *out); /* 取一次运动采样，同时把区间基准推到本拍 */
-void    A_Servo_HoldHere(void);                   /* 堵转保护：丢掉剩余轨迹，就地保持 */
-void    A_Servo_printf(void);                     /* 按FireWater格式发一帧遥测，队列满则丢帧 */
-
-void A_Servo_Pause(void);                         /* 暂停：输出刹车，保留目标以便继续 */
-void A_Servo_Resume(void);                        /* 继续：以当前位置为起点重新规划到原目标 */
-void A_Servo_Stop(void);                          /* 停止：丢弃目标，按当前扭矩状态收尾 */
-void A_Servo_Release(uint8_t high_resistance);    /* 卸力，0=低阻力自由转，1=高阻力短路制动 */
-void A_Servo_RestoreTorque(void);                 /* 从卸力恢复扭矩并重建全部环路 */
+void     A_Servo_Init(void);
+void     A_Servo_Control(void);                         /* 1ms控制拍 */
+void     A_Servo_Submit(uint16_t pwm, uint16_t value);
+/* 多圈位置指令：0~9圈，turn_ms为每圈时间(0=最快)。 */
+void A_Servo_SubmitTurns(uint16_t pwm, uint8_t turns, uint16_t turn_ms);  /* 运动指令：脉宽 + 时间(ms，电机定圈模式为圈数) */
+void     A_Servo_Pause(void);
+void     A_Servo_Resume(void);
+void     A_Servo_Stop(void);
+void     A_Servo_Release(uint8_t high_resistance);      /* 卸力：0=自由转，1=短路制动 */
+void     A_Servo_RestoreTorque(void);
+uint8_t  A_Servo_SetTorqueMode(uint8_t mode);           /* 0=自由，1=正常，2=自定义阻尼 */
+uint8_t  A_Servo_SetDamping(uint8_t percent);           /* 自定义阻尼 0~100% */
+uint8_t  A_Servo_SetMode(uint8_t mode);                 /* 切换工作模式并落盘 */
+uint8_t  A_Servo_CalibrateMid(void);                    /* SCK：当前位置为行程中点 */
+uint8_t  A_Servo_CalibrateZero(void);                   /* SCZ：当前位置为500us端 */
+uint8_t  A_Servo_SetTravelEnd(uint8_t is_min);          /* AMI/AMX：行程一端收到当前位置 */
+uint8_t  A_Servo_SetPulseLimit(uint8_t is_min);         /* SMI/SMX：当前位置的脉宽设为可响应边界 */
+uint8_t  A_Servo_SaveStartup(void);                     /* 当前位置存为上电目标 */
+void     A_Servo_ApplyConfig(void);                     /* 让模式/校准参数立即生效 */
+void     A_Servo_ApplyTrajConfig(void);                 /* 让轨迹参数从下一次规划起生效 */
+uint8_t  A_Servo_TorqueOn(void);
+uint8_t  A_Servo_GetWorkState(void);                    /* ServoWorkState_t */
+void     A_Servo_GetTelemetry(ServoTelemetry_t *out);   /* 只读缓存，不改变控制状态 */
+uint16_t A_Servo_GetPositionPwm(void);                  /* 重读位置并换算为协议脉宽 */
+void     A_Servo_SetOutputLimit(int16_t limit);         /* 保护模块设PWM上限 */
+void     A_Servo_SampleMotion(ServoMotion_t *out);      /* 堵转采样，并把区间基准推到本拍 */
+void     A_Servo_HoldHere(void);                        /* 堵转：放弃当前动作就地保持 */

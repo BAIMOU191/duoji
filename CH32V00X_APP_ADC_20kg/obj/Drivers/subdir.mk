@@ -9,7 +9,6 @@ C_SRCS += \
 ../Drivers/D_i2c.c \
 ../Drivers/D_iwdg.c \
 ../Drivers/D_motor.c \
-../Drivers/D_mt6701.c \
 ../Drivers/D_opa.c \
 ../Drivers/D_spi.c \
 ../Drivers/D_tim.c \
@@ -22,7 +21,6 @@ C_DEPS += \
 ./Drivers/D_i2c.d \
 ./Drivers/D_iwdg.d \
 ./Drivers/D_motor.d \
-./Drivers/D_mt6701.d \
 ./Drivers/D_opa.d \
 ./Drivers/D_spi.d \
 ./Drivers/D_tim.d \
@@ -35,7 +33,6 @@ OBJS += \
 ./Drivers/D_i2c.o \
 ./Drivers/D_iwdg.o \
 ./Drivers/D_motor.o \
-./Drivers/D_mt6701.o \
 ./Drivers/D_opa.o \
 ./Drivers/D_spi.o \
 ./Drivers/D_tim.o \

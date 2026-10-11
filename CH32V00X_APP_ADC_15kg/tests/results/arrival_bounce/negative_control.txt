@@ -1,6 +1,0 @@
-arrival dir=-1 reverse=2643.71 cdeg/s overshoot=176.14 cdeg error=42.34 cdeg
-arrival dir=1 reverse=2550.64 cdeg/s overshoot=154.99 cdeg error=-64.73 cdeg
-arrival_soft failures=3
-FAIL line 568: reverse_peak < 1800
-FAIL line 568: reverse_peak < 1800
-FAIL line 570: fabs(plant_pos-target) < 50

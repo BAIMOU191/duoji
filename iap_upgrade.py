@@ -6,15 +6,16 @@
     python iap_upgrade.py --port COM5 --id 3 --fw 新固件.hex    临时覆盖配置
 
 依赖：pyserial（pip install pyserial）
-协议见《舵机 IAP 升级协议》。
+协议见《舵机IAP升级协议与流程.html》。
+
+升级保留舵机 ID 和波特率，其他配置及硬件能力使用新固件默认值。
 """
 
 # ============================== 配置 ==============================
 PORT      = 'COM141'                                        # 串口号
-SERVO_ID  = 1                                             # 舵机 ID，0~254
+SERVO_ID  = 0                                             # 舵机 ID，0~254
 APP_BAUD  = 115200                                        # 舵机当前的波特率
 HEX_FILE  = r'CH32V00X_APP_ADC_30kg\obj\CH32V00X_APP.hex'      # 要烧录的固件
-ERASE_PARAMS = False                                      # True = 连参数页(ID/波特率/校准)一起擦
 # ==================================================================
 
 import argparse
@@ -32,7 +33,7 @@ BOOT_BAUD, PAGE, APP_MAX, FW_INFO_OFFSET = 115200, 256, 0xF400, 0x100
 STATUS_TEXT = {
     0: '成功', 1: '帧无效(CRC 或长度不对)', 2: '硬件信息或固件类型不符',
     3: '地址或长度越界', 4: '写入后读回不一致', 5: '整包 CRC32 不符',
-    6: '顺序错误(尚未成功开始)', 7: '硬件信息已写入',
+    6: '顺序错误(尚未成功开始)',
 }
 
 
@@ -206,7 +207,7 @@ def hw_text(hw):
 
 def matches(fw_hw, dev_hw):
     if tuple(dev_hw) == (0xFF, 0xFF, 0xFF, 0xFF):
-        return None                            # 舵机还没写硬件信息，没法自动判断
+        return None                            # 硬件信息尚未建立，没法自动判断
     return all(f == 0xFF or f == d for f, d in zip(fw_hw, dev_hw))
 
 
@@ -234,11 +235,13 @@ def handshake(link, limit):
         reply = link.wait(CMD_HELLO, 0.02)
         if reply and reply[0] == 0:
             payload = reply[1]
-            return {'boot': payload[0], 'flag': payload[1], 'hw': tuple(payload[2:6])}
+            return {'flag': payload[0], 'hw': tuple(payload[1:5])}
     return None
 
 
-def upgrade(link, servo_id, image, fw_hw, fw_ver, app_baud, rescue, erase_params):
+def upgrade(link, servo_id, image, fw_hw, fw_ver, app_baud, rescue):
+    if not 0 <= servo_id <= 254:
+        raise Fail('升级ID必须为0~254；255只允许用于查询')
     info = None                                # 查询到的舵机信息；救砖或舵机已在 Boot 时为 None
 
     if rescue:
@@ -286,7 +289,7 @@ def upgrade(link, servo_id, image, fw_hw, fw_ver, app_baud, rescue, erase_params
             if boot is None:
                 raise Fail('切到 115200 后没有握手上，舵机可能没进 Boot')
 
-    print('Boot：版本 %d，标志页状态 %d，硬件信息 %s' % (boot['boot'], boot['flag'], hw_text(boot['hw'])))
+    print('Boot：标志页状态 %d，硬件信息 %s' % (boot['flag'], hw_text(boot['hw'])))
     if info is None:                           # 没查询过(救砖或舵机本来就在 Boot)：用握手应答核对
         ok = matches(fw_hw, boot['hw'])
         if ok is False:
@@ -294,9 +297,10 @@ def upgrade(link, servo_id, image, fw_hw, fw_ver, app_baud, rescue, erase_params
 
     length, image_crc = len(image), crc32(image)
     total = length // PAGE
-    print('开始擦除：长度 %d 字节，CRC32 %08X，共 %d 页%s'
-          % (length, image_crc, total, '（连参数页一起擦）' if erase_params else ''))
-    link.request(CMD_START, struct.pack('<IIB', length, image_crc, 1 if erase_params else 0),
+    print('开始擦除：长度 %d 字节，CRC32 %08X，共 %d 页'
+          % (length, image_crc, total))
+    print('  配置和硬件信息采用新固件；仅保留舵机 ID 与波特率')
+    link.request(CMD_START, struct.pack('<II', length, image_crc),
                  timeout=5.0, retries=3)
 
     start_time = time.monotonic()
@@ -328,13 +332,10 @@ def upgrade(link, servo_id, image, fw_hw, fw_ver, app_baud, rescue, erase_params
     print('等待新固件启动…')
     time.sleep(1.5)
     verify_id, verify_baud = servo_id, app_baud
-    if erase_params:                           # 参数被擦掉了，舵机回到出厂的 ID 和波特率
-        verify_id, verify_baud = 0, 115200
-        print('参数页已擦除：ID 回到 0，波特率回到 115200')
     link.set_baud(verify_baud)
 
     candidates = [verify_id]
-    if rescue or erase_params:
+    if rescue:
         candidates.append(255)                 # ID 不确定时用广播兜底(只能单独接线)
     info, last = None, None
     for cand in candidates:
@@ -358,13 +359,17 @@ def main():
     ap.add_argument('--baud', type=int, default=APP_BAUD, help='舵机当前波特率')
     ap.add_argument('--fw', default=HEX_FILE)
     ap.add_argument('--rescue', action='store_true', help='救砖：跳过查询，等断电重上电')
-    ap.add_argument('--erase-params', action='store_true',
-                    help='连参数页一起擦，ID 和波特率会恢复默认')
     ap.add_argument('--query', action='store_true', help='只读舵机信息')
     args = ap.parse_args()
 
     link = None
     try:
+        if args.query:
+            if not 0 <= args.id <= 255:
+                raise Fail('查询ID必须为0~255')
+        elif not 0 <= args.id <= 254:
+            raise Fail('升级ID必须为0~254；255只允许用于 --query')
+
         if args.query:
             link = Link(args.port, args.baud)
             try:
@@ -376,8 +381,8 @@ def main():
                 boot = handshake(link, 1.0)
                 if boot is None:
                     raise Fail(no_reply(link, args.id, args.baud))
-                print('舵机停在 Boot 里：版本 %d，标志页状态 %d，硬件信息 %s'
-                      % (boot['boot'], boot['flag'], hw_text(boot['hw'])))
+                print('舵机停在 Boot 里：标志页状态 %d，硬件信息 %s'
+                      % (boot['flag'], hw_text(boot['hw'])))
             return 0
 
         image, fw_hw, fw_ver = load_hex(args.fw)
@@ -389,8 +394,7 @@ def main():
             print('提醒：固件里有 %d 处字节序列长得像舵机 ASCII 指令，'
                   '升级时总线上的其他舵机可能误动作，建议只接这一台' % risky)
         link = Link(args.port, args.baud)
-        upgrade(link, args.id, image, fw_hw, fw_ver, args.baud, args.rescue,
-                args.erase_params or ERASE_PARAMS)
+        upgrade(link, args.id, image, fw_hw, fw_ver, args.baud, args.rescue)
         return 0
     except Fail as exc:
         print('\n失败：%s' % exc, file=sys.stderr)

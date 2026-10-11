@@ -2,39 +2,20 @@
 #define __A_SENSOR_H__
 
 #include <stdint.h>
-#include "D_adc.h"       /* D_ADC_ENCODER_ENABLE：本板的角度传感器接在哪 */
-#include "A_Parameter.h" /* CDEG_RANGE */
+#include "D_adc.h"    /* 角度传感器是接在ADC上的电位器 */
+#include "A_Config.h" /* 一圈的厘度量程CDEG_RANGE */
 
 /*
  * A_Sensor.h —— 传感器聚合层：编码器/电压/温度/电流读数换算为业务单位
- * 编码器模式由 D_adc.h 的 D_ADC_ENCODER_ENABLE 派生。
+ *
+ * 本工程是电位器版，只支持接在ADC上的电位器：反馈是带符号线性行程(不回绕)，
+ * 抽头脱离碳膜的那一段测不到角度(死区)，靠 A_Servo.c 的脱困状态机开环转出来。
  * 电位器按实测端点计数线性标定，两端各外扩 ENCODER_POT_MARGIN_CDEG(读数真实，角度可为负)；
- * 抽头脱离碳膜时下拉电阻把读数钳到地，据此判定"在死区里"。
+ * 抽头悬空时下拉电阻把读数钳到地，据此判定"在死区里"。
  */
 
-#if D_ADC_ENCODER_ENABLE
-#define ENCODER_MODE 0 /** 编码器模式：0=电位器ADC，1=MT6701磁编码 */
-#else
-#define ENCODER_MODE 1 /** 编码器模式：0=电位器ADC，1=MT6701磁编码 */
-#endif
+#define ENCODER_ANGLE_ERROR ((int32_t)0xFFFF) /** 读取失败返回值，落在量程之外 */
 
-/* 反馈坐标是否整圈回绕，须与 CFG_WRAP_RANGE_CDEG 一致(A_Servo.c 有编译期断言) */
-#if ENCODER_MODE == 1
-#define ENCODER_IS_CIRCULAR 1  /** 1=反馈坐标整圈回绕 */
-#else
-#define ENCODER_IS_CIRCULAR 0  /** 0=反馈坐标为带符号线性行程 */
-#endif
-
-/* 是否存在测不到角度的区间：有则编码器失效时开环脱困，无则直接停机 */
-#if ENCODER_MODE == 1
-#define ENCODER_HAS_DEADZONE 0 /** 0=整圈可测，读失败即器件故障 */
-#else
-#define ENCODER_HAS_DEADZONE 1 /** 1=存在测不到角度的区间，需开环脱困 */
-#endif
-
-#define ENCODER_ANGLE_ERROR ((int32_t)0xFFFF) /** 读取失败返回值，落在两种模式量程之外 */
-
-#if ENCODER_MODE == 0
 #define ENCODER_POT_ADC_MIN   350U   /** 0度对应的实测ADC计数(整数，不带Q4小数位) */
 #define ENCODER_POT_ADC_MAX   3750U  /** 满行程对应的实测ADC计数(整数，不带Q4小数位) */
 #define ENCODER_POT_SPAN_CDEG 27000U /** 满行程角度(厘度)，270.00度 */
@@ -48,26 +29,15 @@
 typedef char guard_pot_cdeg_numerator_overflow[
     (((4095L - (long)ENCODER_POT_ADC_MIN) * (long)D_ADC_ENCODER_SCALE)
      < (2147483647L / (long)ENCODER_POT_SPAN_CDEG)) ? 1 : -1];
-#endif
 
 /* 编码器可读角度范围，脱困状态机与行程求交只认这三个 */
-#if ENCODER_MODE == 0
 #define ENCODER_ANGLE_LO ENCODER_POT_ANGLE_MIN /** 可读角度下限，厘度 */
 #define ENCODER_ANGLE_HI ENCODER_POT_ANGLE_MAX /** 可读角度上限，厘度 */
-#else
-#define ENCODER_ANGLE_LO ((int32_t)0)                /** 可读角度下限，厘度 */
-#define ENCODER_ANGLE_HI ((int32_t)CDEG_RANGE - 1)   /** 可读角度上限，厘度 */
-#endif
 #define ENCODER_ANGLE_MID ((ENCODER_ANGLE_LO + ENCODER_ANGLE_HI) / 2) /** 可读量程中点，厘度 */
 
 /* 允许主动转入的区间：电位器外扩段只用来兜端点超调和脱困判断，轨迹范围收死在标称行程[0, SPAN] */
-#if ENCODER_MODE == 0
 #define ENCODER_TRAVEL_LO ((int32_t)0)                          /** 可主动转入的角度下限，厘度 */
 #define ENCODER_TRAVEL_HI ((int32_t)ENCODER_POT_SPAN_CDEG)      /** 可主动转入的角度上限，厘度 */
-#else
-#define ENCODER_TRAVEL_LO ENCODER_ANGLE_LO                      /** 可主动转入的角度下限，厘度 */
-#define ENCODER_TRAVEL_HI ENCODER_ANGLE_HI                      /** 可主动转入的角度上限，厘度 */
-#endif
 #define ENCODER_TRAVEL_SPAN (ENCODER_TRAVEL_HI - ENCODER_TRAVEL_LO) /** 可主动转入的行程长度，厘度 */
 
 #define ADC_VDD_MV      3300U /** ADC参考电压(毫伏) */

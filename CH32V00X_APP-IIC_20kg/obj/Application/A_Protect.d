@@ -1,6 +1,6 @@
 Application/A_Protect.o: ../Application/A_Protect.c \
  ../Application/A_Protect.h ../Application/A_Config.h \
- ../Application/A_Parameter.h ../Application/A_Sensor.h \
+ ../Application/A_Sensor.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_adc.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Core/core_riscv.h \
@@ -28,7 +28,6 @@ Application/A_Protect.o: ../Application/A_Protect.c \
  ../Application/A_Servo.h
 ../Application/A_Protect.h:
 ../Application/A_Config.h:
-../Application/A_Parameter.h:
 ../Application/A_Sensor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_adc.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X.h:

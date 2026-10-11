@@ -33,8 +33,5 @@ void C_Task_Init(Task_t *tasks,
 void C_Task_Tick_Update(void);             /* 时基更新，由外部中断调用 */
 void C_Task_Run(void);                    /* 主循环调用，执行最高优先级就绪任务 */
 volatile uint8_t *C_Task_EventFlag(void (*task_hook)(void)); /* 按入口函数取任务的就绪标志，置1即触发；未注册返回NULL */
-/* 以下两个仅供诊断/压测 */
-uint32_t C_Task_GetTotalOverrun(void);     /* 读取所有任务累计错过的release */
-void C_Task_ClearOverrun(void);            /* 原子清零超时统计 */
 
 #endif /* __C_TASK_SCHEDULER_H__ */

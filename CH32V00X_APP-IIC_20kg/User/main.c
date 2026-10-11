@@ -24,7 +24,7 @@
 #include "A_Calib_Min.h"
 #include "iap.h"
 
-/* 定义 APP_MODE_CALIB 编译为开环硬件标定固件(见 A_Calib_Min.h)，标定完填回 A_Parameter.h 后注释掉 */
+/* 定义 APP_MODE_CALIB 编译为开环硬件标定固件(见 A_Calib_Min.h)，标定完把打印出来的 #define 贴回 A_Config.h，再把这行注释掉 */
 /* #define APP_MODE_CALIB */
 
 /* 程序入口：分层初始化后进入协作式调度主循环，不返回 */
@@ -49,10 +49,10 @@ int main(void)
     D_TIM1_PWM_IC_Init();              /* TIM1：PWM/捕获/1ms时基 + 同步TIM2 */
     D_OPA1_Init();                     /* OPA1：电流检测运放，8x + VB      */
     D_ADC_DMA_Init();                  /* ADC1：规则组DMA + 电压注入 + 零点标定 */
-    D_MT6701_Init();                   /* MT6701：磁编码器，仅ENCODER_MODE=1时使用 */
+    D_MT6701_Init();                   /* MT6701：磁编码器 */
     D_TMP112_Init();                   /* TMP112：数字温度传感器            */
     D_WS2812_Init();                   /* WS2812：状态指示灯               */
-    Delay_Ms(200);                     /* 等编码器磁场读数稳定             */
+    Delay_Ms(200);                     /* 等磁编码器读数稳定         */
 
     /* ---- 4. 应用层 ---- */
 #ifdef APP_MODE_CALIB

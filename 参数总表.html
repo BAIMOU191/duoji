@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/><title>舵机通信协议与参数总表</title></head><body><h1>舵机通信协议与参数总表</h1>
+<style>
+body{font-family:"Microsoft YaHei","Noto Sans SC",sans-serif;color:#1f2937;line-height:1.65;max-width:1500px;margin:0 auto;padding:28px;background:#f6f8fb}h1{color:#17365d;border-bottom:4px solid #2f75b5;padding-bottom:12px}h2{margin-top:38px;color:#17365d;border-left:6px solid #2f75b5;padding-left:12px}h3{color:#24527a;margin-top:28px}table{width:100%;border-collapse:collapse;background:#fff;margin:14px 0 24px;font-size:14px;box-shadow:0 2px 8px rgba(31,41,55,.06)}th{position:sticky;top:0;background:#d9eaf7;color:#17365d;font-weight:700}th,td{border:1px solid #cbd5e1;padding:8px 10px;text-align:left;vertical-align:top}tr:nth-child(even) td{background:#f8fafc}code{font-family:Consolas,monospace;background:#eaf2f8;color:#17365d;padding:1px 5px;border-radius:3px}.note{background:#fff8df;border:1px solid #f0d27a;border-radius:6px;padding:12px 16px;margin:14px 0}@media(max-width:900px){body{padding:12px}table{display:block;overflow-x:auto;white-space:nowrap}}
+</style>
+<h2>一、通信协议</h2>
+<h3>1. 串口与寻址</h3>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th style="text-align: right;">取值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>接口</td>
+<td style="text-align: right;">单线半双工 UART</td>
+<td>8 数据位、无校验、1 停止位</td>
+</tr>
+<tr>
+<td>默认波特率</td>
+<td style="text-align: right;">115200 bps</td>
+<td>可通过 Flash 地址 <code>21</code> 修改</td>
+</tr>
+<tr>
+<td>舵机地址</td>
+<td style="text-align: right;">0～254</td>
+<td><code>255</code> 为广播地址</td>
+</tr>
+<tr>
+<td>广播限制</td>
+<td style="text-align: right;">仅允许写入运动控制区</td>
+<td>可广播目标、运动动作、扭矩模式和阻尼比例；广播帧不回复</td>
+</tr>
+<tr>
+<td>多字节顺序</td>
+<td style="text-align: right;">小端序</td>
+<td>低字节在前，高字节在后</td>
+</tr>
+</tbody>
+</table>
+<h3>2. 二进制帧格式</h3>
+<p>请求帧：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>帧头1</th>
+<th>帧头2</th>
+<th>舵机地址</th>
+<th>命令</th>
+<th>数据长度</th>
+<th>数据</th>
+<th>校验</th>
+<th>帧尾1</th>
+<th>帧尾2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>字节</td>
+<td><code>AA</code></td>
+<td><code>66</code></td>
+<td><code>ID</code></td>
+<td><code>CMD</code></td>
+<td><code>LEN</code></td>
+<td><code>DATA[LEN]</code></td>
+<td><code>CRC8</code></td>
+<td><code>66</code></td>
+<td><code>AA</code></td>
+</tr>
+</tbody>
+</table>
+<p>应答帧：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>帧头1</th>
+<th>帧头2</th>
+<th>舵机地址</th>
+<th>应答命令</th>
+<th>数据长度</th>
+<th>状态码</th>
+<th>返回数据</th>
+<th>校验</th>
+<th>帧尾1</th>
+<th>帧尾2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>字节</td>
+<td><code>AA</code></td>
+<td><code>66</code></td>
+<td><code>ID</code></td>
+<td><code>CMD｜80</code></td>
+<td><code>LEN</code></td>
+<td><code>STATUS</code></td>
+<td><code>DATA</code></td>
+<td><code>CRC8</code></td>
+<td><code>66</code></td>
+<td><code>AA</code></td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>CRC8</code> 使用 CRC-8/ATM：多项式 <code>07</code>，初值 <code>00</code>，无反射，结果不异或。</li>
+<li>校验范围从 <code>ID</code> 开始，到最后一个 <code>DATA</code> 字节结束，不包含帧头、CRC 和帧尾。</li>
+<li>请求无数据时 <code>LEN=0</code>；整帧长度为 <code>8+LEN</code> 字节。</li>
+<li>应答中的 <code>LEN</code> 包含1字节状态码。</li>
+</ul>
+<h3>3. 命令总表</h3>
+<table>
+<thead>
+<tr>
+<th>命令</th>
+<th>功能</th>
+<th>请求数据</th>
+<th>成功应答数据</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>01</code></td>
+<td>查询简要状态</td>
+<td>无</td>
+<td>工作状态1字节＋故障状态低8位</td>
+<td>完整故障状态可读取 RAM 地址 <code>C1</code></td>
+</tr>
+<tr>
+<td><code>02</code></td>
+<td>读取</td>
+<td>地址1字节</td>
+<td>地址＋参数值</td>
+<td>读取设备信息、Flash 参数或 RAM 参数</td>
+</tr>
+<tr>
+<td><code>03</code></td>
+<td>写入</td>
+<td>地址＋参数值</td>
+<td>仅状态码</td>
+<td>地址决定写入 Flash 还是 RAM；运动目标也由此命令写入</td>
+</tr>
+<tr>
+<td><code>04</code></td>
+<td>预留</td>
+<td>—</td>
+<td>状态码 <code>07</code></td>
+<td>当前不承载功能</td>
+</tr>
+<tr>
+<td><code>05</code></td>
+<td>预留</td>
+<td>—</td>
+<td>状态码 <code>07</code></td>
+<td>当前不承载功能</td>
+</tr>
+<tr>
+<td><code>06</code></td>
+<td>预留</td>
+<td>—</td>
+<td>状态码 <code>07</code></td>
+<td>当前不承载功能</td>
+</tr>
+<tr>
+<td><code>07</code></td>
+<td>恢复默认并保留ID</td>
+<td>无</td>
+<td>仅状态码</td>
+<td>其余 Flash 参数恢复默认</td>
+</tr>
+<tr>
+<td><code>08</code></td>
+<td>完全恢复出厂</td>
+<td>无</td>
+<td>仅状态码</td>
+<td>舵机ID也恢复为0</td>
+</tr>
+<tr>
+<td><code>09</code></td>
+<td>重启</td>
+<td>—</td>
+<td>状态码 <code>07</code></td>
+<td>功能预留，当前不执行重启</td>
+</tr>
+</tbody>
+</table>
+<div class="note"><strong>二进制业务接口以读写为主。</strong><code>CMD=02</code> 用于读取，<code>CMD=03</code> 用于写入。目标位置、暂停、继续、停止、释放模式等操作统一通过写 RAM 地址完成；明文协议可同时使用。</div>
+<p>读取示例：读取固件版本，<code>CMD=02</code>，<code>DATA=10</code>。成功应答数据区为 <code>00 10 主版本 次版本 修订版本</code>。</p>
+<p>写入示例：以1000ms运动到位置值1500，<code>CMD=03</code>，<code>DATA=80 DC 05 E8 03</code>。其中 <code>80</code> 是运动目标地址，<code>DC 05</code> 是位置值1500，<code>E8 03</code> 是1000ms。</p>
+<h3>2.0.0扭矩单位变更</h3>
+<p>帧头、帧尾、CRC和参数地址均不变。Flash地址24（扭矩上限）、49（最小启动扭矩）、RAM地址84（实时扭矩上限）的值从一字节百分比改为两字节小端uint16，单位均为0.01 kgf·cm；例如1000为10.00 kgf·cm。读取成功时DATA为“状态码＋地址＋低字节＋高字节”；写入DATA为“地址＋低字节＋高字节”。旧一字节写入返回长度错误02。</p>
+<p>设置范围0至硬件扭矩×100，超过本机硬件上限返回数值错误03。15kg、20kg、30kg的上限分别为1500、2000、3000；默认扭矩上限为本机硬件上限，最小启动门槛默认为0。设置0禁止主动驱动；卸力方式仍由扭矩模式82控制。阻尼83仍为百分比，因为它控制的是制动占空比。</p>
+<table><thead><tr><th>ID为0的操作</th><th>完整请求（含CRC）</th></tr></thead><tbody>
+<tr><td>保存扭矩上限10.00 kgf·cm</td><td><code>AA 66 00 03 03 24 E8 03 96 66 AA</code></td></tr>
+<tr><td>临时设置扭矩上限10.00 kgf·cm</td><td><code>AA 66 00 03 03 84 E8 03 DE 66 AA</code></td></tr>
+<tr><td>保存最小启动门槛5.00 kgf·cm</td><td><code>AA 66 00 03 03 49 F4 01 67 66 AA</code></td></tr>
+<tr><td>读取已保存扭矩上限</td><td><code>AA 66 00 02 01 24 3F 66 AA</code></td></tr>
+</tbody></table>
+<p>ASCII设置/读取示例：<code>#000PSP01000!</code>设置10.00 kgf·cm；<code>#000PSP!</code>查询，回复<code>#000PSP01000!</code>。扭矩数字固定五位，旧三位SP百分比帧不再接受。</p>
+<p>升级沿用现有规则：更换固件后，除ID和波特率外，参数恢复新固件默认值（包括校准、扭矩上限和启动门槛）。旧百分比配置不会被当作物理扭矩加载；升级后请重新设置所需参数。</p>
+<h3>集合状态查询（实时状态地址C7）</h3>
+<p>使用现有读参数命令CMD=02，DATA=C7（只读参数地址，非物理内存地址），请求LEN=01。ID为0的完整请求：<code>AA 66 00 02 01 C7 98 66 AA</code>。应答保留AA 66帧头、原CRC8和66 AA帧尾；成功时命令为82，LEN为12（十六进制，即18字节：状态码＋地址＋16字节数值），整帧26字节。</p>
+<table><thead><tr><th>DATA偏移</th><th>字段</th><th>类型</th><th>单位与含义</th></tr></thead><tbody>
+<tr><td>0</td><td>状态码</td><td>uint8</td><td>00=成功；错误应答仅携带状态码</td></tr>
+<tr><td>1</td><td>参数地址</td><td>uint8</td><td>C7=实时状态集合</td></tr>
+<tr><td>2～3</td><td>目标位置</td><td>uint16</td><td>协议位置值（us），当前有效最终目标，非轨迹中间参考点</td></tr>
+<tr><td>4～5</td><td>实际位置</td><td>uint16</td><td>协议位置值（us），最近一次有效位置缓存</td></tr>
+<tr><td>6～7</td><td>估算扭矩</td><td>uint16</td><td>0.01 kgf·cm；FFFF=电流采样无效</td></tr>
+<tr><td>8～11</td><td>速度</td><td>int32</td><td>0.01度/秒，位置值增大为正；80000000=当前未更新速度观测器</td></tr>
+<tr><td>12～13</td><td>电流</td><td>uint16</td><td>mA，与现有电流查询共用最近读数；扭矩为FFFF时电流不可作为有效绕组电流使用</td></tr>
+<tr><td>14～15</td><td>温度</td><td>int16</td><td>0.1摄氏度；8000=尚未采样或读取失败</td></tr>
+<tr><td>16～17</td><td>电压</td><td>uint16</td><td>0.01V；0=尚无有效值</td></tr>
+</tbody></table>
+<p>所有多字节字段均为小端，有符号数采用二进制补码。扭矩按 T=硬件扭矩×max(I−100,0)/(2000−100) 换算，I单位mA，先乘100再四舍五入到0.01 kgf·cm。硬件信息无效时回退到该版本FW_TORQUE。超过2A继续按公式计算，不截断到型号扭矩；仅在字段量程处饱和到65534。</p>
+<p>示例应答（20kg型号、目标1800、实际1234、扭矩10.00 kgf·cm、速度−123.45度/秒、电流1050mA、温度−12.3℃、电压7.42V）：<code>AA 66 00 82 12 00 C7 08 07 D2 04 E8 03 C7 CF FF FF 1A 04 85 FF E6 02 36 66 AA</code>。</p>
+<p>C7仅支持读取，不主动周期发送，不接受广播查询；写入返回只读错误06。独立CMD=0A已移除，发送时返回未知命令01。长度错误返回状态码02；错误CRC、其他ID、广播查询及应答帧静默丢弃。01/02/03沿用现有命令格式；扭矩参数宽度与ASCII SP格式按上述2.0.0规则变更。</p>
+<p>目标、位置和速度从舵机SRAM状态读取；电流/电压缓存每10ms更新，温度每250ms更新，关闭相应保护也仍更新采样缓存。查询不触发编码器、ADC或温度传感器采样，各项数据是最近缓存而非同一时刻同步采样。暂停、卸力或反馈失效期间，位置可能保持最近有效值，速度标记无效；电机模式没有位置目标，两项位置沿用1500约定，速度无效。</p>
+<p>2.0.0起，用户扭矩上限、最小启动扭矩和集合帧扭矩上报统一使用0.01 kgf·cm。设置端按同一公式反算电流上限：I=100+设置扭矩/硬件扭矩×1900（mA，两项扭矩必须用相同单位）；零扭矩单独禁止驱动。空载/堵转电流常量和双向换算统一放在Application/A_Protect.h。独立过流保护仍以mA配置。</p>
+<p>总线串口模式下，共线PWM捕获引脚PA1使用开漏输出并置1释放信号线；上电选源前也采用此配置。PWM输入模式仍使用上拉输入捕获，PC0串口和PD2/PD3电机PWM功能不变。</p>
+<p>IAP固件及iap_upgrade.py的AA 55升级协议不受此次业务协议变更影响，无需修改。业务上位机读取集合包需发送CMD=02、DATA=C7并解析26字节成功应答；扭矩参数须适配2字节0.01 kgf·cm，ASCII SP须适配固定五位。原有其他读写功能保持原接口。</p>
+<h3>4. 状态码</h3>
+<table>
+<thead>
+<tr>
+<th>状态码</th>
+<th>含义</th>
+<th>处理建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>00</code></td>
+<td>成功</td>
+<td>可继续操作</td>
+</tr>
+<tr>
+<td><code>01</code></td>
+<td>命令不存在</td>
+<td>检查命令字</td>
+</tr>
+<tr>
+<td><code>02</code></td>
+<td>数据长度错误</td>
+<td>检查 <code>LEN</code> 与参数字节数</td>
+</tr>
+<tr>
+<td><code>03</code></td>
+<td>参数值越界</td>
+<td>按本表范围重新设置</td>
+</tr>
+<tr>
+<td><code>04</code></td>
+<td>当前状态不允许</td>
+<td>检查保护状态、扭矩模式或广播写入范围</td>
+</tr>
+<tr>
+<td><code>05</code></td>
+<td>操作失败</td>
+<td>检查传感器、机构位置或标定条件</td>
+</tr>
+<tr>
+<td><code>06</code></td>
+<td>只读地址</td>
+<td>该地址不能写入</td>
+</tr>
+<tr>
+<td><code>07</code></td>
+<td>功能未开放</td>
+<td>使用本表中已开放的命令或地址</td>
+</tr>
+</tbody>
+</table>
+<h3>5. 设备信息区（只读）</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">序号</th>
+<th style="text-align: right;">地址</th>
+<th>功能</th>
+<th style="text-align: right;">字节数</th>
+<th>返回值/范围</th>
+<th>单位</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;"><code>00</code></td>
+<td>舵机类型</td>
+<td style="text-align: right;">1</td>
+<td><code>1</code>或<code>2</code></td>
+<td>无</td>
+<td>1=电位器反馈，2=磁编码反馈</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;"><code>01</code></td>
+<td>硬件版本</td>
+<td style="text-align: right;">1</td>
+<td>设备返回值</td>
+<td>0.1版</td>
+<td>例如10表示硬件1.0</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;"><code>02</code></td>
+<td>标称电压</td>
+<td style="text-align: right;">1</td>
+<td>设备返回值</td>
+<td>V</td>
+<td>型号标称电压，不是实时电压</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;"><code>03</code></td>
+<td>标称扭矩</td>
+<td style="text-align: right;">1</td>
+<td>设备返回值</td>
+<td>kg·cm</td>
+<td>15、20或30，按设备型号返回</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;"><code>04</code></td>
+<td>硬件最大速度</td>
+<td style="text-align: right;">2</td>
+<td>设备标定值</td>
+<td>°/s</td>
+<td>用户速度不得超过该值</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;"><code>05</code></td>
+<td>硬件最大加速度</td>
+<td style="text-align: right;">4</td>
+<td>设备标定值</td>
+<td>°/s²</td>
+<td>硬件能力查询</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;"><code>06</code></td>
+<td>硬件最大减速度</td>
+<td style="text-align: right;">4</td>
+<td>设备标定值</td>
+<td>°/s²</td>
+<td>硬件能力查询</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;"><code>07</code></td>
+<td>硬件最大加加速度</td>
+<td style="text-align: right;">4</td>
+<td>设备标定值</td>
+<td>°/s³</td>
+<td>硬件能力查询</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;"><code>08</code></td>
+<td>最小可靠位移</td>
+<td style="text-align: right;">2</td>
+<td>设备标定值</td>
+<td>0.01°</td>
+<td>当前设备的位置分辨能力</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;"><code>10</code></td>
+<td>固件版本</td>
+<td style="text-align: right;">3</td>
+<td>主版本、次版本、修订版本</td>
+<td>无</td>
+<td>唯一版本信息</td>
+</tr>
+</tbody>
+</table>
+<h3>6. 字符串模式（明文协议）指令表</h3>
+<p>请求格式：<code>#</code>＋三位十进制舵机ID＋<code>P</code>＋命令体＋<code>!</code>。字母使用大写，数字按指定位数补零，不加空格。例如 <code>#000P1500T1000!</code> 表示向ID为0的舵机发送运动指令。</p>
+<div class="note"><strong>下表的请求、应答均以ID为0举例。</strong>使用时把 <code>000</code> 换成实际ID；设置ID、恢复出厂后的应答使用更改后的ID。<code>#000POK!</code> 是常见确认应答，不表示运动已经完成。查询应答中的数值仅为示例，以实际返回为准。</div>
+<p>标为“无应答”的指令执行后不会返回确认；格式错误、参数越界或设置/校准失败时也不返回错误字符串。配置类设置在后台保存，掉电保留；运动、暂停、释放等动作不保存。以下按单机地址说明；当前字符串协议的 <code>#255P…!</code> 广播仍会触发各设备正常应答，不能套用二进制广播“不回复”的规则。</p>
+<table>
+<thead>
+<tr><th>功能</th><th>明文命令（ID为0）</th><th>功能说明</th><th>应答及含义</th></tr>
+</thead>
+<tbody>
+<tr>
+<td>位置/速度运动</td>
+<td><code>#000PnnnnTnnnn!</code><br>例：<code>#000P1500T1000!</code></td>
+<td>位置模式下，前4位是目标位置（0500～2500），T后4位是运动时间（0000～9999ms）；0000表示按最快允许轨迹运动。示例为用1000ms运动到中位1500。电机模式下，前4位控制驱动方向和大小，1500为停止；模式7/8的T表示圈数，模式9/10的T按当前程序表示秒数，T=0000表示持续运行。</td>
+<td>无应答。可用 <code>RAD</code> 查询当前位置。</td>
+</tr>
+<tr>
+<td>多圈运动</td>
+<td><code>#000PnnnnNnTnnnn!</code><br>例：<code>#000P1500N2T1000!</code></td>
+<td>在支持多圈的磁编码版本位置模式下，额外转N圈后到达指定位置。目标0500～2500，N为0～9，T为每圈时间（ms，0000为最快）。示例为额外转2圈后到1500，每圈1000ms。当前电位器版本不执行此指令。</td>
+<td>无应答。</td>
+</tr>
+<tr>
+<td>查询固件版本</td>
+<td><code>#000PVER!</code></td>
+<td>读取当前固件的主版本、次版本和修订版本。</td>
+<td>格式：<code>#000PServo-V主.次.修订!</code><br>例：<code>#000PServo-V2.0.0!</code>。</td>
+</tr>
+<tr>
+<td>查询ID</td>
+<td><code>#000PID!</code></td>
+<td>读取舵机当前通信ID。</td>
+<td><code>#000P!</code>。ID直接位于帧头，P后没有其他内容。</td>
+</tr>
+<tr>
+<td>设置ID</td>
+<td><code>#000PIDnnn!</code><br>例：<code>#000PID001!</code></td>
+<td>将ID改为三位十进制数000～254并保存。示例将ID从0改为1，后续命令应发给新ID。</td>
+<td>成功返回新ID的OK；示例为 <code>#001POK!</code>。</td>
+</tr>
+<tr>
+<td>自由释放</td>
+<td><code>#000PULK!</code></td>
+<td>停止当前运动并关闭主动驱动，舵机轴可低阻力转动；原运动目标被清除。相当于扭矩模式0。</td>
+<td><code>#000POK!</code>。</td>
+</tr>
+<tr>
+<td>最大阻尼释放</td>
+<td><code>#000PULM!</code></td>
+<td>停止当前运动并清除目标，进入100%阻尼的制动状态，转动轴时阻力较大；不主动跟随位置目标。相当于阻尼100%、扭矩模式2。</td>
+<td><code>#000POK!</code>。</td>
+</tr>
+<tr>
+<td>恢复正常运行</td>
+<td><code>#000PULR!</code></td>
+<td>从释放状态恢复正常扭矩；位置模式以当前位置重新建立控制，原来被清除的目标不会恢复，需要重新发送运动指令。保护故障未解除时不能恢复驱动。</td>
+<td><code>#000POK!</code>。此应答只确认收到命令，不保证保护状态下已恢复驱动。</td>
+</tr>
+<tr>
+<td>查询工作模式</td>
+<td><code>#000PMOD!</code></td>
+<td>读取当前舵机工作模式编号。</td>
+<td>格式：<code>#000PMODn!</code><br>例：<code>#000PMOD1!</code> 表示模式1。</td>
+</tr>
+<tr>
+<td>设置工作模式</td>
+<td><code>#000PMODn!</code><br>例：<code>#000PMOD1!</code></td>
+<td>切换并保存工作模式：1～6为位置模式，7/8为定圈模式，9/10为定时模式。电位器版不支持5/6；11由行程标定自动进入，不能直接设置。各模式方向和角度见下方“舵机工作模式说明”。</td>
+<td>成功：<code>#000POK!</code>；不支持的模式或设置失败：无应答。</td>
+</tr>
+<tr>
+<td>查询当前位置</td>
+<td><code>#000PRAD!</code></td>
+<td>读取当前位置，使用500～2500位置刻度，1500表示中位；返回值不是角度数。</td>
+<td>格式：<code>#000Pnnnn!</code><br>例：<code>#000P1500!</code> 表示当前位置值为1500。</td>
+</tr>
+<tr>
+<td>暂停运动</td>
+<td><code>#000PDPT!</code></td>
+<td>暂停当前运动并刹车，保留原目标和剩余运动信息，之后可用DCT继续。</td>
+<td><code>#000POK!</code>。</td>
+</tr>
+<tr>
+<td>继续运动</td>
+<td><code>#000PDCT!</code></td>
+<td>恢复DPT暂停的运动，继续执行原目标；没有可恢复的暂停任务时不动作。</td>
+<td><code>#000POK!</code>。</td>
+</tr>
+<tr>
+<td>停止运动</td>
+<td><code>#000PDST!</code></td>
+<td>终止当前运动并清除原目标，不能再用DCT恢复；需要重新发送运动指令。</td>
+<td>无应答。</td>
+</tr>
+<tr>
+<td>查询波特率</td>
+<td><code>#000PBD!</code></td>
+<td>读取当前串口波特率，返回实际bps数值。</td>
+<td>格式：<code>#000PBAUD数值!</code><br>例：<code>#000PBAUD115200!</code> 表示115200bps。</td>
+</tr>
+<tr>
+<td>设置波特率</td>
+<td><code>#000PBDn!</code><br>例：<code>#000PBD5!</code></td>
+<td>设置并保存档位1～8：1=9600、2=19200、3=38400、4=57600、5=115200、6=128000、7=256000、8=1000000bps。示例设置为115200bps。</td>
+<td>先用旧波特率返回 <code>#000POK!</code>，发送完毕后切换到新波特率；上位机随后也需切换。</td>
+</tr>
+<tr>
+<td>中位校准</td>
+<td><code>#000PSCK!</code></td>
+<td>在位置模式下，把当前实际位置标定为中位1500并保存；校准会调整位置映射，不是让舵机运动到原中位。</td>
+<td>成功：<code>#000POK!</code>；当前模式不支持、位置读取或校准失败：无应答。</td>
+</tr>
+<tr>
+<td>零点校准</td>
+<td><code>#000PSCZ!</code></td>
+<td>在位置模式下，把当前实际位置标定为零点（位置值500）并保存；不是让舵机运动到原零点。</td>
+<td>成功：<code>#000POK!</code>；当前模式不支持、位置读取或校准失败：无应答。</td>
+</tr>
+<tr>
+<td>保存上电位置</td>
+<td><code>#000PCSD!</code></td>
+<td>在位置模式下，将当前位置保存为上电目标位置。配合 <code>CSM1</code>，下次上电会转到该位置。</td>
+<td>成功：<code>#000POK!</code>；当前模式不支持或位置读取失败：无应答。</td>
+</tr>
+<tr>
+<td>查询上电动作</td>
+<td><code>#000PCSM!</code></td>
+<td>读取已保存的上电动作：1=转到上电位置，2=原地保持，3=自由释放。</td>
+<td>格式：<code>#000PCSMn!</code><br>例：<code>#000PCSM1!</code> 表示上电转到保存的位置。</td>
+</tr>
+<tr>
+<td>设置上电动作</td>
+<td><code>#000PCSMn!</code><br>例：<code>#000PCSM2!</code></td>
+<td>保存下次上电使用的动作：1=转到保存的上电位置，2=保持上电时的实际位置，3=自由释放。</td>
+<td>成功：<code>#000POK!</code>；参数不在1～3内：无应答。</td>
+</tr>
+<tr>
+<td>恢复默认，保留ID</td>
+<td><code>#000PCLE0!</code></td>
+<td>保留当前ID，其余配置恢复默认，包括波特率、模式及校准等设置。</td>
+<td>用原ID、原波特率返回 <code>#000POK!</code>，随后切换到默认波特率115200bps。</td>
+</tr>
+<tr>
+<td>完全恢复出厂</td>
+<td><code>#000PCLE!</code></td>
+<td>所有配置恢复默认，ID也恢复为0；后续用ID为0、115200bps通信。</td>
+<td>用恢复后的ID为0、原波特率返回 <code>#000POK!</code>，随后切换到默认波特率115200bps。</td>
+</tr>
+<tr>
+<td>查询运行信息</td>
+<td><code>#000PRTV!</code></td>
+<td>一次读取当前位置、温度和供电电压。</td>
+<td>例：<code>#000PDP1500T25V7.4!</code>。DP1500=位置值1500，T25=25℃（整数，可为负），V7.4=7.4V。温度读取失败时T返回0。</td>
+</tr>
+<tr>
+<td>查询扭矩上限</td>
+<td><code>#000PSP!</code></td>
+<td>读取当前输出扭矩上限，单位0.01 kgf·cm；实际扭矩估算值通过集合状态帧查询。</td>
+<td>格式：<code>#000PSPnnnnn!</code><br>例：<code>#000PSP01000!</code> 表示扭矩上限10.00 kgf·cm。</td>
+</tr>
+<tr>
+<td>设置扭矩上限</td>
+<td><code>#000PSPnnnnn!</code><br>例：<code>#000PSP01000!</code></td>
+<td>设置输出扭矩上限，固定五位数，单位0.01 kgf·cm；范围0至本机硬件扭矩×100。立即使用并保存到Flash。示例设置为10.00 kgf·cm；旧三位百分比命令不再接受。</td>
+<td>成功：<code>#000POK!</code>；参数越界或设置失败：无应答。</td>
+</tr>
+<tr>
+<td>设置行程500端</td>
+<td><code>#000PAMI!</code></td>
+<td>在位置模式下，将行程对应位置值500的一端收缩到当前位置，保存并自动进入自定义行程模式11；新行程重新映射为500～2500。</td>
+<td>成功：<code>#000POK!</code>；模式不支持、位置读取失败或剩余行程不足：无应答。</td>
+</tr>
+<tr>
+<td>设置行程2500端</td>
+<td><code>#000PAMX!</code></td>
+<td>在位置模式下，将行程对应位置值2500的一端收缩到当前位置，保存并自动进入自定义行程模式11；新行程重新映射为500～2500。</td>
+<td>成功：<code>#000POK!</code>；模式不支持、位置读取失败或剩余行程不足：无应答。</td>
+</tr>
+<tr>
+<td>设置脉宽下界</td>
+<td><code>#000PSMI!</code></td>
+<td>在位置模式下，把当前位置对应的位置刻度保存为可接收目标的下限。例如当前位置为800，则以后小于800的运动目标会被拒绝；不改变原位置映射。</td>
+<td>成功：<code>#000POK!</code>；模式不支持、位置读取失败或下界不小于上界：无应答。</td>
+</tr>
+<tr>
+<td>设置脉宽上界</td>
+<td><code>#000PSMX!</code></td>
+<td>在位置模式下，把当前位置对应的位置刻度保存为可接收目标的上限。例如当前位置为2200，则以后大于2200的运动目标会被拒绝；不改变原位置映射。</td>
+<td>成功：<code>#000POK!</code>；模式不支持、位置读取失败或上界不大于下界：无应答。</td>
+</tr>
+<tr>
+<td>查询电流、电压</td>
+<td><code>#000PRIV!</code></td>
+<td>读取最近一次采样的电流和实时供电电压。</td>
+<td>例：<code>#000PI0103V7.0!</code>。I0103=103mA，V7.0=7.0V；电流不足4位补零，电压保留1位小数。</td>
+</tr>
+</tbody>
+</table>
+<h3>7. 典型使用示例</h3>
+<div class="note"><strong>以下示例均以舵机ID为0。</strong>二进制帧中的多字节数值采用小端格式，CRC已按示例内容计算；修改ID或数据后必须重新计算CRC。Flash参数写入后掉电保留，RAM参数和运动命令掉电丢失。</div>
+<table>
+<thead>
+<tr>
+<th>使用场景</th>
+<th>明文命令</th>
+<th>二进制请求帧</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>用1000ms运动到位置值1500</td>
+<td><code>#000P1500T1000!</code></td>
+<td><code>AA 66 00 03 05 80 DC 05 E8 03 7B 66 AA</code></td>
+<td>位置值1500为中间位置；运动时间0表示按最快轨迹运动</td>
+</tr>
+<tr>
+<td>暂停，然后继续运动</td>
+<td><code>#000PDPT!</code><br><code>#000PDCT!</code></td>
+<td><code>AA 66 00 03 02 81 02 41 66 AA</code><br><code>AA 66 00 03 02 81 01 48 66 AA</code></td>
+<td>暂停时保留原目标；继续后恢复执行</td>
+</tr>
+<tr>
+<td>自由释放，然后恢复正常运行</td>
+<td><code>#000PULK!</code><br><code>#000PULR!</code></td>
+<td><code>AA 66 00 03 02 82 00 70 66 AA</code><br><code>AA 66 00 03 02 82 01 77 66 AA</code></td>
+<td>扭矩模式0为自由释放，1为正常运行</td>
+</tr>
+<tr>
+<td>将扭矩上限保存为10.00 kgf·cm</td>
+<td><code>#000PSP01000!</code></td>
+<td><code>AA 66 00 03 02 24 50 A1 66 AA</code></td>
+<td>写入Flash地址24，重新上电后仍为10.00 kgf·cm</td>
+</tr>
+<tr>
+<td>将实时最大加速度设为硬件最大值</td>
+<td>—</td>
+<td><code>AA 66 00 03 05 86 00 00 00 00 37 66 AA</code></td>
+<td>RAM地址86写入0，表示使用硬件信息中的最大加速度；掉电后恢复默认</td>
+</tr>
+<tr>
+<td>读取固件版本</td>
+<td><code>#000PVER!</code></td>
+<td><code>AA 66 00 02 01 10 B3 66 AA</code></td>
+<td>二进制成功应答的数据区依次为状态码、地址10、主版本、次版本、修订版本</td>
+</tr>
+<tr>
+<td>读取当前工作状态</td>
+<td>—</td>
+<td><code>AA 66 00 02 01 C0 8D 66 AA</code></td>
+<td>读取RAM地址C0；返回值含义见实时状态表</td>
+</tr>
+</tbody>
+</table>
+<p><strong>推荐的首次使用顺序：</strong>先读取硬件信息和固件版本，再按需设置Flash参数，然后设置RAM运动参数并写入运动目标；运行过程中可读取工作状态、故障状态、当前位置、温度、电压和电流。</p>
+<h2>二、Flash 掉电保存区</h2>
+<p>使用 <code>CMD=02</code> 读取、<code>CMD=03</code> 写入。写入成功后立即用于当前运行并在后台保存，重新上电后仍然有效。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">序号</th>
+<th style="text-align: right;">地址</th>
+<th>功能</th>
+<th style="text-align: right;">字节数</th>
+<th style="text-align: right;">默认值</th>
+<th>权限</th>
+<th>范围/取值</th>
+<th>单位</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;"><code>20</code></td>
+<td>舵机ID</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">0</td>
+<td>读写</td>
+<td>0～254</td>
+<td>无</td>
+<td>总线上唯一地址</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;"><code>21</code></td>
+<td>波特率档位</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">5</td>
+<td>读写</td>
+<td>1～8</td>
+<td>无</td>
+<td>1=9600，2=19200，3=38400，4=57600，5=115200，6=128000，7=256000，8=1000000</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;"><code>22</code></td>
+<td>舵机工作模式</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td>读写</td>
+<td>电位器版：1～4、7～10；磁编码版：1～10</td>
+<td>无</td>
+<td>模式含义见下表</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;"><code>23</code></td>
+<td>上电动作</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1</td>
+<td>读写</td>
+<td>1转到上电位置，2原地保持，3自由释放</td>
+<td>无</td>
+<td>决定上电后的默认动作</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;"><code>24</code></td>
+<td>设置扭矩</td>
+<td style="text-align: right;">2</td>
+<td>硬件扭矩×100</td>
+<td>读写</td>
+<td>0～硬件扭矩×100；15kg=1500，20kg=2000，30kg=3000</td>
+<td>0.01 kgf·cm</td>
+<td>设置扭矩上限并保存；低于最小启动扭矩门槛时不启动</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;"><code>25</code></td>
+<td>上电目标位置</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">1500</td>
+<td>读写</td>
+<td>500～2500</td>
+<td>位置刻度</td>
+<td>上电动作设为1时使用；500～2500对应传统舵机500～2500μs位置刻度</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;"><code>30</code></td>
+<td>最大速度</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">按型号</td>
+<td>读写</td>
+<td>1～硬件最大速度</td>
+<td>°/s</td>
+<td>不超过设备信息地址 <code>04</code></td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;"><code>31</code></td>
+<td>最大加速度</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">按型号</td>
+<td>读写</td>
+<td>0，或1～舵机最大加速度</td>
+<td>°/s²</td>
+<td>0取硬件最大值；最大值可读取设备信息地址 <code>05</code></td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;"><code>32</code></td>
+<td>最大减速度</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">按型号</td>
+<td>读写</td>
+<td>0，或1～舵机最大减速度</td>
+<td>°/s²</td>
+<td>0取硬件最大值；最大值可读取设备信息地址 <code>06</code></td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;"><code>33</code></td>
+<td>最大加加速度</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;">按型号</td>
+<td>读写</td>
+<td>0，或1～舵机最大加加速度</td>
+<td>°/s³</td>
+<td>0取硬件最大值；最大值可读取设备信息地址 <code>07</code></td>
+</tr>
+<tr>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;"><code>34</code></td>
+<td>小位移最短时间</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">75</td>
+<td>读写</td>
+<td>0～200</td>
+<td>ms</td>
+<td>0关闭该限制</td>
+</tr>
+<tr>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;"><code>35</code></td>
+<td>到位保持刚度</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">12</td>
+<td>读写</td>
+<td>0～12</td>
+<td>PWM/0.01°</td>
+<td>到位后被推出保持死区时，每0.01°回推多少PWM；0关闭保持弹簧</td>
+</tr>
+<tr>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;"><code>36</code></td>
+<td>齿轮箱齿隙</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">60</td>
+<td>读写</td>
+<td>0～500</td>
+<td>0.01°</td>
+<td>到位后在停住处放一个窗(电机往哪边顶就往哪边开一个齿隙，不确定时两边各一个)，到下一条指令前固定：窗内随便动不出力，出窗后保持弹簧顶回窗边并保持住，不往窗里推(负载压着的那一侧没有余量)；舵机磨损后调大可消除轻碰抖动，调得越大被碰后停得越偏。测法：卸力后轻轻来回拨舵盘，回读两端之差。目前仅30kg固件支持</td>
+</tr>
+<tr>
+<td style="text-align: right;">14</td>
+<td style="text-align: right;"><code>40</code></td>
+<td>过流保护阈值</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">3000</td>
+<td>读写</td>
+<td>500～5000</td>
+<td>mA</td>
+<td>用于异常过流安全保护</td>
+</tr>
+<tr>
+<td style="text-align: right;">15</td>
+<td style="text-align: right;"><code>41</code></td>
+<td>过流持续时间</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">30</td>
+<td>读写</td>
+<td>10～1000</td>
+<td>ms</td>
+<td>超过阈值达到该时间后停机</td>
+</tr>
+<tr>
+<td style="text-align: right;">16</td>
+<td style="text-align: right;"><code>42</code></td>
+<td>过温保护阈值</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">50.0</td>
+<td>读写</td>
+<td>30.0～100.0</td>
+<td>℃</td>
+<td>传输值为温度的10倍，例如50.0℃写入500</td>
+</tr>
+<tr>
+<td style="text-align: right;">17</td>
+<td style="text-align: right;"><code>43</code></td>
+<td>过温持续时间</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">250</td>
+<td>读写</td>
+<td>250～10000</td>
+<td>ms</td>
+<td>超过阈值达到该时间后停机</td>
+</tr>
+<tr>
+<td style="text-align: right;">18</td>
+<td style="text-align: right;"><code>44</code></td>
+<td>堵转阈值</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">32</td>
+<td>读写</td>
+<td>10～250</td>
+<td>0.01°/20ms</td>
+<td>实际位移不大于该值且目标参考位移达到该值4倍时累计堵转</td>
+</tr>
+<tr>
+<td style="text-align: right;">19</td>
+<td style="text-align: right;"><code>45</code></td>
+<td>堵转连续次数</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">5</td>
+<td>读写</td>
+<td>1～100</td>
+<td>次</td>
+<td>默认5次，约100ms</td>
+</tr>
+<tr>
+<td style="text-align: right;">20</td>
+<td style="text-align: right;"><code>46</code></td>
+<td>保护功能开关</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">15</td>
+<td>读写</td>
+<td>0～255，按位组合</td>
+<td>位</td>
+<td>位0过温、位1过流、位2堵转、位3电压；位4～7预留</td>
+</tr>
+<tr>
+<td style="text-align: right;">21</td>
+<td style="text-align: right;"><code>47</code></td>
+<td>最低工作电压</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">50</td>
+<td>读写</td>
+<td>50～90，与最高电压至少相差2</td>
+<td>0.1V</td>
+<td>可设置5.0～9.0V；低于该值不工作</td>
+</tr>
+<tr>
+<td style="text-align: right;">22</td>
+<td style="text-align: right;"><code>48</code></td>
+<td>最高工作电压</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">90</td>
+<td>读写</td>
+<td>50～90，与最低电压至少相差2</td>
+<td>0.1V</td>
+<td>可设置5.0～9.0V；高于该值不工作</td>
+</tr>
+<tr>
+<td style="text-align: right;">23</td>
+<td style="text-align: right;"><code>49</code></td>
+<td>最小启动扭矩</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">0</td>
+<td>读写</td>
+<td>0～硬件扭矩×100；15kg=1500，20kg=2000，30kg=3000</td>
+<td>0.01 kgf·cm</td>
+<td>0关闭门槛；设置的扭矩上限低于该值时不工作，不是与实测负载扭矩比较</td>
+</tr>
+</tbody>
+</table>
+<p>保护开关各位可相加组合。例如 <code>15</code>（二进制 <code>00001111</code>）表示四项现有保护全部开启；<code>255</code> 可正常写入，高四位暂不产生功能。</p>
+<p>电压越界持续约50ms后停止输出；电压回到阈值以内，留出0.2V回差并稳定约500ms后，才允许恢复运行。</p>
+<p>主动驱动PWM以标称8V为基准，按“实际PWM＝指令PWM×8V÷实时电压”自动补偿，用于减小不同供电电压造成的速度和响应差异；达到满占空比后不再继续放大。</p>
+<h3>舵机工作模式说明</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">数值</th>
+<th>模式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td>270°位置模式（顺时针）</td>
+<td>目标值增大时向顺时针方向运动</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td>270°位置模式（逆时针）</td>
+<td>目标值增大时向逆时针方向运动</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td>180°位置模式（顺时针）</td>
+<td>目标值增大时向顺时针方向运动</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td>180°位置模式（逆时针）</td>
+<td>目标值增大时向逆时针方向运动</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td>360°位置模式（顺时针）</td>
+<td>磁编码版本可用，电位器版本不可设置</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td>360°位置模式（逆时针）</td>
+<td>磁编码版本可用，电位器版本不可设置</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td>顺时针定圈模式</td>
+<td>支持圈数控制</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td>逆时针定圈模式</td>
+<td>支持圈数控制</td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td>顺时针定时模式</td>
+<td>支持运行时间控制</td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td>逆时针定时模式</td>
+<td>支持运行时间控制</td>
+</tr>
+<tr>
+<td style="text-align: right;">11</td>
+<td>自定义行程位置模式</td>
+<td>不能直接写入，仅在完成行程端点标定后自动进入</td>
+</tr>
+</tbody>
+</table>
+<h2>三、RAM 实时区</h2>
+<p>RAM 参数使用 <code>CMD=02</code> 读取、<code>CMD=03</code> 写入。写入后立即生效但不保存，断电重启后重新采用 Flash 设置。扭矩模式上电默认1，自定义阻尼上电默认100%。</p>
+<h3>1. 运动控制区</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">序号</th>
+<th style="text-align: right;">地址</th>
+<th>功能</th>
+<th style="text-align: right;">字节数</th>
+<th>上电值/来源</th>
+<th>权限</th>
+<th>范围/取值</th>
+<th>单位</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;"><code>80</code></td>
+<td>运动目标</td>
+<td style="text-align: right;">4</td>
+<td>—</td>
+<td>只写</td>
+<td>目标位置值2字节＋运动时间2字节</td>
+<td>位置刻度、ms</td>
+<td>位置值500～2500，对应传统舵机500～2500μs位置刻度；它不是串口时序或通信脉宽。时间0表示按最快轨迹运动</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;"><code>81</code></td>
+<td>运动动作</td>
+<td style="text-align: right;">1</td>
+<td>—</td>
+<td>只写</td>
+<td>1继续，2暂停，3停止</td>
+<td>无</td>
+<td>暂停保留目标；停止丢弃目标</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;"><code>82</code></td>
+<td>扭矩模式</td>
+<td style="text-align: right;">1</td>
+<td>1</td>
+<td>读写</td>
+<td>0自由释放，1正常运行，2自定义阻尼</td>
+<td>无</td>
+<td>写2进入无源阻尼释放</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;"><code>83</code></td>
+<td>自定义阻尼</td>
+<td style="text-align: right;">1</td>
+<td>100</td>
+<td>读写</td>
+<td>0～100</td>
+<td>%</td>
+<td>通过制动占空比调节；100为最大阻尼</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;"><code>84</code></td>
+<td>实时设置扭矩</td>
+<td style="text-align: right;">2</td>
+<td>Flash <code>24</code></td>
+<td>读写</td>
+<td>0～硬件扭矩×100；15kg=1500，20kg=2000，30kg=3000</td>
+<td>0.01 kgf·cm</td>
+<td>设置本次上电期间的扭矩上限，不保存</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;"><code>85</code></td>
+<td>实时最大速度</td>
+<td style="text-align: right;">2</td>
+<td>Flash <code>30</code></td>
+<td>读写</td>
+<td>1～硬件最大速度</td>
+<td>°/s</td>
+<td>下一次轨迹规划起生效；最大值可读取设备信息地址 <code>04</code></td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;"><code>86</code></td>
+<td>实时最大加速度</td>
+<td style="text-align: right;">4</td>
+<td>Flash <code>31</code></td>
+<td>读写</td>
+<td>0，或1～舵机最大加速度</td>
+<td>°/s²</td>
+<td>0取硬件最大值；最大值可读取设备信息地址 <code>05</code></td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;"><code>87</code></td>
+<td>实时最大减速度</td>
+<td style="text-align: right;">4</td>
+<td>Flash <code>32</code></td>
+<td>读写</td>
+<td>0，或1～舵机最大减速度</td>
+<td>°/s²</td>
+<td>0取硬件最大值；最大值可读取设备信息地址 <code>06</code></td>
+</tr>
+<tr>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;"><code>88</code></td>
+<td>实时最大加加速度</td>
+<td style="text-align: right;">4</td>
+<td>Flash <code>33</code></td>
+<td>读写</td>
+<td>0，或1～舵机最大加加速度</td>
+<td>°/s³</td>
+<td>0取硬件最大值；最大值可读取设备信息地址 <code>07</code></td>
+</tr>
+<tr>
+<td style="text-align: right;">10</td>
+<td style="text-align: right;"><code>89</code></td>
+<td>实时小位移最短时间</td>
+<td style="text-align: right;">2</td>
+<td>Flash <code>34</code></td>
+<td>读写</td>
+<td>0～200</td>
+<td>ms</td>
+<td>0关闭</td>
+</tr>
+<tr>
+<td style="text-align: right;">11</td>
+<td style="text-align: right;"><code>8A</code></td>
+<td>实时保持刚度</td>
+<td style="text-align: right;">1</td>
+<td>Flash <code>35</code></td>
+<td>读写</td>
+<td>0～12</td>
+<td>PWM/0.01°</td>
+<td>平滑跟随新值</td>
+</tr>
+<tr>
+<td style="text-align: right;">12</td>
+<td style="text-align: right;"><code>8B</code></td>
+<td>校准动作</td>
+<td style="text-align: right;">1</td>
+<td>—</td>
+<td>只写</td>
+<td>1中位，2零点，3行程下端，4行程上端，5脉宽下界，6脉宽上界，7保存上电位置</td>
+<td>无</td>
+<td>将同类校准操作合并到一个地址</td>
+</tr>
+<tr>
+<td style="text-align: right;">13</td>
+<td style="text-align: right;"><code>8C</code></td>
+<td>系统动作</td>
+<td style="text-align: right;">1</td>
+<td>—</td>
+<td>只写</td>
+<td>1从Flash重载RAM，2恢复默认并保留ID，3完全恢复出厂</td>
+<td>无</td>
+<td>值2、3会修改并保存Flash参数</td>
+</tr>
+</tbody>
+</table>
+<h3>2. 实时状态区</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">序号</th>
+<th style="text-align: right;">地址</th>
+<th>功能</th>
+<th style="text-align: right;">字节数</th>
+<th>权限</th>
+<th>范围/取值</th>
+<th>单位</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;"><code>C0</code></td>
+<td>工作状态</td>
+<td style="text-align: right;">1</td>
+<td>只读</td>
+<td>0空闲，1运动，2暂停，3自由释放，4阻尼释放，5反馈恢复，6故障</td>
+<td>无</td>
+<td>当前主要状态</td>
+</tr>
+<tr>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;"><code>C1</code></td>
+<td>故障状态</td>
+<td style="text-align: right;">2</td>
+<td>只读</td>
+<td>位0过温，位1过流，位2堵转，位3欠压，位4过压，位5电压采样无效</td>
+<td>位</td>
+<td>可同时出现多个故障位</td>
+</tr>
+<tr>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;"><code>C2</code></td>
+<td>当前位置</td>
+<td style="text-align: right;">2</td>
+<td>只读</td>
+<td>500～2500</td>
+<td>位置刻度</td>
+<td>当前角度换算后的位置值，对应传统舵机500～2500μs位置刻度</td>
+</tr>
+<tr>
+<td style="text-align: right;">4</td>
+<td style="text-align: right;"><code>C3</code></td>
+<td>实时温度</td>
+<td style="text-align: right;">2有符号</td>
+<td>只读</td>
+<td>传感器返回值</td>
+<td>0.1℃</td>
+<td>读取失败时返回-32768</td>
+</tr>
+<tr>
+<td style="text-align: right;">5</td>
+<td style="text-align: right;"><code>C4</code></td>
+<td>实时电压</td>
+<td style="text-align: right;">2</td>
+<td>只读</td>
+<td>传感器返回值</td>
+<td>0.01V</td>
+<td>例如700表示7.00V</td>
+</tr>
+<tr>
+<td style="text-align: right;">6</td>
+<td style="text-align: right;"><code>C5</code></td>
+<td>实时电流</td>
+<td style="text-align: right;">2</td>
+<td>只读</td>
+<td>0～65535</td>
+<td>mA</td>
+<td>最近一次绕组电流读数</td>
+</tr>
+<tr>
+<td style="text-align: right;">7</td>
+<td style="text-align: right;"><code>C6</code></td>
+<td>堵转状态</td>
+<td style="text-align: right;">1</td>
+<td>只读</td>
+<td>0正常，1最近动作发生堵转</td>
+<td>无</td>
+<td>机构重新运动后自动清除</td>
+</tr>
+<tr>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;"><code>C7</code></td>
+<td>实时状态集合</td>
+<td style="text-align: right;">16</td>
+<td>只读</td>
+<td>目标位置、实际位置、估算扭矩、速度、电流、温度、电压</td>
+<td>各字段单位见集合状态查询表</td>
+<td>CMD=02读取；成功DATA为状态码＋C7＋16字节数值，共18字节；复用SRAM缓存，不触发新采样</td>
+</tr>
+</tbody>
+</table>
+<p>需要永久保存时写 Flash 地址；只希望本次运行生效时写 RAM 运动控制地址。明文命令与二进制读写命令可按需要选用。</p></body></html>

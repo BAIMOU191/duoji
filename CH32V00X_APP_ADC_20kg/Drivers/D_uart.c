@@ -119,11 +119,6 @@ void D_UART_Enable(uint8_t en)
     }
 }
 
-uint8_t D_UART_Is_Enabled(void)
-{
-    return s_enabled;
-}
-
 /* 从接收队列取1字节，0=队列空 */
 uint8_t D_UART1_Rx_Get(uint8_t *data)
 {

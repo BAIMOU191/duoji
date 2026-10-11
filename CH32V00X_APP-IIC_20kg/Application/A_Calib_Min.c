@@ -1,22 +1,23 @@
 /*
- * A_Calib_Min.c —— 自动标定程序，两种编码器共用；差异收在"编码器抽象"一段，测试项只认连续计数 raw 与厘度 pos。
- * 只测互相独立的量(其余由 A_Parameter.h 派生，分别测会因测量噪声互相矛盾)：
+ * A_Calib_Min.c —— 自动标定程序，MT6701版本，整圈反馈连续化后测量，测试项只认连续计数 raw 与厘度 pos。
+ * 只测互相独立的量(其余由 A_Config.h 派生，分别测会因测量噪声互相矛盾)：
  *   T0 接线方向、T1 slope/coulomb(单台散差最大)、T2 tau、T3 纯延迟、T4 制动比、T9 起转与噪声底；
  *   tau/纯延迟/制动比为型号级常数。
  * 标定误差是单边的：把对象估强/估快(slope 或 tau 偏小)会让规划器要求做不到的加速度，故两者一律向上取整。
  */
 
 #include "A_Calib_Min.h"
-#include "A_Parameter.h"
+#include "A_Config.h"
 #include "C_Task_Scheduler.h"
 #include "D_motor.h"
-#include "D_adc.h"      /* 电位器通道的ADC原始计数 */
 #include "D_mt6701.h"   /* 磁编码器的原始计数 */
 #include "A_Sensor.h"   /* 编码器模式、标定常数与死区门限 */
 #include "D_iwdg.h"
 #include "D_uart.h"
 #include "iap.h"
 #include <stdio.h>
+#include <stdarg.h>
+#include <stddef.h>
 #include <string.h>
 
 /* ==================== 可调项(换更大扭力舵机时复核) ==================== */
@@ -30,19 +31,6 @@
 
 /* 编码器抽象：CM_HAS_TRAVEL=行程是否有限；CM_SWEEP_ENABLED=能否扫频(需持续单向转好几圈)；
  * CM_SUB_SCALE=驱动发布的亚LSB倍数(电位器Q4；磁编码器静止无dither取1)，只有T9用。 */
-#if ENCODER_MODE == 0
-#define CM_HAS_TRAVEL     1
-#define CM_SWEEP_ENABLED  0
-#define CM_SUB_SCALE      ((int32_t)D_ADC_ENCODER_SCALE)
-/* 一个编码器计数值多少厘度，×1000。电位器：27000厘度/3400计数 = 7.941厘度。 */
-#define CM_LSB_C1000      ((int32_t)(((int32_t)ENCODER_POT_SPAN_CDEG * 1000L) \
-                                   / (int32_t)ENCODER_POT_ADC_SPAN))
-/* 保护带按可读范围画(碳膜比标定行程两端各多10度)，要防的是抽头滑出碳膜 */
-#define CM_GUARD_CDEG     500L  /* 距可读两端还有这么多厘度就判越界(5度) */
-#define CM_TRAVEL_LO      (ENCODER_ANGLE_LO + CM_GUARD_CDEG)
-#define CM_TRAVEL_HI      (ENCODER_ANGLE_HI - CM_GUARD_CDEG)
-#define CM_CENTER_CDEG    ((int32_t)ENCODER_POT_SPAN_CDEG / 2)
-#else
 #define CM_HAS_TRAVEL     0
 #define CM_SWEEP_ENABLED  1
 #define CM_SUB_SCALE      1
@@ -52,7 +40,6 @@
 #define CM_TRAVEL_LO      0L
 #define CM_TRAVEL_HI      0L
 #define CM_CENTER_CDEG    0L
-#endif
 
 /* 单向激励起跑点贴行程低端(T2满PWM要走约143度)；离保护带留25度给预定位松手后的滑行 */
 #define CM_START_LO_CDEG  2000L
@@ -117,7 +104,10 @@ static const int16_t CM_PWM[CM_LEVELS] = { 700, 1120, 1540, 1960, 2380 };
 #define CM_BA_STEP_PWM      3   /* 每 CM_BA_STEP_MS 抬高的幅值 */
 #define CM_BA_STEP_MS     10U   /* 合 300 计数/秒，从0爬到800约2.7秒 */
 #define CM_BA_MAX_PWM     800   /* 爬到这里还不动就判本次失败 */
-#define CM_BA_THR_MIN_Q4   24   /* "确实动了"的最小阈值，Q4计数(=1.5个LSB) */
+/* "确实动了"的最小阈值统一取 1.5 个硬件 LSB，并向上取整。
+ * ADC 的 CM_SUB_SCALE=16 -> 24；MT6701 的 CM_SUB_SCALE=1 -> 2。
+ * 不能固定写 24，否则磁编码器会变成移动 24 个计数(约0.53度)才判起转。 */
+#define CM_BA_THR_MIN_SUB  ((3L * CM_SUB_SCALE + 1L) / 2L)
 #define CM_REP_BA          2U   /* 每方向跑几次(实际次数 = 值*2，正反交替) */
 /* ---- T7 扫频：直流偏置(必须>摩擦，让轴一直转)+小幅正弦，单频点锁相 ---- */
 #define CM_SW_POINTS    12U
@@ -148,6 +138,10 @@ static const uint16_t CM_RING_HZ[CM_RING_FPTS] =
 #define CM_REP_DEAD   2U
 #define CM_REP_BRAKE  3U
 
+/* 与 ADC 版一致：整套核心标定跑三遍，最后逐项取中位数。
+ * 磁编码器没有行程限制，每遍都从当前位置直接开始，可连续整圈转动。 */
+#define CM_ROUNDS      3U
+
 /* ==================== 状态机 ==================== */
 
 enum { PH_BOOT = 0, PH_CENTER, PH_T0_SIGN, PH_T1_LINE, PH_T2_TAU, PH_T3_DEAD,
@@ -168,7 +162,7 @@ static struct {
     uint8_t  enc_fail_cnt;
 
     int32_t  pos;           /* 本拍角度(厘度) */
-    int32_t  raw;           /* 本拍ADC原始计数。电位器不回绕，天然连续 */
+    int32_t  raw;           /* 本拍MT6701累计计数，跨零点已连续化 */
     int32_t  raw_sub;       /* 同一拍的亚LSB读数(计数×CM_SUB_SCALE)，只给 T9 用 */
     int32_t  raw_hw_last;   /* 上一拍的硬件读数，圆周编码器靠它连续化 */
     uint8_t  raw_valid;
@@ -243,6 +237,42 @@ static struct {
 
 static uint8_t s_iap_stopped; /* 进入升级后锁住标定，直到复位，不再施力或打印 */
 
+/* 每轮只保存最终需要写回 A_Config.h 的独立量；三轮完成后逐项取中位数。
+ * IIC 与 ADC 版本使用同一套结果结构和输出策略，编码器差异只留在采样层。 */
+typedef struct {
+    uint8_t valid;
+    int8_t  sign;
+    int32_t slope_q16;
+    int32_t friction_pwm;
+    int32_t tau_ms;
+    int32_t delay_x100;
+    int32_t vss;
+    int32_t res_cdeg;
+    int32_t breakaway;
+    int32_t brake_q8;
+} CalibRound_t;
+
+static CalibRound_t s_res[CM_ROUNDS];
+static uint8_t      s_round;
+static uint8_t      s_report_quiet;
+
+/* CM_Report 负责复用原有解算代码。三轮采集阶段关闭其详细日志，最后只由
+ * CM_Print 输出与 ADC 版本相同、可直接粘贴的统一结果。 */
+#ifndef printf
+static int CM_Log(const char *fmt, ...)
+{
+    int ret = 0;
+    va_list ap;
+
+    if (s_report_quiet) return 0;
+    va_start(ap, fmt);
+    ret = vprintf(fmt, ap);
+    va_end(ap);
+    return ret;
+}
+#define printf CM_Log
+#endif
+
 /* ==================== 工具 ==================== */
 static int32_t CM_Abs(int32_t v) { return (v < 0) ? -v : v; }
 
@@ -261,7 +291,7 @@ static uint32_t CM_Isqrt(uint32_t v)
     return root;
 }
 
-/* 两角度之差；电位器是有限行程，不做最短路径折算 */
+/* 两连续角度之差；标定计数已展开，不再做圆周折算 */
 static int32_t CM_Diff(int32_t a, int32_t b)
 {
     return a - b;
@@ -306,20 +336,10 @@ static uint8_t CM_Advance(uint8_t reps)
  * 例外从正中出发：T0(极性未知)、T5(第一个动作是反向预载)。新增测试项先确认第一个动作往哪边走。 */
 static void CM_GotoPos(uint8_t next, int32_t target)
 {
-#if !CM_HAS_TRAVEL
     /* 整圈可测，任何位置都是合法起跑点，不需要预定位 */
     (void)target;
     CM_Phase(next);
     return;
-#else
-    s_cm.pos_target   = target;
-    s_cm.next_phase   = next;
-    s_cm.center_chk   = 0U;
-    s_cm.center_err0  = target - s_cm.pos;
-    s_cm.center_level = 0U;   /* 换测试项默认从头开始，T1换档会另行覆盖 */
-    s_cm.center_try   = 0U;
-    CM_Phase(PH_CENTER);
-#endif
 }
 
 /* 多数测试的起跑点 */
@@ -467,8 +487,10 @@ static void CM_T1_Line(void)
             {
                 uint8_t next_level = s_cm.level;
 
-                CM_GotoCenter(PH_T1_LINE);
-                s_cm.center_level = next_level;
+                /* 整圈编码器无需回中，但 CM_GotoCenter() 会经 CM_Phase()
+                 * 把 level 清零；直接切回 T1 后恢复下一档，避免永远重复第0档。 */
+                CM_Phase(PH_T1_LINE);
+                s_cm.level = next_level;
             }
         }
         else CM_Enter(ST_REST);
@@ -747,8 +769,8 @@ static void CM_T4_Brake(void)
 
     default:
         D_Motor_Set(0);
-        /* T5 从正中出发，不能用低端：它第一下是反向预载，见下面的说明 */
-        if (CM_Advance(CM_REP_BRAKE)) CM_GotoPos(PH_T5_BACKLASH, CM_CENTER_CDEG);
+        /* 核心标定流程与 ADC 版一致；整圈编码器无需回中，直接进入 T9。 */
+        if (CM_Advance(CM_REP_BRAKE)) CM_GotoCenter(PH_T9_STICTION);
         else                          CM_Enter(ST_REST);
         break;
     }
@@ -919,8 +941,8 @@ static void CM_T9_Stiction(void)
             /* 判"动了"的阈值挂在实测噪声上，换硬件自动跟随 */
             /* 取2倍峰峰(约12 sigma)：再大会让斜坡多爬，把起转值测高 */
             s_cm.ba_thr_sub = 2 * s_cm.nz_p2p;
-            if (s_cm.ba_thr_sub < CM_BA_THR_MIN_Q4)
-                s_cm.ba_thr_sub = CM_BA_THR_MIN_Q4;
+            if (s_cm.ba_thr_sub < CM_BA_THR_MIN_SUB)
+                s_cm.ba_thr_sub = CM_BA_THR_MIN_SUB;
             s_cm.nz_done   = 1U;
             CM_Enter(ST_MEAS);
         }
@@ -1067,13 +1089,7 @@ static void CM_T6_MinStep(void)
         D_Motor_Set(0);
         if (++s_cm.ms_idx >= CM_MS_PULSES)
         {
-#if CM_SWEEP_ENABLED
-            CM_GotoCenter(PH_T7_SWEEP);
-#elif (CALIB_MODE >= 2)
-            CM_GotoCenter(PH_T8_RING);   /* 扫频关掉了，直接去振铃 */
-#else
             CM_Phase(PH_REPORT);
-#endif
         }
         else
         {
@@ -1119,7 +1135,6 @@ static int32_t CM_Sin_Q14(uint16_t ph)
 }
 #define CM_Cos_Q14(ph)  CM_Sin_Q14((uint16_t)((uint16_t)(ph) + 16384U))
 
-#if CM_SWEEP_ENABLED
 static const uint16_t CM_SW_HZ[CM_SW_POINTS] =
     { 4U, 5U, 7U, 9U, 12U, 16U, 21U, 27U, 35U, 45U, 55U, 64U };
 
@@ -1197,10 +1212,6 @@ static void CM_T7_Sweep(void)
         break;
     }
 }
-#else
-
-static void CM_T7_Sweep(void) { CM_Phase(PH_T8_RING); }
-#endif
 
 /* ==================== T8 振铃：机构第一模态 ==================== */
 
@@ -1256,6 +1267,7 @@ static void CM_T8_Ring(void)
 /* 打印全部结果和可直接粘贴的 #define，电机已停，允许阻塞式printf */
 static void CM_Report(void)
 {
+    CalibRound_t *r = (s_round < CM_ROUNDS) ? &s_res[s_round] : NULL;
     int32_t slope[3] = {0,0,0}, inter[3] = {0,0,0};
     int32_t vss = 0, tau_tot = 0, dead_ms = 0;
     int32_t a_full, tcross_x100, l_x100, tau_mech, ka_x100;
@@ -1266,6 +1278,8 @@ static void CM_Report(void)
     int32_t step_ramp = 0;    /* T9 缓升法测到的最小步长(厘度) */
     int32_t res_reco = 0;     /* 推荐的 TUNE_RESOLUTION_CDEG */
     uint8_t i, d, n;
+
+    if (r != NULL) memset(r, 0, sizeof(*r));
 
     printf("\r\n===== SERVO MINIMAL CALIBRATION =====\r\n");
     if (s_cm.fail != 0U)
@@ -1483,7 +1497,7 @@ static void CM_Report(void)
             int32_t v0  = s_cm.brake_v0_sum[d] / s_cm.brake_n[d];
             int32_t dx1 = s_cm.brake_dx1[d] / s_cm.brake_n[d];
             int32_t dx2 = s_cm.brake_dx2[d] / s_cm.brake_n[d];
-            /* dx = v0*T/1000 - a*T^2/2e6  =>  a_bar = 2000*(v0*T - dx*1000)/T^2 */
+            /* 由位移公式求平均加速度：dx = v0*T/1000 - a*T^2/2e6，得a_bar = 2000*(v0*T - dx*1000)/T^2 */
             int64_t df2 = (int64_t)v0 * CM_BRAKE_T2_MS - (int64_t)dx2 * 1000;
             int32_t a_bar = (int32_t)((df2 * 2000)
                                       / ((int32_t)CM_BRAKE_T2_MS * CM_BRAKE_T2_MS));
@@ -1500,7 +1514,7 @@ static void CM_Report(void)
                 continue;
             }
 
-            /* a0 = a_bar / (1 - q/3 + q^2/12)，q = T/tau，Q16 */
+            /* 初始加速度修正：a0 = a_bar / (1 - q/3 + q^2/12)，q = T/tau，采用Q16定点数 */
             q_q16    = (int32_t)(((int64_t)CM_BRAKE_T2_MS << 16) / tau_mech);
             corr_q16 = 65536 - q_q16 / 3
                      + (int32_t)((((int64_t)q_q16 * q_q16) >> 16) / 12);
@@ -1527,8 +1541,11 @@ static void CM_Report(void)
                                       / ((int64_t)brake_a * slope[2] * tau_mech));
             /* 区间只提示不中止整份报告 */
             if (brake_gain_q8 < 64 || brake_gain_q8 > 1024)
+            {
                 printf("[T4] WARN: gain ratio %ld 超出 [64,1024]，先别采用\r\n",
                        (long)brake_gain_q8);
+                brake_gain_q8 = 0; /* 与 ADC 版一致：无效值不参与中位数，也绝不输出 */
+            }
         }
     }
     }
@@ -1556,12 +1573,14 @@ static void CM_Report(void)
                (unsigned)CM_NZ_SAMPLES);
         printf("     peak-to-peak = %ld.%02ld cdeg  (%ld.%02ld raw LSB)\r\n",
                (long)(nz_c100 / 100), (long)(nz_c100 % 100),
-               (long)(s_cm.nz_p2p / 16), (long)((s_cm.nz_p2p % 16) * 100 / 16));
+               (long)(s_cm.nz_p2p / CM_SUB_SCALE),
+               (long)((s_cm.nz_p2p % CM_SUB_SCALE) * 100 / CM_SUB_SCALE));
 
         printf("\r\n[T9] duty-cycle coupling check (u=%d, below breakaway)\r\n",
                (int)s_cm.nz_couple_pwm);
-        printf("     mean@0=%ld  mean@u=%ld  mean@0again=%ld  (Q4 counts)\r\n",
-               (long)s_cm.nz_mean0, (long)s_cm.nz_mean1, (long)s_cm.nz_mean2);
+        printf("     mean@0=%ld  mean@u=%ld  mean@0again=%ld  (sub-LSB counts, scale=%ld)\r\n",
+               (long)s_cm.nz_mean0, (long)s_cm.nz_mean1, (long)s_cm.nz_mean2,
+               (long)CM_SUB_SCALE);
         printf("     shift under drive = %ld.%02ld cdeg, after release = %ld.%02ld cdeg\r\n",
                (long)(CM_Sub_C100(d0) / 100), (long)(CM_Abs(CM_Sub_C100(d0)) % 100),
                (long)(CM_Sub_C100(d1) / 100), (long)(CM_Abs(CM_Sub_C100(d1)) % 100));
@@ -1569,8 +1588,7 @@ static void CM_Report(void)
             printf("     -> 轴真的动了(撤力后没回来)：起转值估低了，本项无效\r\n");
         else if (CM_Abs(d0) > 2 * s_cm.nz_p2p)
             printf("     -> **占空比耦合**：轴没动而读数跟着PWM漂，会被观测器\r\n"
-                   "        微分成假速度。查 D_adc.c 的扫描序列(电位器的转换\r\n"
-                   "        跨过了驱动段末尾)，或把电位器挪到规则组第1位\r\n");
+                   "        微分成假速度。检查MT6701的磁场、供电与I2C布线\r\n");
         else
             printf("     -> 无明显耦合，读数与占空比无关(好)\r\n");
 
@@ -1595,12 +1613,15 @@ static void CM_Report(void)
             if (sv > step_ramp) step_ramp = sv;
         }
         if (ba_out > 0 && ba_out <= inter[2])
+        {
             printf("     WARN 起转(%ld) <= 动摩擦截距(%ld)：不合物理，重跑一次\r\n",
                    (long)ba_out, (long)inter[2]);
+            ba_out = 0; /* 与 ADC 版一致：不合物理的样本按缺失处理 */
+        }
     }
 
-    /* ===== 输出：直接替换 A_Parameter.h 标定区；slope 与 tau 向上取整(误差单边，偏保守) ===== */
-    printf("\r\n===== CAL VALUES -> A_Parameter.h =====\r\n");
+    /* ===== 输出：直接替换 A_Config.h 标定区；slope 与 tau 向上取整(误差单边，偏保守) ===== */
+    printf("\r\n===== CAL VALUES -> A_Config.h =====\r\n");
     printf("#define CAL_SPEED_SLOPE_Q16 %5ld\r\n", (long)(slope[2] + 1));
     printf("#define CAL_FRICTION_PWM    %5ld\r\n", (long)inter[2]);
     /* 金样实测值向上留1ms裕量；量产快标复用已有型号值，不能每跑一次再+1。 */
@@ -1615,10 +1636,49 @@ static void CM_Report(void)
     else
         printf("/* CAL_BREAKAWAY_PWM 未测出(轴没转起来)，检查负载是否卡死 */\r\n");
     if (brake_gain_q8 <= 0)
-        printf("/* MODEL_BRAKE_GAIN_Q8 本次未测出，保留 A_Parameter.h 里的现值 */\r\n");
+        printf("/* MODEL_BRAKE_GAIN_Q8 本次未测出，保留 A_Config.h 里的现值 */\r\n");
     else
-    printf("#define MODEL_BRAKE_GAIN_Q8 %3ld  /* model-level; use golden sample */\r\n",
+    printf("#define MODEL_BRAKE_GAIN_Q8 %3ld  /* T4实测；实机末端偏刹时往小调，见A_Config.h */\r\n",
            (long)brake_gain_q8);
+
+    /* ===== 调参面板的可用上限：按本台实测值换算，直接抄进 A_Config.h 的 TUNE_* ===== */
+    {
+        int32_t bq8  = (brake_gain_q8 > 0) ? brake_gain_q8 : MODEL_BRAKE_GAIN_Q8;
+        int32_t net  = MOTOR_PWM_MAX - inter[2];                 /* 扣掉摩擦的净PWM */
+        int32_t vhw  = (net > 0)                                 /* 给反馈留余量后的最大速度 */
+                     ? (int32_t)(((int64_t)vss * (MOTOR_PWM_MAX - PLANT_FF_MARGIN_PWM - inter[2])) / net)
+                     : 0;
+        int32_t a0   = (int32_t)(((int64_t)vss * 1000) / tau_mech);        /* 零速起步加速度 */
+        int32_t fq15 = (vss > 0) ? (int32_t)(((int64_t)vhw << 15) / vss) : 0;
+        int32_t abig = (int32_t)(((int64_t)a0 * (32768 - fq15 / 2)) >> 15);/* 走满速时的可用加速度 */
+        /* 制动上限：末端反电势帮不上忙时，满PWM扣掉反馈余量、再按制动比折算 */
+        int32_t dhw  = (int32_t)(((int64_t)(MOTOR_PWM_MAX - PLANT_FF_MARGIN_PWM) * 65536 * 1000 * 256)
+                                 / ((int64_t)slope[2] * tau_mech * bq8));
+
+        printf("\r\n===== 可用上限(度制，抄进 A_Config.h 调参面板) =====\r\n");
+        printf("CFG_DEF_VMAX_DPS    <= %4ld    (满PWM空载 %ld)\r\n",
+               (long)(vhw / 100), (long)(vss / 100));
+        printf("CFG_DEF_AMAX_DPS2   <= %5ld   (零速起步 %ld，走满速时只剩这么多，再设大无效)\r\n",
+               (long)(abig / 100), (long)(a0 / 100));
+        printf("CFG_DEF_DMAX_DPS2   <= %5ld   (硬件制动上限；越接近它对负载/标定误差越敏感)\r\n",
+               (long)(dhw / 100));
+        printf("CFG_DEF_JMAX_DPS3   <= %7ld (=500*A，再大斜坡短于1拍=加速度阶跃)\r\n",
+               (long)(abig / 100 * 500));
+        /* 挣脱静摩擦那一下必然窜出去的速度：多出来的力=起转-动摩擦，按本机斜率折算成速度，
+           再乘上"看出轴动了并把前馈退回去"所需时间内一阶环节升到的比例(约4成)。
+           小位移的巡航速度必须高于它，否则每个小位移都是"顶住-窜一下-再顶"。 */
+        {
+            int32_t exc = (ba_out > inter[2]) ? (ba_out - inter[2]) : 0;
+            int32_t vburst = (slope[2] > 0)
+                           ? (int32_t)(((int64_t)exc * 65536 * 2) / ((int64_t)slope[2] * 5)) : 0;
+
+            printf("CFG_DEF_MOVE_MIN_MS %4ld~%-4ld (巡航速度=行程/它。上限按挣脱时必然窜到的约%ld度/秒定，\r\n",
+                   (long)(tau_mech * 14 / 10), (long)(tau_mech * 3), (long)(vburst / 100));
+            printf("                            再大参考比轴爬行还慢，小位移反而更冲)\r\n");
+            printf("TUNE_ACCEL_MIN_MS %4ld     (=1倍tau。加减速度=巡航速度/它，短于tau电机跟不上)\r\n",
+                   (long)tau_mech);
+        }
+    }
 
 #if (CALIB_MODE >= 1)
     /* ---- T5/T6 的型号级新增项 ---- */
@@ -1673,12 +1733,12 @@ static void CM_Report(void)
             res_reco = 2 * nz_cdeg;
             if (min_step > res_reco) res_reco = min_step;
             if (res_reco < 5) res_reco = 5;
-            printf("\r\n===== 建议的调参值 -> A_Parameter.h 调参面板 =====\r\n");
+            printf("\r\n===== 建议的调参值 -> A_Config.h 调参面板 =====\r\n");
             printf("#define TUNE_RESOLUTION_CDEG %3ld\r\n", (long)res_reco);
             printf("/* = max(2 x 噪声底 %ld, 最小步长 %ld)。\r\n"
                    "   比噪声底小 = 控制器在追噪声；\r\n"
                    "   比最小步长小 = 为一个修不动的残差反复踹静摩擦，必出极限环。\r\n"
-                   "   它会同步放大死区/到位窗/零速阈值，见 A_Parameter.h 的派生式。\r\n"
+                   "   它会同步放大死区/到位窗/零速阈值，见 A_Config.h 的派生式。\r\n"
                    "   这是**保守起点**：填进去跑一轮，静止时听不到来回蹭就可以\r\n"
                    "   再往下压 20%%，压到出现蹭动为止再退回来。 */\r\n",
                    (long)(2 * nz_cdeg), (long)min_step);
@@ -1686,7 +1746,6 @@ static void CM_Report(void)
     }
 #endif
 
-#if CM_SWEEP_ENABLED
     /* ---- T7 扫频：原始锁相结果 + 谐振判定 ---- */
     {
         uint8_t i, res_i = 0U;
@@ -1725,7 +1784,6 @@ static void CM_Report(void)
         printf("#define MODEL_RESONANCE_HZ  %3ld  /* 0=未发现；非0时 w_q 上界再收到 /3 */\r\n",
                (long)res_hz);
     }
-#endif
 
     /* ---- T8 振铃：对一阶差分做单频点锁相找峰；测不到/峰触边界/可用三档，宁可不给数也不给错的数 ---- */
     {
@@ -1794,34 +1852,154 @@ static void CM_Report(void)
         }
     }
 
-#if ENCODER_MODE == 0
-    /* ---- 角度标度自检(仅电位器)：标度错了协议的"270度"就不是270度；同一机构换传感器物理速度不变 ---- */
-    {
-        int32_t dps  = (vss > 0) ? (vss / 100) : 0;      /* 厘度/秒 -> 度/秒 */
-        int32_t dpsf = (vss > 0) ? ((vss / 10) % 10) : 0; /* 小数第一位 */
 
-        printf("\r\n[SCALE] 角度标度自检(需要量角器，本程序测不了)\r\n");
-        printf("   当前假设: ADC %u..%u = %u cdeg (%u.%02u deg), 1 LSB = %ld.%03ld cdeg\r\n",
-               (unsigned)ENCODER_POT_ADC_MIN, (unsigned)ENCODER_POT_ADC_MAX,
-               (unsigned)ENCODER_POT_SPAN_CDEG,
-               (unsigned)(ENCODER_POT_SPAN_CDEG / 100),
-               (unsigned)(ENCODER_POT_SPAN_CDEG % 100),
-               (long)(CM_LSB_C1000 / 1000), (long)(CM_LSB_C1000 % 1000));
-        printf("   按此标度实测 v_ss = %ld cdeg/s = %ld.%ld deg/s\r\n",
-               (long)vss, (long)dps, (long)dpsf);
-        printf("   核对办法: 装好舵盘，发 #000P0500T2000! 做记号，再发\r\n"
-               "   #000P2500T2000!，用量角器量实际转过的角度 A(度)。则\r\n"
-               "     ENCODER_POT_SPAN_CDEG 应为 round(101.5 * A)\r\n"
-               "     CAL_SPEED_SLOPE_Q16   应乘以 %u / 新span\r\n",
-               (unsigned)ENCODER_POT_SPAN_CDEG);
-        printf("   (101.5 = 100 * ADC_SPAN / 实际走过的计数，行程两端各留了2度)\r\n");
+    if (r != NULL)
+    {
+        r->valid        = 1U;
+        r->sign         = s_cm.sign;
+        r->slope_q16    = slope[2];
+        r->friction_pwm = inter[2];
+        r->tau_ms       = tau_mech;
+        r->delay_x100   = l_x100;
+        r->vss          = vss;
+        r->res_cdeg     = res_reco;
+        r->breakaway    = ba_out;
+        r->brake_q8     = brake_gain_q8;
     }
-#endif
 
     printf("\r\n(derived: v_ss=%ld  a0=%ld  Ka=%ld.%02ld cdeg/s2 per count)\r\n",
            (long)vss, (long)(((int64_t)vss * 1000) / tau_mech),
            (long)(ka_x100 / 100), (long)(ka_x100 % 100));
     printf("===== END =====\r\n");
+}
+
+/* n 个样本里挑一个代表值：n=3 取中位数，n=2 取均值，n=1 原样返回。 */
+static int32_t CM_Pick(int32_t *v, uint8_t n)
+{
+    uint8_t i, j;
+
+    for (i = 1U; i < n; i++)
+        for (j = i; j > 0U && v[j - 1U] > v[j]; j--)
+        {
+            int32_t t = v[j]; v[j] = v[j - 1U]; v[j - 1U] = t;
+        }
+    if (n == 0U) return 0;
+    if (n == 2U) return (v[0] + v[1] + 1) / 2;
+    return v[n / 2U];
+}
+
+/* 收集某字段的有效轮次；可选量的 0 表示该轮没有测出，不参加统计。 */
+static int32_t CM_PickField(uint32_t offset, uint8_t zero_means_missing)
+{
+    int32_t v[CM_ROUNDS];
+    uint8_t i, n = 0U;
+
+    for (i = 0U; i < s_round; i++)
+    {
+        int32_t x;
+
+        if (!s_res[i].valid) continue;
+        x = *(const int32_t *)((const uint8_t *)&s_res[i] + offset);
+        if (zero_means_missing && x == 0) continue;
+        v[n++] = x;
+    }
+    return CM_Pick(v, n);
+}
+
+#define CM_PICK(field)     CM_PickField(offsetof(CalibRound_t, field), 0U)
+#define CM_PICK_OPT(field) CM_PickField(offsetof(CalibRound_t, field), 1U)
+
+/* 最终输出与 ADC 版保持一致：同样的字段、保守取整和 90% 轨迹默认值。 */
+static void CM_Print(void)
+{
+    int32_t slope, fric, tau_mech, l_x100, vss, res_reco, ba_out, brake_q8;
+    int32_t vhw, a0, abig, dhw, vmax_reco, amax_reco, dmax_reco, jmax_reco;
+    int32_t sign_sum = 0;
+    uint8_t i, nv = 0U;
+
+    for (i = 0U; i < s_round; i++)
+        if (s_res[i].valid) { nv++; sign_sum += s_res[i].sign; }
+
+    printf("\r\n===== SERVO CALIBRATION (%u/%u 轮有效) =====\r\n",
+           (unsigned)nv, (unsigned)CM_ROUNDS);
+    if (nv == 0U)
+    {
+        printf("没有一轮跑通，不输出参数。\r\n===== END =====\r\n");
+        return;
+    }
+    if (nv < CM_ROUNDS)
+        printf("WARN 只有 %u 轮有效，代表性不如三轮；建议排除故障后重跑\r\n", (unsigned)nv);
+
+    slope    = CM_PICK(slope_q16);
+    fric     = CM_PICK(friction_pwm);
+    tau_mech = CM_PICK(tau_ms);
+    l_x100   = CM_PICK(delay_x100);
+    vss      = CM_PICK(vss);
+    res_reco = CM_PICK(res_cdeg);
+    ba_out   = CM_PICK_OPT(breakaway);
+    brake_q8 = CM_PICK_OPT(brake_q8);
+
+    {
+        int32_t net = MOTOR_PWM_MAX - fric;
+        int32_t bq8 = (brake_q8 > 0) ? brake_q8 : MODEL_BRAKE_GAIN_Q8;
+        int32_t fq15;
+
+        vhw = (net > 0) ? (int32_t)(((int64_t)vss
+              * (MOTOR_PWM_MAX - PLANT_FF_MARGIN_PWM - fric)) / net) : 0;
+        a0 = (int32_t)(((int64_t)vss * 1000) / tau_mech);
+        fq15 = (vss > 0) ? (int32_t)(((int64_t)vhw << 15) / vss) : 0;
+        abig = (int32_t)(((int64_t)a0 * (32768 - fq15 / 2)) >> 15);
+        dhw = (int32_t)(((int64_t)(MOTOR_PWM_MAX - PLANT_FF_MARGIN_PWM)
+              * 65536 * 1000 * 256) / ((int64_t)slope * tau_mech * bq8));
+
+        vmax_reco = vhw / 100 * 90 / 100;
+        amax_reco = abig / 100 * 90 / 100;
+        dmax_reco = dhw / 100 * 90 / 100;
+        jmax_reco = amax_reco * 500;
+        if (jmax_reco > 2000000 || jmax_reco < 0) jmax_reco = 2000000;
+    }
+
+    printf("\r\n----- A_Config.h 第2节：本机标定 -----\r\n");
+    printf("#define CAL_SPEED_SLOPE_Q16 %5ld\r\n", (long)(slope + 1));
+    printf("#define CAL_FRICTION_PWM    %5ld\r\n", (long)fric);
+    if (ba_out > 0)
+        printf("#define CAL_BREAKAWAY_PWM   %5ld\r\n", (long)ba_out);
+    else
+        printf("/* CAL_BREAKAWAY_PWM 三轮都没测出，保留现值 */\r\n");
+    printf("#define CAL_MOTOR_SIGN      %5d\r\n", (sign_sum >= 0) ? 1 : -1);
+    printf("#define MODEL_TAU_MS        %5ld\r\n",
+           (long)(tau_mech + (CALIB_CHARACTERIZE_MODEL ? 1 : 0)));
+    printf("#define MODEL_DELAY_TICKS   %5ld\r\n", (long)((l_x100 + 50) / 100));
+    if (brake_q8 > 0)
+        printf("#define MODEL_BRAKE_GAIN_Q8 %5ld\r\n", (long)brake_q8);
+    else
+        printf("/* MODEL_BRAKE_GAIN_Q8 三轮都没测出，保留现值 */\r\n");
+
+    printf("\r\n----- A_Config.h 第3节：调参(只改这两个，带宽四项不动) -----\r\n");
+    printf("#define CAL_MIN_STEP_CDEG   %4ld\r\n", (long)res_reco);
+    printf("#define TUNE_RESOLUTION_CDEG %4ld\r\n", (long)res_reco);
+    printf("#define TUNE_ACCEL_MIN_MS    %4ld\r\n", (long)tau_mech);
+
+    printf("\r\n----- A_Config.h 第5节：轨迹出厂默认值(硬件能力的90%%) -----\r\n");
+    printf("#define CFG_DEF_VMAX_DPS     %7ld   /* 硬件 %ld */\r\n",
+           (long)vmax_reco, (long)(vhw / 100));
+    printf("#define CFG_DEF_AMAX_DPS2    %7ld   /* 硬件 %ld */\r\n",
+           (long)amax_reco, (long)(abig / 100));
+    printf("#define CFG_DEF_DMAX_DPS2    %7ld   /* 硬件 %ld */\r\n",
+           (long)dmax_reco, (long)(dhw / 100));
+    printf("#define CFG_DEF_JMAX_DPS3    %7ld   /* = 500 x 加速度 */\r\n", (long)jmax_reco);
+    printf("#define CFG_DEF_MOVE_MIN_MS  %7ld   /* = 2.2 倍机械时间常数 */\r\n",
+           (long)(tau_mech * 22 / 10));
+    printf("===== END =====\r\n");
+}
+
+/* 清本轮测量状态，但保留 s_res[] 与 s_round。 */
+static void CM_RoundRestart(void)
+{
+    memset(&s_cm, 0, sizeof(s_cm));
+    s_cm.sign  = 1;
+    s_cm.phase = PH_BOOT;
+    D_Motor_Set(0);
 }
 
 /* ==================== 任务入口 ==================== */
@@ -1830,19 +2008,6 @@ static void CM_Report(void)
  * 死区读数按读不到处理(标定不做脱困)。标定一律用整数LSB：T3/T5 测的就是量化台阶本身，亚LSB会把延迟测成0。 */
 static uint8_t CM_ReadEncoder(void)
 {
-#if ENCODER_MODE == 0
-    uint16_t adc_sub = 0;
-
-    if (!D_ADC_Encoder_Read(&adc_sub)
-        || adc_sub < (uint16_t)(ENCODER_POT_ADC_FLOAT * CM_SUB_SCALE))
-        return 0U;
-
-    s_cm.raw     = (int32_t)adc_sub / CM_SUB_SCALE;
-    s_cm.raw_sub = (int32_t)adc_sub;
-    s_cm.pos     = ((s_cm.raw - (int32_t)ENCODER_POT_ADC_MIN) * CM_LSB_C1000) / 1000;
-    s_cm.raw_valid = 1U;
-    return 1U;
-#else
     uint16_t raw_hw = D_MT6701_Read_Raw();
 
     if (raw_hw == MT6701_ANGLE_ERROR) return 0U;
@@ -1865,7 +2030,6 @@ static uint8_t CM_ReadEncoder(void)
     s_cm.raw_sub = s_cm.raw * CM_SUB_SCALE;
     s_cm.pos     = (s_cm.raw * CM_LSB_C1000) / 1000;
     return 1U;
-#endif
 }
 
 /* 1ms 标定拍：读编码器 -> 查行程 -> 推进当前测试；单拍读失败保持上一拍，连续失败才判死 */
@@ -1885,18 +2049,6 @@ static void A_Calib_Min_Tick(void)
         if (s_cm.enc_fail_cnt >= 10U) s_cm.fail = 3U;
     }
 
-    /* 行程硬保护(仅有限行程)：开环激励无闭环兜底，冲出安全带即中止；预定位本身往里走不受限 */
-    if (CM_HAS_TRAVEL && s_cm.raw_valid && s_cm.fail == 0U
-        && s_cm.phase != PH_CENTER && s_cm.phase != PH_REPORT
-        && s_cm.phase != PH_DONE
-        && (s_cm.pos < CM_TRAVEL_LO || s_cm.pos > CM_TRAVEL_HI))
-    {
-        D_Motor_Set(0);
-        s_cm.fail       = 4U;
-        s_cm.fail_pos   = s_cm.pos;
-        s_cm.fail_phase = s_cm.phase;
-    }
-
     if (s_cm.fail != 0U && s_cm.phase != PH_REPORT && s_cm.phase != PH_DONE)
     {
         D_Motor_Set(0);
@@ -1913,14 +2065,11 @@ static void A_Calib_Min_Tick(void)
         if (s_cm.timer >= 1000U)
         {
             if (!s_cm.raw_valid) { s_cm.fail = 3U; break; }
-#if CM_HAS_TRAVEL
-            printf("\r\nCALIB start (pot encoder), T0~T6/T9+T8, keep the shaft "
-                   "free.\r\nTravel %ld cdeg, guard band %ld cdeg each end.\r\n",
-                   (long)ENCODER_POT_SPAN_CDEG, (long)CM_GUARD_CDEG);
-#else
-            printf("\r\nCALIB start (magnetic encoder), T0~T9, keep the shaft "
-                   "free to rotate continuously.\r\n");
-#endif
+            if (s_round == 0U)
+                printf("\r\nCALIB start: MT6701 整圈连续测量，核心标定连跑 %u 遍取中位数，"
+                       "中途请勿触碰输出轴。\r\n", (unsigned)CM_ROUNDS);
+            printf("\r\n--- 第 %u/%u 轮 ---\r\n",
+                   (unsigned)(s_round + 1U), (unsigned)CM_ROUNDS);
             CM_GotoPos(PH_T0_SIGN, CM_CENTER_CDEG);
         }
         break;
@@ -1937,7 +2086,31 @@ static void A_Calib_Min_Tick(void)
     case PH_REPORT:
         D_Motor_Set(0);
         if (!D_UART_Tx_Idle()) break; /* 本拍刚发生故障时也要避开正在发送的 IAP 应答 */
-        CM_Report();                 /* 电机已停，此处允许阻塞式printf */
+        s_report_quiet = 1U;
+        CM_Report();                  /* 复用原解算，只收集本轮结果 */
+        s_report_quiet = 0U;
+        if (s_round < CM_ROUNDS)
+        {
+            CalibRound_t *r = &s_res[s_round];
+
+            if (r->valid)
+                printf("[%u/%u] 完成  slope=%ld fric=%ld tau=%ld L=%ld.%02ldms "
+                       "起转=%ld 制动=%ld 分辨率=%ld\r\n",
+                       (unsigned)(s_round + 1U), (unsigned)CM_ROUNDS,
+                       (long)r->slope_q16, (long)r->friction_pwm, (long)r->tau_ms,
+                       (long)(r->delay_x100 / 100), (long)(r->delay_x100 % 100),
+                       (long)r->breakaway, (long)r->brake_q8, (long)r->res_cdeg);
+            else
+                printf("[%u/%u] 本轮无效，不参与最终中位数\r\n",
+                       (unsigned)(s_round + 1U), (unsigned)CM_ROUNDS);
+            s_round++;
+        }
+        if (s_cm.fail == 0U && s_round < CM_ROUNDS)
+        {
+            CM_RoundRestart();
+            break;
+        }
+        CM_Print();
         s_cm.phase = PH_DONE;
         break;
     case PH_DONE:
@@ -1958,6 +2131,9 @@ static void CM_StopForIAP(void)
 void A_Calib_Min_Init(void)
 {
     memset(&s_cm, 0, sizeof(s_cm));
+    memset(s_res, 0, sizeof(s_res));
+    s_round = 0U;
+    s_report_quiet = 0U;
     s_iap_stopped = 0U;
     IAP_SetStopHandler(CM_StopForIAP);
     s_cm.sign = 1;                   /* T0 之前先当作正接线 */

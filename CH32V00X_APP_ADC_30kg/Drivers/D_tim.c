@@ -20,8 +20,6 @@
  *   [0, ARR-mag)   续流段，两下管导通，检流电阻净电流为零；
  *   [ARR-mag, ARR) 驱动段，全部绕组电流流过检流电阻。
  * 采样窗口必须落在周期尾部的驱动段，时序常数见 D_tim.h。 */
-/* 窗口放不下时触发点停到续流段正中而不关闭：电位器角度仍需1kHz刷新，电流由上层标为无效 */
-#define ADC_TRIGGER_PARK_CCR          (TIM_PWM_RESOLUTION / 2U)
 
 static uint8_t  s_ic_wait_falling; /* 0=等待上升沿，1=等待下降沿 */
 static uint8_t  s_ic_have_rise;    /* 已捕获上升沿标志 */
@@ -145,10 +143,10 @@ void D_TIM1_PWM_IC_Init(void)
     GPIO_InitStructure.GPIO_Mode  = GPIO_Mode_AF_PP;
     GPIO_Init(GPIOD, &GPIO_InitStructure);
 
-    /* PA1：选源前先推挽输出高电平，PWM模式启用时再切输入捕获 */
+    /* PA1：选源前开漏置高释放共线信号，PWM模式启用时再切输入捕获 */
     GPIO_SetBits(GPIOA, GPIO_Pin_1);
     GPIO_InitStructure.GPIO_Pin  = GPIO_Pin_1;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_OD;
     GPIO_Init(GPIOA, &GPIO_InitStructure);
 
     /* 时基：48MHz / 2400 = 20kHz，与TIM2一致 */
@@ -215,7 +213,7 @@ uint16_t D_PWM_Read(void)
     return pulse;
 }
 
-/* 使能/失能输入捕获：使能时PA1上拉输入，失能时推挽输出高电平 */
+/* 使能/失能输入捕获：使能时PA1上拉输入，失能时开漏置高释放共线信号 */
 void D_PWM_Input_Enable(uint8_t en)
 {
     GPIO_InitTypeDef gpio = {0};
@@ -242,7 +240,7 @@ void D_PWM_Input_Enable(uint8_t en)
     else
     {
         GPIO_SetBits(GPIOA, GPIO_Pin_1);
-        gpio.GPIO_Mode = GPIO_Mode_Out_OD; /* 推挽输出，锁存已置1 */
+        gpio.GPIO_Mode = GPIO_Mode_Out_OD; /* 开漏输出，锁存置1只释放信号线，不主动驱高 */
         GPIO_Init(GPIOA, &gpio);
     }
 }

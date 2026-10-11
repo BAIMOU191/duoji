@@ -2,7 +2,7 @@
  * iap.c —— Bootloader 主流程与升级协议
  *   复位：软件复位 = APP 收到进入升级后主动复位，直接进升级循环；
  *         上电复位先等 200ms 握手(救砖用)，没有握手且 APP 完好就进 APP，否则留下。
- *   升级循环：握手 / 开始(写UPGD、擦除) / 写页(擦页、写入、读回) / 完成(整包CRC、兼容检查、写APOK、进APP)。
+ *   升级循环：握手 / 开始 / 写页 / 完成。
  *   还没开始升级时 10 秒没有数据且 APP 完好，自动回 APP。
  * 主机端测试定义 BOOT_HOST_TEST，并替换 FLASH_PTR / IWDG_FEED，硬件相关的函数由测试提供。
  */
@@ -16,6 +16,18 @@
 #define TICK_CMP           6000U    /** SysTick 默认时钟 HCLK/8 = 6MHz，计满即 1ms */
 #define USART_BRR_115200   0x01A1U  /** 48MHz 下 115200 */
 #define PAGE_SIZE          256U
+#define CONFIG_COMMITTED   0x5AA55AA5U
+#define CONFIG_CRC_OFFSET  250U
+#define CONFIG_COMMIT_OFFSET 252U
+#define CONFIG_ID_OFFSET   3U
+#define CONFIG_BAUD_OFFSET 4U
+#define FLAG_KEEP_VALID_OFFSET 12U
+#define FLAG_ID_OFFSET     13U
+#define FLAG_BAUD_OFFSET   14U
+#define FLAG_HW_VALID_OFFSET 15U
+#define FLAG_HW_OFFSET     16U
+#define FLAG_CRC_OFFSET    20U
+#define FLAG_DONE_OFFSET   24U
 
 #ifndef FLASH_PTR
 #define FLASH_PTR(off) ((const uint8_t *)(FLASH_BASE + (off)))
@@ -34,6 +46,11 @@ static uint16_t s_pos;                  /** 当前帧已收字节数(含帧头)�
 static uint8_t  s_started;              /** 1=开始命令已成功，允许写页和完成 */
 static uint32_t s_img_len;              /** 开始命令给的镜像长度 */
 static uint32_t s_img_crc;              /** 开始命令给的镜像 CRC32 */
+static uint8_t  s_keep_id;
+static uint8_t  s_keep_baud;
+static uint8_t  s_keep_valid;
+static uint8_t  s_hw_snapshot[4];
+static uint8_t  s_hw_snapshot_valid;
 
 /* ============================== 硬件 ============================== */
 #ifndef BOOT_HOST_TEST
@@ -112,6 +129,11 @@ static uint32_t Get32(const uint8_t *p)
     return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
 }
 
+static uint16_t Get16(const uint8_t *p)
+{
+    return (uint16_t)p[0] | (uint16_t)p[1] << 8;
+}
+
 static void Put32(uint8_t *p, uint32_t value)
 {
     p[0] = (uint8_t)value;
@@ -135,10 +157,25 @@ static uint32_t Crc32(const uint8_t *data, uint32_t len)
     return ~crc;
 }
 
+static uint16_t Crc16(const uint8_t *data, uint16_t len)
+{
+    uint16_t crc = 0xFFFFU;
+    uint8_t bit;
+
+    while (len--)
+    {
+        crc ^= (uint16_t)*data++ << 8;
+        for (bit = 0U; bit < 8U; bit++)
+            crc = (uint16_t)((crc & 0x8000U)
+                ? ((uint32_t)crc << 1) ^ 0x1021U : (uint32_t)crc << 1);
+    }
+    return crc;
+}
+
 /* 应答帧：CMD 取当前帧并置最高位，DATA = 状态码 + extra */
 static void Reply(uint8_t status, const uint8_t *extra, uint8_t n)
 {
-    uint8_t frame[12U + 6U]; /** 最长应答：握手带 6 字节 */
+    uint8_t frame[12U + 6U]; /** 最长应答缓冲 */
     uint8_t i;
 
     frame[0] = IAP_HEAD1;
@@ -156,15 +193,21 @@ static void Reply(uint8_t status, const uint8_t *extra, uint8_t n)
 
 /* ============================== Flash ============================== */
 
-/* 标志页状态：0=空白 1=升级中 2=APP有效 3=其他(损坏) */
-static uint8_t Flag_State(void)
+static uint8_t Flag_RecordValid(const uint8_t *page)
 {
-    uint32_t flag = Get32(FLASH_PTR(FLAG_OFFSET));
-
-    return (flag == 0xFFFFFFFFU) ? 0U : (flag == FLAG_UPGD) ? 1U : (flag == FLAG_APOK) ? 2U : 3U;
+    return Get32(page) == FLAG_UPGD
+        && Get32(page + FLAG_CRC_OFFSET) == Crc32(page, FLAG_CRC_OFFSET);
 }
 
-/* APP 可以运行：标志页 APOK，或标志页空白(量产刚烧录)且 APP 区不是空的 */
+static uint8_t Flag_State(void)
+{
+    const uint8_t *page = FLASH_PTR(FLAG_OFFSET);
+
+    if (Get32(page) == 0xFFFFFFFFU && Get32(page + FLAG_DONE_OFFSET) == 0xFFFFFFFFU) return 0U;
+    if (!Flag_RecordValid(page)) return 3U;
+    return Get32(page + FLAG_DONE_OFFSET) == FLAG_APOK ? 2U : 1U;
+}
+
 static uint8_t App_Bootable(void)
 {
     uint8_t state = Flag_State();
@@ -172,15 +215,36 @@ static uint8_t App_Bootable(void)
     return state == 2U || (state == 0U && Get32(FLASH_PTR(0U)) != 0xFFFFFFFFU);
 }
 
-/* 标志页整页改写：状态、镜像长度、镜像 CRC32，其余 0xFF */
-static void Flag_Write(uint32_t state)
+static uint8_t Flag_Start(void)
 {
+    uint8_t *bytes = (uint8_t *)s_page;
+    const uint8_t *stored = FLASH_PTR(FLAG_OFFSET);
+
+    /* 未完成升级的快照已经可靠落盘时直接复用，避免重试时擦掉唯一的身份副本。 */
+    if (Flag_RecordValid(stored) && Get32(stored + FLAG_DONE_OFFSET) != FLAG_APOK)
+        return 1U;
+
     memset(s_page, 0xFF, sizeof(s_page));
-    s_page[0] = state;
+    s_page[0] = FLAG_UPGD;
     s_page[1] = s_img_len;
     s_page[2] = s_img_crc;
+    bytes[FLAG_KEEP_VALID_OFFSET] = s_keep_valid;
+    bytes[FLAG_ID_OFFSET] = s_keep_id;
+    bytes[FLAG_BAUD_OFFSET] = s_keep_baud;
+    bytes[FLAG_HW_VALID_OFFSET] = s_hw_snapshot_valid;
+    memcpy(bytes + FLAG_HW_OFFSET, s_hw_snapshot, sizeof(s_hw_snapshot));
+    s_page[FLAG_CRC_OFFSET / 4U] = Crc32(bytes, FLAG_CRC_OFFSET);
     FLASH_ErasePage_Fast(FLASH_BASE + FLAG_OFFSET);
     CH32_IAP_Program(FLASH_BASE + FLAG_OFFSET, s_page);
+    return (uint8_t)(memcmp(FLASH_PTR(FLAG_OFFSET), s_page, PAGE_SIZE) == 0);
+}
+
+static uint8_t Flag_Complete(void)
+{
+    memset(s_page, 0xFF, sizeof(s_page));
+    s_page[FLAG_DONE_OFFSET / 4U] = FLAG_APOK;
+    CH32_IAP_Program(FLASH_BASE + FLAG_OFFSET, s_page);
+    return Flag_State() == 2U;
 }
 
 /* 读硬件信息页的 4 项(舵机类型、硬件版本、电压型号、扭力型号)；页无效时填 0xFF 并返回 0 */
@@ -194,6 +258,59 @@ static uint8_t HwInfo_Read(uint8_t *info)
     return valid;
 }
 
+static uint8_t Flag_MetaRead(void)
+{
+    const uint8_t *page = FLASH_PTR(FLAG_OFFSET);
+
+    if (!Flag_RecordValid(page)) return 0U;
+    s_keep_valid = page[FLAG_KEEP_VALID_OFFSET];
+    s_keep_id = page[FLAG_ID_OFFSET];
+    s_keep_baud = page[FLAG_BAUD_OFFSET];
+    s_hw_snapshot_valid = page[FLAG_HW_VALID_OFFSET];
+    memcpy(s_hw_snapshot, page + FLAG_HW_OFFSET, sizeof(s_hw_snapshot));
+    return 1U;
+}
+
+static uint8_t Config_IdentityRead(uint32_t off, uint8_t *id, uint8_t *baud)
+{
+    const uint8_t *page = FLASH_PTR(off);
+
+    if (Get32(page + CONFIG_COMMIT_OFFSET) != CONFIG_COMMITTED
+        || Get16(page + CONFIG_CRC_OFFSET) != Crc16(page, CONFIG_CRC_OFFSET)
+        || page[CONFIG_ID_OFFSET] > 254U
+        || page[CONFIG_BAUD_OFFSET] < 1U || page[CONFIG_BAUD_OFFSET] > 8U) return 0U;
+    *id = page[CONFIG_ID_OFFSET];
+    *baud = page[CONFIG_BAUD_OFFSET];
+    return 1U;
+}
+
+static void Preserve_Snapshot(void)
+{
+    uint8_t hw[4];
+    uint8_t id;
+    uint8_t baud;
+
+    s_keep_id = 0U;
+    s_keep_baud = 5U;
+    s_keep_valid = 0U;
+    memset(s_hw_snapshot, 0xFF, sizeof(s_hw_snapshot));
+    s_hw_snapshot_valid = 0U;
+    (void)Flag_MetaRead();
+
+    if (Config_IdentityRead(CONFIG_SLOT_A, &id, &baud)
+        || Config_IdentityRead(CONFIG_SLOT_B, &id, &baud))
+    {
+        s_keep_id = id;
+        s_keep_baud = baud;
+        s_keep_valid = 1U;
+    }
+    if (HwInfo_Read(hw))
+    {
+        memcpy(s_hw_snapshot, hw, sizeof(s_hw_snapshot));
+        s_hw_snapshot_valid = 1U;
+    }
+}
+
 /* 镜像里的固件信息块魔术字正确，且 4 项逐一等于硬件信息页或为 0xFF(不限)；硬件信息页没写过时不比对 */
 static uint8_t Fw_Compatible(void)
 {
@@ -202,6 +319,11 @@ static uint8_t Fw_Compatible(void)
     uint8_t        valid = HwInfo_Read(hw);
     uint8_t        i;
 
+    if (!valid && s_hw_snapshot_valid)
+    {
+        memcpy(hw, s_hw_snapshot, sizeof(hw));
+        valid = 1U;
+    }
     if (Get32(fw) != FWINFO_MAGIC) return 0U;
     for (i = 0U; i < 4U; i++)
     {
@@ -261,7 +383,7 @@ static uint8_t Frame_Process(uint8_t hello_only)
     uint8_t   cmd  = RX[1];
     uint16_t  len  = (uint16_t)(RX[2] | (uint16_t)RX[3] << 8);
     uint8_t  *data = RX + 4U;
-    uint8_t   info[6];
+    uint8_t   info[5];
     uint32_t  off;
 
     if (cmd & 0x80U) return 0U;                         /* 应答帧，不处理 */
@@ -276,25 +398,29 @@ static uint8_t Frame_Process(uint8_t hello_only)
     {
     case CMD_HELLO:
         if (len != 0U) break;
-        info[0] = BOOT_VERSION;
-        info[1] = Flag_State();
-        (void)HwInfo_Read(info + 2U);
-        Reply(ST_OK, info, 6U);
+        info[0] = Flag_State();
+        (void)HwInfo_Read(info + 1U);
+        Reply(ST_OK, info, 5U);
         return 1U;
 
     case CMD_START:
-        if (len != 9U) break;
+        if (len != 8U) break;
         s_started = 0U;
         s_img_len = Get32(data);
         s_img_crc = Get32(data + 4U);
-        if (s_img_len == 0U || (s_img_len & (PAGE_SIZE - 1U)) || s_img_len > APP_SIZE_MAX || data[8] > 1U)
+        if (s_img_len == 0U || (s_img_len & (PAGE_SIZE - 1U)) || s_img_len > APP_SIZE_MAX)
         {
             Reply(ST_RANGE, 0, 0U);
             return 0U;
         }
         FLASH_Unlock_Fast();
-        Flag_Write(FLAG_UPGD);                          /* 先作废 APP 再擦，中途断电也会留在 Boot */
-        App_Erase(data[8] ? PARAM_END : APP_SIZE_MAX);
+        Preserve_Snapshot();
+        if (!Flag_Start())
+        {
+            Reply(ST_VERIFY, 0, 0U);
+            return 0U;
+        }
+        App_Erase(APP_DATA_END);
         s_started = 1U;
         Reply(ST_OK, 0, 0U);
         return 0U;
@@ -334,8 +460,7 @@ static uint8_t Frame_Process(uint8_t hello_only)
         }
         else
         {
-            Flag_Write(FLAG_APOK);
-            if (Flag_State() != 2U)
+            if (!Flag_Complete())
             {
                 Reply(ST_VERIFY, 0, 0U);
                 return 0U;

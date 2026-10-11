@@ -1,33 +1,32 @@
 #include "flash.h"
 #include <string.h>
 
-/* CFG3 把载荷从32扩到64字节；读取端仍识别CFG2，升级时原ID、波特率和标定不会丢。 */
-#define CONFIG_MAGIC       0x43464733UL
-#define CONFIG_MAGIC_V2    0x43464732UL
-#define CONFIG_COMMITTED   0x5AA55AA5UL
-#define CONFIG_PAYLOAD_V2  32U
+#define CONFIG_COMMITTED 0x5AA55AA5UL
 
-typedef struct {
-    uint32_t magic;
-    uint32_t sequence;
-    uint16_t reserved0; /* CFG1 在这里存参数格式版本，已废弃 */
-    uint16_t length;
-    uint8_t  payload[CONFIG_PAYLOAD_MAX];
-    uint16_t crc;
-    uint16_t reserved1;
-    uint32_t committed;
-} FlashRecord_t;
+static uint16_t Flash_Get16(const uint8_t *p)
+{
+    return (uint16_t)p[0] | (uint16_t)p[1] << 8;
+}
 
-typedef struct {
-    uint32_t magic;
-    uint32_t sequence;
-    uint16_t reserved0;
-    uint16_t length;
-    uint8_t  payload[CONFIG_PAYLOAD_V2];
-    uint16_t crc;
-    uint16_t reserved1;
-    uint32_t committed;
-} FlashRecordV2_t;
+static uint32_t Flash_Get32(const uint8_t *p)
+{
+    return (uint32_t)p[0] | (uint32_t)p[1] << 8
+         | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+}
+
+static void Flash_Put16(uint8_t *p, uint16_t value)
+{
+    p[0] = (uint8_t)value;
+    p[1] = (uint8_t)(value >> 8);
+}
+
+static void Flash_Put32(uint8_t *p, uint32_t value)
+{
+    p[0] = (uint8_t)value;
+    p[1] = (uint8_t)(value >> 8);
+    p[2] = (uint8_t)(value >> 16);
+    p[3] = (uint8_t)(value >> 24);
+}
 
 static uint16_t Flash_Crc16(const uint8_t *data, uint16_t length)
 {
@@ -44,82 +43,66 @@ static uint16_t Flash_Crc16(const uint8_t *data, uint16_t length)
     return crc;
 }
 
-/* 记录本身完整即有效；长度不必等于当前结构体，新旧长度的取舍交给 A_Config */
-static uint8_t Flash_RecordInfo(const void *address, const uint8_t **payload,
-                                uint16_t *length, uint32_t *sequence)
+static uint8_t Flash_PageValid(const uint8_t *page)
 {
-    const FlashRecord_t *record = (const FlashRecord_t *)address;
-
-    if (record->magic == CONFIG_MAGIC
-        && record->committed == CONFIG_COMMITTED
-        && record->length != 0U && record->length <= CONFIG_PAYLOAD_MAX
-        && record->crc == Flash_Crc16(record->payload, record->length))
-    {
-        *payload = record->payload;
-        *length = record->length;
-        *sequence = record->sequence;
-        return 1U;
-    }
-    else
-    {
-        const FlashRecordV2_t *old = (const FlashRecordV2_t *)address;
-        if (old->magic == CONFIG_MAGIC_V2
-            && old->committed == CONFIG_COMMITTED
-            && old->length != 0U && old->length <= CONFIG_PAYLOAD_V2
-            && old->crc == Flash_Crc16(old->payload, old->length))
-        {
-            *payload = old->payload;
-            *length = old->length;
-            *sequence = old->sequence;
-            return 1U;
-        }
-    }
-    return 0U;
+    return Flash_Get32(page + CONFIG_COMMIT_OFFSET) == CONFIG_COMMITTED
+        && Flash_Get16(page + CONFIG_CRC_OFFSET) == Flash_Crc16(page, CONFIG_CRC_OFFSET);
 }
 
-uint16_t FLASH_Config_Load(void *data, uint16_t capacity, uint32_t *sequence)
+static uint8_t Flash_PageWrite(uint32_t address, const uint8_t *bytes)
 {
-    const uint8_t *pa = 0, *pb = 0, *latest;
-    uint16_t la = 0U, lb = 0U, latest_len;
-    uint32_t sa = 0U, sb = 0U;
-    uint8_t va = Flash_RecordInfo((const void *)CONFIG_SLOT_A_ADDR, &pa, &la, &sa);
-    uint8_t vb = Flash_RecordInfo((const void *)CONFIG_SLOT_B_ADDR, &pb, &lb, &sb);
-
-    if (data == 0 || sequence == 0 || (!va && !vb)) return 0U;
-    if (!vb || (va && (int32_t)(sa - sb) > 0))
-        latest = pa, latest_len = la, *sequence = sa;
-    else
-        latest = pb, latest_len = lb, *sequence = sb;
-    memcpy(data, latest, (latest_len < capacity) ? latest_len : capacity);
-    return latest_len;
-}
-
-uint8_t FLASH_Config_Save(const void *data, uint16_t length, uint32_t sequence)
-{
-    FlashRecord_t record;
     uint32_t page[FLASH_PAGE_SIZE / sizeof(uint32_t)];
-    const uint8_t *payload;
-    uint16_t old_len;
-    uint32_t sa = 0U, sb = 0U;
-    uint8_t va = Flash_RecordInfo((const void *)CONFIG_SLOT_A_ADDR, &payload, &old_len, &sa);
-    uint8_t vb = Flash_RecordInfo((const void *)CONFIG_SLOT_B_ADDR, &payload, &old_len, &sb);
-    uint32_t target;
 
-    if (data == 0 || length == 0U || length > CONFIG_PAYLOAD_MAX) return 0U;
-    target = (!va || (vb && (int32_t)(sb - sa) > 0))
-           ? CONFIG_SLOT_A_ADDR : CONFIG_SLOT_B_ADDR;
+    memcpy(page, bytes, FLASH_PAGE_SIZE);
+    if (FLASH_ROM_ERASE(address, FLASH_PAGE_SIZE) != FLASH_COMPLETE) return 0U;
+    if (FLASH_ROM_WRITE(address, page, FLASH_PAGE_SIZE) != FLASH_COMPLETE) return 0U;
+    return (uint8_t)(memcmp((const void *)address, bytes, FLASH_PAGE_SIZE) == 0);
+}
 
-    memset(&record, 0xFF, sizeof(record));
-    record.magic = CONFIG_MAGIC;
-    record.sequence = sequence;
-    record.length = length;
-    memcpy(record.payload, data, length);
-    record.crc = Flash_Crc16(record.payload, length);
-    record.committed = CONFIG_COMMITTED;
-    memset(page, 0xFF, sizeof(page));
-    memcpy(page, &record, sizeof(record));
+uint16_t FLASH_Config_Load(void *data, uint16_t capacity, uint8_t version[3])
+{
+    const uint8_t *page_a = (const uint8_t *)CONFIG_SLOT_A_ADDR;
+    const uint8_t *page_b = (const uint8_t *)CONFIG_SLOT_B_ADDR;
+    const uint8_t *source;
+    uint8_t valid_a = Flash_PageValid(page_a);
+    uint8_t valid_b = Flash_PageValid(page_b);
 
-    if (FLASH_ROM_ERASE(target, FLASH_PAGE_SIZE) != FLASH_COMPLETE) return 0U;
-    if (FLASH_ROM_WRITE(target, page, FLASH_PAGE_SIZE) != FLASH_COMPLETE) return 0U;
-    return memcmp((const void *)target, page, FLASH_PAGE_SIZE) == 0;
+    if (data == 0 || version == 0 || capacity == 0U || capacity > CONFIG_PAYLOAD_MAX) return 0U;
+    if (!valid_a && !valid_b) return 0U;
+
+    if (valid_a)
+    {
+        source = page_a;
+        if (!valid_b || memcmp(page_a, page_b, FLASH_PAGE_SIZE) != 0)
+            (void)Flash_PageWrite(CONFIG_SLOT_B_ADDR, source);
+    }
+    else
+    {
+        source = page_b;
+        (void)Flash_PageWrite(CONFIG_SLOT_A_ADDR, source);
+    }
+
+    memcpy(version, source, CONFIG_VERSION_SIZE);
+    memcpy(data, source + CONFIG_PAYLOAD_OFFSET, capacity);
+    return capacity;
+}
+
+uint8_t FLASH_Config_Save(const void *data, uint16_t length, const uint8_t version[3])
+{
+    uint32_t page_words[FLASH_PAGE_SIZE / sizeof(uint32_t)];
+    uint8_t *page = (uint8_t *)page_words;
+
+    if (data == 0 || version == 0 || length == 0U || length > CONFIG_PAYLOAD_MAX) return 0U;
+
+    memset(page, 0xFF, FLASH_PAGE_SIZE);
+    memcpy(page, version, CONFIG_VERSION_SIZE);
+    memcpy(page + CONFIG_PAYLOAD_OFFSET, data, length);
+    Flash_Put16(page + CONFIG_CRC_OFFSET, Flash_Crc16(page, CONFIG_CRC_OFFSET));
+    Flash_Put32(page + CONFIG_COMMIT_OFFSET, CONFIG_COMMITTED);
+
+    if (memcmp((const void *)CONFIG_SLOT_A_ADDR, page, FLASH_PAGE_SIZE) != 0
+        && !Flash_PageWrite(CONFIG_SLOT_A_ADDR, page)) return 0U;
+    if (memcmp((const void *)CONFIG_SLOT_B_ADDR, page, FLASH_PAGE_SIZE) != 0
+        && !Flash_PageWrite(CONFIG_SLOT_B_ADDR, page)) return 0U;
+    return 1U;
 }

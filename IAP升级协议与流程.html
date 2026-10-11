@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>舵机 IAP 升级协议与流程</title>
+  <style>
+    :root{--blue:#1f5f99;--deep:#173b60;--light:#eaf3fb;--line:#c9d7e5;--ink:#1f2937;--muted:#607080;--ok:#eaf8ef;--warn:#fff7df;--bad:#fff0f0}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#f5f7fa;color:var(--ink);font:15px/1.65 "Microsoft YaHei","Noto Sans SC",sans-serif}
+    main{max-width:1380px;margin:0 auto;padding:30px 24px 60px}h1{margin:0;color:var(--deep);font-size:32px}h2{margin:42px 0 14px;padding-left:12px;border-left:6px solid var(--blue);color:var(--deep)}h3{margin-top:28px;color:#28577f}
+    .lead{margin:12px 0 24px;color:var(--muted)}.card,.note{background:#fff;border:1px solid var(--line);border-radius:8px;padding:15px 18px;margin:14px 0}.note{background:var(--warn)}.ok{background:var(--ok)}.bad{background:var(--bad)}
+    .toc{columns:2}.toc a{display:block;color:var(--blue);text-decoration:none;margin:3px 0}.toc a:hover{text-decoration:underline}
+    table{width:100%;border-collapse:collapse;background:#fff;margin:14px 0 24px;box-shadow:0 2px 8px rgba(31,41,55,.05)}th,td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:top}th{background:var(--light);color:var(--deep)}tr:nth-child(even) td{background:#fafcfe}
+    code{font-family:Consolas,"Courier New",monospace;background:#edf3f8;padding:1px 5px;border-radius:4px;color:#174c78}pre{overflow:auto;background:#152638;color:#eaf4ff;border-radius:8px;padding:15px 17px;line-height:1.55}pre code{background:none;color:inherit;padding:0}.bytes{font-family:Consolas,"Courier New",monospace;white-space:nowrap}
+    .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.step{background:#fff;border:1px solid var(--line);border-radius:6px;padding:9px 12px}.arrow{color:var(--blue);font-weight:bold}.small{font-size:13px;color:var(--muted)}
+    ul,ol{padding-left:24px}@media(max-width:820px){main{padding:18px 10px 40px}.toc{columns:1}table{display:block;overflow-x:auto;white-space:nowrap}.arrow{display:none}.flow{display:block}.step{margin:7px 0}}
+  </style>
+</head>
+<body><main>
+  <h1>舵机 IAP 升级协议与流程</h1>
+  <p class="lead">本文给出串口参数、帧格式、CRC、命令字段、固件文件处理、升级状态机、超时重试、掉电恢复和完整报文示例。所有多字节整数均为小端序。</p>
+
+  <div class="note"><strong>固定升级行为：</strong>升级只保留有效参数页中的舵机ID和波特率档位；APP、全部用户参数和硬件信息均被清除。新APP首次启动后使用保留的ID/波特率，其余参数采用新固件默认值。</div>
+
+  <div class="card toc">
+    <a href="#scope">1. 接口与适用范围</a><a href="#frame">2. 通用帧格式</a>
+    <a href="#crc">3. CRC32算法</a><a href="#appcmd">4. APP阶段命令</a>
+    <a href="#bootcmd">5. Boot阶段命令</a><a href="#status">6. 状态码与静默规则</a>
+    <a href="#firmware">7. 固件文件与信息块</a><a href="#flash">8. Flash布局与保留规则</a>
+    <a href="#flow">9. 上位机完整流程</a><a href="#timing">10. 超时与重试</a>
+    <a href="#power">11. 掉电恢复</a><a href="#examples">12. 完整报文示例</a>
+    <a href="#reference">13. 参考代码</a><a href="#checklist">14. 上位机验收清单</a>
+  </div>
+
+  <h2 id="scope">一、接口与适用范围</h2>
+  <table>
+    <thead><tr><th>项目</th><th>APP阶段</th><th>Boot阶段</th></tr></thead>
+    <tbody>
+      <tr><td>物理接口</td><td colspan="2">单线半双工 UART，PC0，8数据位、无校验、1停止位</td></tr>
+      <tr><td>波特率</td><td>舵机当前配置的波特率</td><td>固定115200 bps</td></tr>
+      <tr><td>寻址</td><td>命令数据第1字节为舵机ID；查询命令允许ID 255</td><td>无ID字段，进入Boot后默认总线上只有目标设备</td></tr>
+      <tr><td>最大DATA长度</td><td>8字节</td><td>260字节</td></tr>
+      <tr><td>字节序</td><td colspan="2">所有16位、32位整数和CRC均低字节在前</td></tr>
+      <tr><td>收发方式</td><td colspan="2">一问一答。主机发送完成后切换为接收，收到对应应答或超时后再发送下一帧</td></tr>
+    </tbody>
+  </table>
+  <p>波特率档位：1=9600、2=19200、3=38400、4=57600、5=115200、6=128000、7=256000、8=1000000。升级成功后APP恢复到升级前保留的档位；若升级前A/B参数页均无效且没有有效IAP快照，则新APP采用代码默认值：ID 0、档位5。</p>
+  <div class="bad note"><strong>总线要求：</strong>建议升级时只连接一台舵机。Boot帧不含ID，多台设备同时停在Boot会同时应答并同时写入。广播查询ID 255也只能在单机连接时使用。</div>
+  <div class="note"><strong>ID 255限制：</strong>ID 255只允许用于 <code>CMD=20</code> 查询实际ID。进入升级及升级脚本的 <code>--id</code> 参数必须使用0～254，不能使用广播ID 255。</div>
+
+  <h2 id="frame">二、通用帧格式</h2>
+  <table>
+    <thead><tr><th>偏移</th><th>字段</th><th>长度</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>帧头</td><td>2</td><td>固定 <code>AA 55</code></td></tr>
+      <tr><td>2</td><td>CMD</td><td>1</td><td>请求命令；应答为请求命令按位或 <code>80</code></td></tr>
+      <tr><td>3</td><td>LEN</td><td>2</td><td>DATA长度，uint16小端序；不包含CRC和帧尾</td></tr>
+      <tr><td>5</td><td>DATA</td><td>LEN</td><td>请求参数；应答DATA的第1字节固定为状态码</td></tr>
+      <tr><td>5+LEN</td><td>CRC32</td><td>4</td><td>对 <code>CMD + LEN低字节 + LEN高字节 + DATA</code> 计算，小端序发送</td></tr>
+      <tr><td>9+LEN</td><td>帧尾</td><td>2</td><td>固定 <code>55 AA</code></td></tr>
+    </tbody>
+  </table>
+  <p>整帧长度为 <code>11 + LEN</code> 字节。协议没有转义字符，DATA中允许出现帧头或帧尾字节，接收端必须以LEN确定帧边界。</p>
+  <p>应答DATA布局：</p>
+  <table>
+    <thead><tr><th>DATA偏移</th><th>字段</th><th>说明</th></tr></thead>
+    <tbody><tr><td>0</td><td>STATUS</td><td>状态码，0表示成功</td></tr><tr><td>1…</td><td>附加数据</td><td>由具体命令定义</td></tr></tbody>
+  </table>
+
+  <h2 id="crc">三、CRC32算法</h2>
+  <table>
+    <thead><tr><th>参数</th><th>取值</th></tr></thead>
+    <tbody>
+      <tr><td>算法</td><td>CRC-32/ISO-HDLC，与Python <code>zlib.crc32</code> 一致</td></tr>
+      <tr><td>多项式反转值</td><td><code>EDB88320</code></td></tr>
+      <tr><td>初值</td><td><code>FFFFFFFF</code></td></tr>
+      <tr><td>输入/输出反射</td><td>是</td></tr>
+      <tr><td>结果异或</td><td><code>FFFFFFFF</code></td></tr>
+      <tr><td>发送顺序</td><td>uint32小端序</td></tr>
+    </tbody>
+  </table>
+  <pre><code>def make_frame(cmd: int, data: bytes = b"") -&gt; bytes:
+    import struct, zlib
+    body = bytes([cmd]) + struct.pack("&lt;H", len(data)) + data
+    crc = zlib.crc32(body) &amp; 0xFFFFFFFF
+    return b"\xAA\x55" + body + struct.pack("&lt;I", crc) + b"\x55\xAA"</code></pre>
+  <p>注意：CRC不包含帧头和帧尾；应答帧计算CRC时必须包含应答CMD、应答LEN以及状态码。</p>
+
+  <h2 id="appcmd">四、APP阶段命令</h2>
+  <p>APP阶段使用舵机当前波特率。错误ID、错误CRC、错误长度和未知命令均静默，不返回错误帧。</p>
+
+  <h3>4.1 查询设备 <code>CMD=20</code></h3>
+  <p>用于确认目标ID、当前硬件身份和当前固件版本。</p>
+  <table>
+    <thead><tr><th>方向</th><th>LEN</th><th>DATA偏移</th><th>字段</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>请求</td><td>1</td><td>0</td><td>ID</td><td>0～254为指定舵机；255为单机广播查询</td></tr>
+      <tr><td rowspan="4">成功应答</td><td rowspan="4">9</td><td>0</td><td>STATUS</td><td>固定0</td></tr>
+      <tr><td>1</td><td>实际ID</td><td>设备当前ID</td></tr>
+      <tr><td>2～5</td><td>硬件身份</td><td>舵机类型、硬件版本、电压型号、扭矩型号</td></tr>
+      <tr><td>6～8</td><td>固件版本</td><td>主版本、次版本、修订版本</td></tr>
+    </tbody>
+  </table>
+  <p>硬件信息页无效时，4字节硬件身份返回 <code>FF FF FF FF</code>。硬件版本以0.1版为单位，电压型号以V为单位，扭矩型号以kg·cm为单位。</p>
+
+  <h3>4.2 进入升级 <code>CMD=21</code></h3>
+  <table>
+    <thead><tr><th>方向</th><th>LEN</th><th>DATA偏移</th><th>字段</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="3">请求</td><td rowspan="3">8</td><td>0</td><td>ID</td><td>必须等于本机ID，不允许255</td></tr>
+      <tr><td>1～4</td><td>当前硬件身份</td><td>必须原样复制查询应答DATA[2～5]</td></tr>
+      <tr><td>5～7</td><td>当前固件版本</td><td>必须原样复制查询应答DATA[6～8]</td></tr>
+      <tr><td>成功应答</td><td>1</td><td>0</td><td>STATUS=0</td><td>应答发送完成后，设备软件复位进入Boot</td></tr>
+    </tbody>
+  </table>
+  <div class="note"><strong>关键点：</strong>进入升级命令携带的是“查询到的当前设备信息”，不是目标固件的信息。7字节不一致时返回状态2，设备不会复位。</div>
+
+  <h2 id="bootcmd">五、Boot阶段命令</h2>
+  <p>Boot固定115200 bps，不使用舵机ID。进入Boot后，上位机必须先握手，再依次执行开始、写页、完成。</p>
+
+  <h3>5.1 握手 <code>CMD=01</code></h3>
+  <table>
+    <thead><tr><th>方向</th><th>LEN</th><th>DATA偏移</th><th>字段</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>请求</td><td>0</td><td>—</td><td>—</td><td>无数据</td></tr>
+      <tr><td rowspan="3">成功应答</td><td rowspan="3">6</td><td>0</td><td>STATUS</td><td>固定0</td></tr>
+      <tr><td>1</td><td>升级状态</td><td>0空白；1升级未完成；2升级完成；3状态页损坏</td></tr>
+      <tr><td>2～5</td><td>硬件身份</td><td>有效时为4项身份；硬件信息页被擦除或无效时为 <code>FF FF FF FF</code></td></tr>
+    </tbody>
+  </table>
+  <p>握手应答不包含Boot版本，也不包含舵机ID或波特率。</p>
+
+  <h3>5.2 开始升级 <code>CMD=02</code></h3>
+  <table>
+    <thead><tr><th>方向</th><th>LEN</th><th>DATA偏移</th><th>字段</th><th>类型与要求</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="2">请求</td><td rowspan="2">8</td><td>0～3</td><td>IMAGE_LEN</td><td>uint32；大于0、256字节对齐、不超过 <code>F400</code></td></tr>
+      <tr><td>4～7</td><td>IMAGE_CRC32</td><td>对补齐后的完整镜像计算</td></tr>
+      <tr><td>应答</td><td>1</td><td>0</td><td>STATUS</td><td>0成功；3长度越界；4状态页写入校验失败</td></tr>
+    </tbody>
+  </table>
+  <p>执行顺序：</p>
+  <ol>
+    <li>从有效的参数A页读取ID和波特率；A无效时尝试B页。</li>
+    <li>读取硬件身份；若是升级中断后的重试，则优先保留状态页中的已有快照。</li>
+    <li>写入并校验IAP状态页，确保身份快照先落盘。</li>
+    <li>擦除偏移 <code>0000～F6FF</code>，即APP、A/B参数页和硬件信息页。</li>
+    <li>擦除完成后返回成功应答。</li>
+  </ol>
+  <p>未完成升级的有效状态页会在重试时直接复用，不再次擦除。每次设备重新上电后，Boot的RAM状态会丢失，因此即使状态页显示“升级未完成”，上位机仍须重新发送开始命令。</p>
+
+  <h3>5.3 写入一页 <code>CMD=03</code></h3>
+  <table>
+    <thead><tr><th>方向</th><th>LEN</th><th>DATA偏移</th><th>字段</th><th>类型与要求</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="2">请求</td><td rowspan="2">260</td><td>0～3</td><td>OFFSET</td><td>uint32；256字节对齐，且小于IMAGE_LEN</td></tr>
+      <tr><td>4～259</td><td>PAGE_DATA</td><td>固定256字节</td></tr>
+      <tr><td rowspan="2">应答</td><td rowspan="2">5</td><td>0</td><td>STATUS</td><td>0成功；3偏移越界；4读回校验失败；6尚未成功开始</td></tr>
+      <tr><td>1～4</td><td>OFFSET</td><td>原样返回请求偏移，用于匹配应答</td></tr>
+    </tbody>
+  </table>
+  <p>Boot对目标页执行“擦除→写入→逐字节读回比较”。同一页可重复发送，页顺序不限。推荐按偏移从0递增写入，且每页收到状态0并确认返回偏移一致后再写下一页。</p>
+
+  <h3>5.4 完成升级 <code>CMD=04</code></h3>
+  <table>
+    <thead><tr><th>方向</th><th>LEN</th><th>DATA</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>请求</td><td>0</td><td>无</td><td>必须在当前Boot会话成功执行开始命令后发送</td></tr>
+      <tr><td>应答</td><td>1</td><td>STATUS</td><td>0成功；2固件类型不符；4完成标记校验失败；5整包CRC错误；6尚未开始</td></tr>
+    </tbody>
+  </table>
+  <p>Boot先对偏移0开始的IMAGE_LEN字节计算整包CRC32，再检查偏移 <code>0100</code> 的固件信息块与硬件快照是否兼容。全部通过后写入完成标记、发送成功应答并复位进入APP。</p>
+
+  <h2 id="status">六、状态码与静默规则</h2>
+  <table>
+    <thead><tr><th>状态码</th><th>含义</th><th>上位机处理</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>成功</td><td>继续下一步</td></tr>
+      <tr><td>1</td><td>帧、CRC、命令或LEN错误</td><td>检查组帧；Boot升级循环中可重发</td></tr>
+      <tr><td>2</td><td>硬件身份或固件类型不匹配</td><td>停止升级，选择正确机型固件</td></tr>
+      <tr><td>3</td><td>镜像长度或写入偏移越界</td><td>修正IMAGE_LEN、页对齐或OFFSET</td></tr>
+      <tr><td>4</td><td>Flash写入后读回不一致</td><td>重发当前命令；持续失败时检查供电与Flash</td></tr>
+      <tr><td>5</td><td>完整镜像CRC32不一致</td><td>重新发送全部页面或缺失页面，再发送完成</td></tr>
+      <tr><td>6</td><td>顺序错误，当前Boot会话尚未成功开始</td><td>重新发送开始命令</td></tr>
+    </tbody>
+  </table>
+  <table>
+    <thead><tr><th>场景</th><th>设备行为</th></tr></thead>
+    <tbody>
+      <tr><td>APP阶段：错误CRC、错误ID、错误LEN、未知命令</td><td>静默，不应答</td></tr>
+      <tr><td>Boot正常升级循环：错误CRC、错误LEN、未知命令</td><td>返回状态1</td></tr>
+      <tr><td>Boot上电200ms握手窗口：非握手命令或坏帧</td><td>静默，不延长窗口</td></tr>
+      <tr><td>收到CMD最高位为1的帧</td><td>视为其他设备应答，不处理</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="firmware">七、固件文件与信息块</h2>
+  <h3>7.1 Intel HEX处理</h3>
+  <ol>
+    <li>读取Intel HEX记录，校验每行校验和。支持数据记录00、结束记录01、扩展段地址02、扩展线性地址04。</li>
+    <li>地址大于等于 <code>08000000</code> 时减去该基地址，得到APP内偏移。</li>
+    <li>最高有效偏移必须小于 <code>F400</code>；参数区和状态页不能出现在升级镜像中。</li>
+    <li>未出现的地址填 <code>FF</code>。</li>
+    <li>从偏移0到最高数据地址，向上补齐到256字节整数页，所得长度为IMAGE_LEN。</li>
+    <li>对补齐后的全部IMAGE_LEN字节计算IMAGE_CRC32。</li>
+  </ol>
+  <p>当前官方脚本接收Intel HEX，不直接接收BIN。IMAGE_LEN最大为 <code>0xF400</code>（62464字节）。</p>
+
+  <h3>7.2 固件信息块</h3>
+  <p>APP镜像偏移 <code>0100</code> 固定放置16字节固件信息块：</p>
+  <table>
+    <thead><tr><th>偏移</th><th>长度</th><th>字段</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>0～3</td><td>4</td><td>MAGIC</td><td>ASCII <code>SVFW</code></td></tr>
+      <tr><td>4</td><td>1</td><td>舵机类型</td><td><code>FF</code> 表示不限</td></tr>
+      <tr><td>5</td><td>1</td><td>硬件版本</td><td><code>FF</code> 表示不限</td></tr>
+      <tr><td>6</td><td>1</td><td>电压型号</td><td><code>FF</code> 表示不限</td></tr>
+      <tr><td>7</td><td>1</td><td>扭矩型号</td><td><code>FF</code> 表示不限</td></tr>
+      <tr><td>8～10</td><td>3</td><td>固件版本</td><td>主版本、次版本、修订版本</td></tr>
+      <tr><td>11～15</td><td>5</td><td>保留</td><td>固定 <code>FF</code></td></tr>
+    </tbody>
+  </table>
+  <p>上位机在写入前应检查MAGIC，并使用以下规则核对目标固件：设备硬件身份有效时，固件4项中的每一项必须等于设备值或为 <code>FF</code>。Boot在完成阶段再次执行同样核对。设备硬件身份为 <code>FF FF FF FF</code> 时无法自动判断机型，应由生产流程保证固件正确。</p>
+  <div class="note">系统只记录一个固件版本：信息块中的主、次、修订版本。协议本身没有版本字段，参数页也没有独立的协议版本或结构版本。</div>
+
+  <h2 id="flash">八、Flash布局与保留规则</h2>
+  <table>
+    <thead><tr><th>偏移范围</th><th>大小</th><th>用途</th><th>开始升级后的处理</th></tr></thead>
+    <tbody>
+      <tr><td><code>0000～F3FF</code></td><td>62464</td><td>APP镜像</td><td>擦除并写入新镜像</td></tr>
+      <tr><td><code>F400～F4FF</code></td><td>256</td><td>参数副本A</td><td>提取ID/波特率后擦除</td></tr>
+      <tr><td><code>F500～F5FF</code></td><td>256</td><td>参数副本B</td><td>A无效时提取ID/波特率；随后擦除</td></tr>
+      <tr><td><code>F600～F6FF</code></td><td>256</td><td>硬件信息</td><td>保存4字节硬件身份快照后擦除</td></tr>
+      <tr><td><code>F700～F7FF</code></td><td>256</td><td>IAP状态与快照</td><td>Boot维护，不属于镜像</td></tr>
+      <tr><td>独立BOOT区</td><td>3328</td><td>Bootloader</td><td>IAP不改写</td></tr>
+    </tbody>
+  </table>
+
+  <h3>8.1 参数页有效条件</h3>
+  <table>
+    <thead><tr><th>页内偏移</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>0～2</td><td>固件版本：主、次、修订</td></tr>
+      <tr><td>3</td><td>舵机ID，0～254</td></tr>
+      <tr><td>4</td><td>波特率档位，1～8</td></tr>
+      <tr><td>5～249</td><td>APP参数与预留空间</td></tr>
+      <tr><td>250～251</td><td>对0～249字节计算的CRC16-CCITT，初值FFFF</td></tr>
+      <tr><td>252～255</td><td>完整标记，小端值 <code>5AA55AA5</code>，字节为 <code>A5 5A A5 5A</code></td></tr>
+    </tbody>
+  </table>
+  <p>Boot只读取固定位置的ID和波特率，不解析其他APP参数。A有效时使用A；否则使用B。两页都无效时不生成有效身份快照，新APP使用代码默认ID和波特率。</p>
+
+  <h3>8.2 IAP状态页</h3>
+  <table>
+    <thead><tr><th>页内偏移</th><th>长度</th><th>内容</th></tr></thead>
+    <tbody>
+      <tr><td>0～3</td><td>4</td><td>开始标记ASCII <code>UPGD</code></td></tr>
+      <tr><td>4～7</td><td>4</td><td>镜像长度</td></tr>
+      <tr><td>8～11</td><td>4</td><td>镜像CRC32</td></tr>
+      <tr><td>12</td><td>1</td><td>ID/波特率快照有效标志</td></tr>
+      <tr><td>13</td><td>1</td><td>保留ID</td></tr>
+      <tr><td>14</td><td>1</td><td>保留波特率档位</td></tr>
+      <tr><td>15</td><td>1</td><td>硬件身份快照有效标志</td></tr>
+      <tr><td>16～19</td><td>4</td><td>硬件身份4项</td></tr>
+      <tr><td>20～23</td><td>4</td><td>对0～19字节计算的CRC32</td></tr>
+      <tr><td>24～27</td><td>4</td><td>完成标记ASCII <code>APOK</code></td></tr>
+      <tr><td>28～255</td><td>228</td><td>保留为FF</td></tr>
+    </tbody>
+  </table>
+  <p>新APP只有在状态页开始标记、元数据CRC、完成标记、ID和波特率范围全部有效时才采用身份快照。</p>
+
+  <h3>8.3 硬件信息页</h3>
+  <table>
+    <thead><tr><th>页内偏移</th><th>长度</th><th>内容</th><th>单位/说明</th></tr></thead>
+    <tbody>
+      <tr><td>0～3</td><td>4</td><td>ASCII <code>HWIF</code></td><td>有效页标志</td></tr>
+      <tr><td>4</td><td>1</td><td>格式号</td><td>当前为2</td></tr>
+      <tr><td>5</td><td>1</td><td>舵机类型</td><td>硬件身份第1项</td></tr>
+      <tr><td>6</td><td>1</td><td>硬件版本</td><td>0.1版</td></tr>
+      <tr><td>7</td><td>1</td><td>电压型号</td><td>V</td></tr>
+      <tr><td>8</td><td>1</td><td>扭矩型号</td><td>kg·cm</td></tr>
+      <tr><td>9～10</td><td>2</td><td>硬件最大速度</td><td>°/s，uint16小端序</td></tr>
+      <tr><td>11～14</td><td>4</td><td>硬件最大加速度</td><td>°/s²，uint32小端序</td></tr>
+      <tr><td>15～18</td><td>4</td><td>硬件最大减速度</td><td>°/s²，uint32小端序</td></tr>
+      <tr><td>19～22</td><td>4</td><td>硬件最大加加速度</td><td>°/s³，uint32小端序</td></tr>
+      <tr><td>23～24</td><td>2</td><td>最小可靠位移</td><td>0.01°，uint16小端序</td></tr>
+      <tr><td>25～27</td><td>3</td><td>保留</td><td>FF</td></tr>
+      <tr><td>28～31</td><td>4</td><td>CRC32</td><td>对0～27字节计算</td></tr>
+      <tr><td>32～255</td><td>224</td><td>保留</td><td>FF</td></tr>
+    </tbody>
+  </table>
+  <p>开始升级前Boot只把偏移5～8的4字节硬件身份复制到IAP状态页。新APP启动后按照自身机型常量重新建立完整硬件信息页。协议不提供写硬件信息命令，硬件信息页只能由APP内部自动建立。固件4项中存在 <code>FF</code> 时，APP不会把不确定的身份写入空白硬件页。</p>
+
+  <h2 id="flow">九、上位机完整流程</h2>
+  <div class="flow">
+    <div class="step">解析HEX</div><div class="arrow">→</div><div class="step">APP查询</div><div class="arrow">→</div>
+    <div class="step">核对机型</div><div class="arrow">→</div><div class="step">进入Boot</div><div class="arrow">→</div>
+    <div class="step">握手</div><div class="arrow">→</div><div class="step">开始并擦除</div><div class="arrow">→</div>
+    <div class="step">逐页写入</div><div class="arrow">→</div><div class="step">完成校验</div><div class="arrow">→</div><div class="step">查询新APP</div>
+  </div>
+  <ol>
+    <li>解析HEX、校验行校验和、生成256字节对齐镜像；读取 <code>0100</code> 信息块。</li>
+    <li>按用户提供的当前ID和APP波特率发送查询命令。</li>
+    <li>保存查询返回的实际ID、硬件身份和当前固件版本；用硬件身份核对目标固件。</li>
+    <li>将查询得到的8字节设备信息原样组成进入升级请求。</li>
+    <li>收到成功应答后立即把串口切换为115200，并循环发送Boot握手。</li>
+    <li>发送开始命令，等待擦除结束的成功应答。</li>
+    <li>从OFFSET=0开始逐页发送。每页收到状态0且返回OFFSET一致才进入下一页。</li>
+    <li>发送完成命令。收到状态0或应答超时后等待APP启动。</li>
+    <li>切回升级前APP波特率，使用升级前ID查询。读取到的固件版本必须等于目标信息块中的版本。</li>
+  </ol>
+  <p>如果APP查询失败，上位机可切换到115200尝试Boot握手。握手成功说明设备已经停在Boot，可直接从开始命令重新升级。</p>
+
+  <h3>9.1 救砖流程</h3>
+  <ol>
+    <li>总线上只保留目标舵机。</li>
+    <li>上位机打开115200串口并连续发送握手帧。</li>
+    <li>提示用户断电后重新上电。Boot在上电后的200ms窗口内只接受握手。</li>
+    <li>握手成功后执行开始、写页、完成。</li>
+  </ol>
+  <p>若APP区无效、升级状态未完成或状态页损坏，Boot不会跳入APP，会停留等待升级。</p>
+
+  <h2 id="timing">十、超时与重试建议</h2>
+  <table>
+    <thead><tr><th>操作</th><th>单次等待</th><th>建议次数/总窗口</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>APP查询、进入升级</td><td>200ms</td><td>3次</td><td>进入升级应答发完后设备复位</td></tr>
+      <tr><td>APP切换Boot后握手</td><td>每次约20ms</td><td>最长3s</td><td>串口先切到115200</td></tr>
+      <tr><td>探测已停在Boot的设备</td><td>每次约20ms</td><td>最长1s</td><td>APP无应答时使用</td></tr>
+      <tr><td>救砖握手</td><td>每次约20ms</td><td>最长30s</td><td>期间等待用户重新上电</td></tr>
+      <tr><td>开始命令</td><td>5s</td><td>3次</td><td>包含APP、参数页和硬件页擦除时间</td></tr>
+      <tr><td>写页命令</td><td>300ms</td><td>每页最多5次</td><td>同一页可安全重发</td></tr>
+      <tr><td>完成命令</td><td>2s</td><td>3次</td><td>超时可能是成功应答后已复位，应继续验证APP</td></tr>
+      <tr><td>等待新APP</td><td>—</td><td>先等待1.5s</td><td>随后300ms超时查询，最多8次</td></tr>
+    </tbody>
+  </table>
+  <p>APP接收半帧超过10ms没有新字节会丢弃；Boot接收半帧字节间隔超过50ms会丢弃。主机应一次写出完整帧，不应逐字节长延时发送。</p>
+  <p>Boot尚未开始升级、且已有可启动APP时，升级循环空闲10秒后自动返回APP；升级未完成时不会因空闲超时进入残缺APP。</p>
+
+  <h2 id="power">十一、掉电恢复</h2>
+  <table>
+    <thead><tr><th>掉电位置</th><th>重新上电行为</th><th>上位机恢复动作</th></tr></thead>
+    <tbody>
+      <tr><td>开始命令之前</td><td>原APP和参数仍完整</td><td>重新执行正常升级</td></tr>
+      <tr><td>首次状态页写入期间</td><td>APP尚未擦除；状态页可能空白或损坏</td><td>重新查询APP或进入救砖握手，再发送开始</td></tr>
+      <tr><td>擦除或写页期间</td><td>状态为升级未完成，不进入APP</td><td>握手后重新发送开始，再从第0页写完整镜像</td></tr>
+      <tr><td>完成校验前</td><td>停留Boot</td><td>重新开始并写入镜像</td></tr>
+      <tr><td>完成标记编程期间</td><td>未完整标记时仍停留Boot</td><td>重新开始、写页并完成；完成标记可继续编程</td></tr>
+      <tr><td>完成标记有效后</td><td>进入新APP</td><td>查询固件版本确认</td></tr>
+      <tr><td>新APP建立参数A/B期间</td><td>至少一页有效，或仍可读取IAP身份快照</td><td>再次上电，APP自动修复A/B</td></tr>
+    </tbody>
+  </table>
+  <p>升级中断后重新发送开始命令会复用未完成状态页中的ID、波特率和硬件身份快照，不会擦掉唯一快照。开始命令会重新擦除APP区，因此恢复升级统一从第0页重新发送，不做断点续传。</p>
+
+  <h2 id="examples">十二、完整报文示例</h2>
+  <p>以下示例使用：ID=0，硬件身份=类型1/硬件1.0/8V/15kg·cm，当前固件=1.0.0。空格仅为阅读方便，实际发送连续字节。</p>
+  <table>
+    <thead><tr><th>用途</th><th>完整帧</th></tr></thead>
+    <tbody>
+      <tr><td>APP查询ID 0</td><td class="bytes">AA 55 20 01 00 00 15 1A B4 80 55 AA</td></tr>
+      <tr><td>APP广播查询</td><td class="bytes">AA 55 20 01 00 FF 98 F5 B6 AD 55 AA</td></tr>
+      <tr><td>APP查询成功应答</td><td class="bytes">AA 55 A0 09 00 00 00 01 0A 08 0F 01 00 00 80 55 53 16 55 AA</td></tr>
+      <tr><td>APP进入升级</td><td class="bytes">AA 55 21 08 00 00 01 0A 08 0F 01 00 00 7D B8 7F 51 55 AA</td></tr>
+      <tr><td>进入升级成功应答</td><td class="bytes">AA 55 A1 01 00 00 4B CB 51 D5 55 AA</td></tr>
+      <tr><td>Boot握手</td><td class="bytes">AA 55 01 00 00 25 B3 83 FE 55 AA</td></tr>
+      <tr><td>Boot握手应答：状态页2</td><td class="bytes">AA 55 81 06 00 00 02 01 0A 08 0F 6F 2F C5 C6 55 AA</td></tr>
+      <tr><td>开始：长度38400，示例CRC=12345678</td><td class="bytes">AA 55 02 08 00 00 96 00 00 78 56 34 12 11 53 0D 22 55 AA</td></tr>
+      <tr><td>开始成功应答</td><td class="bytes">AA 55 82 01 00 00 9B CB D6 67 55 AA</td></tr>
+      <tr><td>写偏移0100成功应答</td><td class="bytes">AA 55 83 05 00 00 00 01 00 00 C0 18 6C EB 55 AA</td></tr>
+      <tr><td>完成请求</td><td class="bytes">AA 55 04 00 00 CE 71 48 F8 55 AA</td></tr>
+      <tr><td>完成成功应答</td><td class="bytes">AA 55 84 01 00 00 47 94 BD 42 55 AA</td></tr>
+    </tbody>
+  </table>
+  <p class="small">开始命令示例中的镜像CRC仅用于演示组帧，实际值必须由目标镜像计算。写页请求共271字节，因PAGE_DATA随固件变化，表中只列出其应答。</p>
+
+  <h2 id="reference">十三、上位机参考代码</h2>
+  <pre><code>import struct, zlib
+
+HEAD = b"\xAA\x55"
+TAIL = b"\x55\xAA"
+
+def crc32(data: bytes) -&gt; int:
+    return zlib.crc32(data) &amp; 0xFFFFFFFF
+
+def build_frame(cmd: int, data: bytes = b"") -&gt; bytes:
+    body = bytes([cmd]) + struct.pack("&lt;H", len(data)) + data
+    return HEAD + body + struct.pack("&lt;I", crc32(body)) + TAIL
+
+def parse_frame(frame: bytes, request_cmd: int):
+    if len(frame) &lt; 12 or frame[:2] != HEAD:
+        raise ValueError("frame head/length")
+    cmd = frame[2]
+    length = struct.unpack_from("&lt;H", frame, 3)[0]
+    if len(frame) != 11 + length or frame[-2:] != TAIL:
+        raise ValueError("frame boundary")
+    body = frame[2:5 + length]
+    received_crc = struct.unpack_from("&lt;I", frame, 5 + length)[0]
+    if received_crc != crc32(body):
+        raise ValueError("frame crc")
+    if cmd != (request_cmd | 0x80) or length &lt; 1:
+        raise ValueError("unexpected reply")
+    status = frame[5]
+    return status, frame[6:5 + length]
+
+def start_data(image: bytes) -&gt; bytes:
+    assert image and len(image) % 256 == 0 and len(image) &lt;= 0xF400
+    return struct.pack("&lt;II", len(image), crc32(image))
+
+def page_data(offset: int, page: bytes) -&gt; bytes:
+    assert offset % 256 == 0 and len(page) == 256
+    return struct.pack("&lt;I", offset) + page</code></pre>
+  <p>串口适配器可能回显主机自己发送的请求。解析器应忽略CMD最高位为0的回显帧、其他命令的应答以及CRC错误帧，继续等待当前请求的对应应答。</p>
+
+  <h2 id="checklist">十四、上位机验收清单</h2>
+  <ul>
+    <li>能够在APP当前波特率下按ID查询，并支持单机广播查询。</li>
+    <li>进入升级时原样回传查询得到的硬件身份和当前固件版本。</li>
+    <li>进入Boot后切换到固定115200，不再发送舵机ID。</li>
+    <li>正确实现小端LEN、OFFSET、CRC32和IMAGE_LEN。</li>
+    <li>HEX镜像以FF填洞并补齐256字节，拒绝任何偏移达到F400的数据。</li>
+    <li>写入前检查偏移0100的SVFW信息块并核对目标硬件。</li>
+    <li>每页应答同时检查状态码和返回偏移；超时重发同一页。</li>
+    <li>升级中断后重新发送开始，并从第0页重写，不尝试直接完成。</li>
+    <li>完成命令超时后仍执行APP版本查询，避免把成功复位误判为失败。</li>
+    <li>最终在升级前保留的ID和波特率下查询到目标固件版本，才判定升级成功。</li>
+  </ul>
+
+  <div class="ok note"><strong>官方实现参考：</strong><code>iap_upgrade.py</code> 已实现本文流程，包括APP查询、硬件匹配、进入Boot、救砖握手、整页重试、完成校验和升级后版本确认。</div>
+</main></body>
+</html>

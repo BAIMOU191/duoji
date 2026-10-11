@@ -24,7 +24,7 @@ Application/A_Sensor.o: ../Application/A_Sensor.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X_wwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X_opa.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X.h \
- ../Application/A_Parameter.h \
+ ../Application/A_Config.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_mt6701.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_tmp112.h
 ../Application/A_Sensor.h:
@@ -52,6 +52,6 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X_u
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X_wwdg.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X_opa.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X.h:
-../Application/A_Parameter.h:
+../Application/A_Config.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_mt6701.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_tmp112.h:

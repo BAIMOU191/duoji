@@ -29,7 +29,6 @@ User/main.o: ../User/main.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_tim.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_opa.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_adc.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_mt6701.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_motor.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_tim.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_tmp112.h \
@@ -37,7 +36,6 @@ User/main.o: ../User/main.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_iwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Common/C_Task_Scheduler.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Application/A_Config.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Application/A_Parameter.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Application/A_Servo.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Application/A_Sensor.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Application/A_Protect.h \
@@ -74,7 +72,6 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_i2c.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_tim.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_opa.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_adc.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_mt6701.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_motor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_tim.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_tmp112.h:
@@ -82,7 +79,6 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_ws2812.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_iwdg.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Common/C_Task_Scheduler.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Application/A_Config.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Application/A_Parameter.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Application/A_Servo.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Application/A_Sensor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Application/A_Protect.h:

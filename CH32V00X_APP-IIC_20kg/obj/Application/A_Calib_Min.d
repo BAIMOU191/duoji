@@ -1,5 +1,5 @@
 Application/A_Calib_Min.o: ../Application/A_Calib_Min.c \
- ../Application/A_Calib_Min.h ../Application/A_Parameter.h \
+ ../Application/A_Calib_Min.h ../Application/A_Config.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Common/C_Task_Scheduler.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_motor.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_tim.h \
@@ -34,7 +34,7 @@ Application/A_Calib_Min.o: ../Application/A_Calib_Min.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Common/C_Ring_Buf.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/System/iap.h
 ../Application/A_Calib_Min.h:
-../Application/A_Parameter.h:
+../Application/A_Config.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Common/C_Task_Scheduler.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_motor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_tim.h:

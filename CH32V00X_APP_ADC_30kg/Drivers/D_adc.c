@@ -1,4 +1,4 @@
-/* D_adc.c ADC1驱动：规则组PWM同步触发DMA(电流，可选电位器)，电压注入组在规则组空档里采样 */
+/* D_adc.c ADC1驱动：规则组PWM同步触发DMA(电流+电位器)，电压注入组在规则组空档里采样 */
 
 #include "D_adc.h"
 #include "D_tim.h"
@@ -7,10 +7,8 @@
 #define ADC_CURRENT_CHANNEL       ADC_Channel_OPA
 #define ADC_VOLTAGE_CHANNEL       ADC_Channel_6
 #define ADC_VOLTAGE_SAMPLE_TIME   ADC_SampleTime_CyclesMode7
-#if D_ADC_ENCODER_ENABLE
 #define ADC_ENCODER_CHANNEL       ADC_Channel_2   /* PC4：电位器抽头 */
 #define ADC_ENCODER_SAMPLE_TIME   ADC_SampleTime_CyclesMode7
-#endif
 
 /* 分频与采样档由 D_tim.h 的时序配置反查，未映射的值直接编译失败 */
 #if   ADC_CLK_DIV == 2U
@@ -32,33 +30,46 @@
 
 /* 有电位器时每次触发先转电流(孔径落点由CCR4定位，必须排第1)，紧接着转电位器 */
 #define ADC_DMA_RANK_CURRENT      0U   /* 电流在每组转换里的下标 */
-#if D_ADC_ENCODER_ENABLE
 #define ADC_DMA_RANKS             2U   /* 规则组序列长度 */
 #define ADC_DMA_RANK_ENCODER      1U   /* 电位器在每组转换里的下标 */
-#else
-#define ADC_DMA_RANKS             1U   /* 规则组序列长度 */
-#endif
 #define ADC_DMA_FILTER_SAMPLES    20U  /* 每块的触发次数 = 1个控制周期 */
 #define ADC_DMA_HALF_SAMPLES      (ADC_DMA_FILTER_SAMPLES / 2U)
 #define ADC_DMA_BUFFER_SIZE       (ADC_DMA_FILTER_SAMPLES * ADC_DMA_RANKS)
 #define ADC_CONVERSION_TIMEOUT    100000UL
 #define ADC_ZERO_BLOCKS           16U  /* 零点标定平均的块数，见 ADC_Current_Zero_Calibrate */
 
-/* 电池电压(注入组)的采样时机。旧做法在查询时现场采：先关规则组硬件触发、等4us、软件启动注入转换、
- * 再开触发。关开触发落在任意PWM相位，注入转换还可能插进正在进行的同步扫描，电位器那一块均值被带偏，
- * RTV/RIV 查询时舵机抖一下，连续查询就一直抖。
- * 现做法：不再碰规则组触发；DMA 半传输/传输完成中断正好是一组规则扫描刚结束的时刻，只在采样触发点
- * 已连续停在续流段(ADC_VOLTAGE_PARK_HALVES 个半块，触发间隔固定50us)时，于这个空档软件启动一次注入
- * 转换，下一个半块中断取结果。规则组配置与时序和旧版逐位相同。查询只读缓存，舵机持续出力期间缓存
- * 不刷新(电压变化慢，只供查询上报)。 */
-#define ADC_VOLTAGE_PARK_HALVES   2U
-/* 空档里放得下注入转换：驻留时触发间隔固定为一个PWM周期，规则组扫描 + 一次Mode7注入转换须不超过
- * 半个周期，余下半个周期(25us)留给中断延迟。Mode7=239.5周期，与Mode3=28.5周期同一张表，按TIM 48MHz计数。 */
+/* 电池电压(注入组)的采样时机。注入组设为"规则组转完自动接着转"(JAUTO)：每个PWM周期都在电流、电位器之后
+ * 紧跟一次电压转换，由硬件排队，不碰规则组触发、不插进正在进行的扫描。DMA 半传输/传输完成中断里读最新结果，
+ * 电机持续出力时也每0.5ms刷新——原来只在触发点停进续流段(几乎不出力)时才采，带载保持或连续运动期间
+ * 欠压保护和电压补偿都看不到电压变化。采样落在PWM周期的哪个位置随占空比变，读数带纹波：
+ * 电压补偿取8样本均值，保护要越界持续50ms才动作，都不受影响。
+ *
+ * 时序约束：规则组扫描 + 一次注入转换必须在下一次规则组触发之前结束，否则会丢一次触发、DMA 交错错位。
+ * 触发点 CCR4 随占空比在 [TRIG_MIN, TRIG_MAX] 内移动，最坏是本周期最晚触发、下周期最早触发：
+ *     TRIG_MAX + 扫描 + 注入 < 一个周期 + TRIG_MIN
+ * Mode7=239.5周期，与Mode3=28.5周期同一张表，按TIM 48MHz计数。 */
 #define ADC_SLOW_CONV_TICKS  ((479U + ADC_CONV_HALFCYCLES) * ADC_CLK_DIV / 2U)
 #define ADC_FAST_CONV_TICKS  ((ADC_SAMPLE_HALFCYCLES + ADC_CONV_HALFCYCLES) * ADC_CLK_DIV / 2U)
 #define ADC_SCAN_TICKS       (ADC_FAST_CONV_TICKS + (ADC_DMA_RANKS - 1U) * ADC_SLOW_CONV_TICKS + ADC_LATENCY_TICKS)
-typedef char guard_adc_injected_does_not_fit_parked_gap[
-    ((ADC_SCAN_TICKS + ADC_SLOW_CONV_TICKS) * 2U < TIM_PWM_RESOLUTION) ? 1 : -1];
+/* 驱动段内最晚的触发点出现在刚够放下窗口的最小幅值，取 D_TIM2_ADC_Trigger_Set 两个候选里大的；最早出现在满幅 */
+#define ADC_TRIG_BLANK_AT_MIN (TIM_PWM_RESOLUTION - ADC_TRIGGER_MIN_PWM_TICKS + ADC_BLANK_TICKS - ADC_LATENCY_TICKS)
+#define ADC_TRIG_CENTER_AT_MIN (TIM_PWM_RESOLUTION - ADC_TRIGGER_MIN_PWM_TICKS / 2U - ADC_LATENCY_TICKS - ADC_SAMPLE_TICKS / 2U)
+#define ADC_TRIG_CENTER_AT_FULL (TIM_PWM_RESOLUTION - TIM_PWM_RESOLUTION / 2U - ADC_LATENCY_TICKS - ADC_SAMPLE_TICKS / 2U)
+#define ADC_TRIG_MAX_TICKS     ((ADC_TRIG_BLANK_AT_MIN > ADC_TRIG_CENTER_AT_MIN) ? ADC_TRIG_BLANK_AT_MIN : ADC_TRIG_CENTER_AT_MIN)
+#define ADC_TRIG_LATEST  ((ADC_TRIG_MAX_TICKS > ADC_TRIGGER_PARK_CCR) ? ADC_TRIG_MAX_TICKS : ADC_TRIGGER_PARK_CCR)
+#define ADC_TRIG_EARLIEST ((ADC_TRIG_CENTER_AT_FULL < ADC_TRIGGER_PARK_CCR) ? ADC_TRIG_CENTER_AT_FULL : ADC_TRIGGER_PARK_CCR)
+_Static_assert (ADC_TRIG_LATEST + ADC_SCAN_TICKS + ADC_SLOW_CONV_TICKS
+                < TIM_PWM_RESOLUTION + ADC_TRIG_EARLIEST,
+                "规则组扫描加一次注入转换放不进最短的触发间隔，会丢触发");
+
+/* 块均值的"除以20"换成乘倒数(本芯片没有除法指令，这个中断每0.5ms一次)。
+ * M=ceil(2^24/20)，被除数 < 2^24/(M*20-2^24) 时与除法逐位相同；电位器块最大 20*4095*16+10 也在范围内 */
+#define ADC_AVG_DIV_S 24U
+#define ADC_AVG_DIV_M ((uint32_t)(((1UL << ADC_AVG_DIV_S) + ADC_DMA_FILTER_SAMPLES - 1U) / ADC_DMA_FILTER_SAMPLES))
+#define ADC_AVG_DIV(x) ((uint32_t)(((uint64_t)(x) * ADC_AVG_DIV_M) >> ADC_AVG_DIV_S))
+_Static_assert ((uint64_t)(ADC_AVG_DIV_M * ADC_DMA_FILTER_SAMPLES - (1UL << ADC_AVG_DIV_S))
+                * (ADC_DMA_FILTER_SAMPLES * 4095UL * 16UL + ADC_DMA_FILTER_SAMPLES) < (1UL << ADC_AVG_DIV_S),
+                "块均值的倒数乘法不再与除法逐位相同");
 
 /* 20kHz 每周期触发一次，20组汇总即每1ms发布一块；缓冲区按 [电流, 电位器] 交错存放。
  * 半传输中断累加前半、完成中断累加后半再发布，永远不读DMA正在写的那一半。 */
@@ -70,15 +81,11 @@ static volatile uint8_t  s_current_valid;     /* 1=至少攒满过一块，读�
 static volatile uint8_t  s_current_in_window; /* 1=本块采在驱动段内，读的是真绕组电流 */
 static volatile uint8_t  s_current_window_off; /* 1=触发点已停到续流段 */
 static volatile uint16_t s_current_seq;       /* 每发布一块加一，供零点标定攒块 */
-#if D_ADC_ENCODER_ENABLE
 static volatile uint32_t s_encoder_half_sum;  /* 电位器前半块的和 */
 static volatile uint16_t s_encoder_q4;        /* 电位器整块均值，Q4(计数×16) */
 static volatile uint8_t  s_encoder_valid;     /* 电位器结果有效标志 */
-#endif
 static volatile uint16_t s_voltage_raw;       /* 最近一次电池电压注入转换结果(ADC计数) */
 static volatile uint8_t  s_voltage_valid;     /* 1=至少转完过一次 */
-static volatile uint8_t  s_voltage_busy;      /* 非0=已在空档里启动注入转换，值为等待的半块数 */
-static volatile uint8_t  s_park_halves;       /* 触发点连续停在续流段的半块数(饱和) */
 
 static void ADC_Current_Zero_Calibrate(void);
 
@@ -97,8 +104,7 @@ static uint32_t ADC_Block_Sum(uint8_t from, uint8_t to, uint8_t rank)
  * 换向和窗口开合不清滤波器状态。 */
 static void ADC_Current_Publish(uint32_t sum)
 {
-    uint16_t average = (uint16_t)((sum + ADC_DMA_FILTER_SAMPLES / 2U)
-                                / ADC_DMA_FILTER_SAMPLES);
+    uint16_t average = (uint16_t)ADC_AVG_DIV(sum + ADC_DMA_FILTER_SAMPLES / 2U);
 
     s_current_avg = s_current_valid
                   ? (uint16_t)(((uint32_t)s_current_avg + average + 1U) / 2U)
@@ -108,18 +114,15 @@ static void ADC_Current_Publish(uint32_t sum)
     s_current_seq++;
 }
 
-#if D_ADC_ENCODER_ENABLE
 /* 电位器整块均值保留Q4小数(抽头噪声大于1LSB，平均可恢复亚LSB分辨率)；不叠滤波以保相位裕度。上限65520 */
 static void ADC_Encoder_Publish(uint32_t sum)
 {
-    s_encoder_q4 = (uint16_t)((sum * D_ADC_ENCODER_SCALE
-                             + ADC_DMA_FILTER_SAMPLES / 2U)
-                            / ADC_DMA_FILTER_SAMPLES);
+    s_encoder_q4 = (uint16_t)ADC_AVG_DIV(sum * D_ADC_ENCODER_SCALE
+                                        + ADC_DMA_FILTER_SAMPLES / 2U);
     s_encoder_valid = 1;
 }
-#endif
 
-/* 初始化ADC1：OPA电流(+IN2电位器)规则组PWM同步DMA，IN6电压注入组(空档里软件触发，见 ADC_Voltage_Service) */
+/* 初始化ADC1：OPA电流(+IN2电位器)规则组PWM同步DMA，IN6电压注入组跟在每次规则组之后自动转换 */
 void D_ADC_DMA_Init(void)
 {
     ADC_InitTypeDef  adc  = {0};
@@ -128,21 +131,15 @@ void D_ADC_DMA_Init(void)
     NVIC_InitTypeDef nvic = {0};
 
     RCC_HBPeriphClockCmd(RCC_HBPeriph_DMA1, ENABLE);
-#if D_ADC_ENCODER_ENABLE
     RCC_PB2PeriphClockCmd(RCC_PB2Periph_GPIOC | RCC_PB2Periph_GPIOD
                         | RCC_PB2Periph_ADC1, ENABLE);
-#else
-    RCC_PB2PeriphClockCmd(RCC_PB2Periph_GPIOD | RCC_PB2Periph_ADC1, ENABLE);
-#endif
     RCC_ADCCLKConfig(ADC_RCC_CLK_DIV);
 
     gpio.GPIO_Mode = GPIO_Mode_AIN;
     gpio.GPIO_Pin = GPIO_Pin_6;   /* PD6 = IN6：电池分压 */
     GPIO_Init(GPIOD, &gpio);
-#if D_ADC_ENCODER_ENABLE
     gpio.GPIO_Pin = GPIO_Pin_4;   /* PC4 = IN2：电位器抽头 */
     GPIO_Init(GPIOC, &gpio);
-#endif
 
     ADC_DeInit(ADC1);
     adc.ADC_Mode = ADC_Mode_Independent;
@@ -156,10 +153,8 @@ void D_ADC_DMA_Init(void)
     /* 电流必须排第1(孔径落点由CCR4定位)；电位器排第2，用长采样档匹配分压器高源阻抗 */
     ADC_RegularChannelConfig(ADC1, ADC_CURRENT_CHANNEL, 1,
                              ADC_CURRENT_SAMPLE_TIME);
-#if D_ADC_ENCODER_ENABLE
     ADC_RegularChannelConfig(ADC1, ADC_ENCODER_CHANNEL, 2,
                              ADC_ENCODER_SAMPLE_TIME);
-#endif
 
     ADC_InjectedSequencerLengthConfig(ADC1, 1);
     ADC_InjectedChannelConfig(ADC1, ADC_VOLTAGE_CHANNEL, 1,
@@ -167,7 +162,7 @@ void D_ADC_DMA_Init(void)
     ADC_ExternalTrigInjectedConvConfig(ADC1,
                                        ADC_ExternalTrigInjecConv_None);
     ADC_ExternalTrigInjectedConvCmd(ADC1, DISABLE);
-    ADC_AutoInjectedConvCmd(ADC1, DISABLE);
+    ADC_AutoInjectedConvCmd(ADC1, ENABLE);   /* 每次规则组转完自动接一次电压，时序见文件开头的断言 */
 
     ADC_Sample_ModeConfig(ADC1, ADC_Sample_NoOver_1M_Mode);
     ADC_BufferCmd(ADC1, DISABLE);
@@ -201,15 +196,11 @@ void D_ADC_DMA_Init(void)
     s_current_in_window = 0;
     s_current_seq = 0;
     s_current_window_off = 0;
-#if D_ADC_ENCODER_ENABLE
     s_encoder_half_sum = 0;
     s_encoder_q4 = 0;
     s_encoder_valid = 0;
-#endif
     s_voltage_raw = 0;
     s_voltage_valid = 0;
-    s_voltage_busy = 0;
-    s_park_halves = 0;
 
     ADC_ClearFlag(ADC1, ADC_FLAG_EOC | ADC_FLAG_JEOC);
     ADC_DMACmd(ADC1, ENABLE);
@@ -243,35 +234,13 @@ static void ADC_Current_Zero_Calibrate(void)
     s_current_offset = (uint16_t)((sum + ADC_ZERO_BLOCKS / 2U) / ADC_ZERO_BLOCKS);
 }
 
-/* 电池电压采样，每个半块中断(一组规则扫描刚结束)调用一次：先取上次启动的注入结果，
- * 再视触发点是否已停够续流段决定是否在本空档启动下一次；不碰规则组触发 */
+/* 电池电压，每个半块中断调用一次：取硬件自动转换的最新注入结果 */
 static void ADC_Voltage_Service(void)
 {
-    if (s_current_window_off)
-    {
-        if (s_park_halves < 0xFFU) s_park_halves++;
-    }
-    else s_park_halves = 0;
-
-    /* 上次启动的转换未完成时不重启(中断被推迟、半传输与传输完成同一次进入时会出现)，超过4个半块放弃 */
-    if (s_voltage_busy)
-    {
-        if (ADC_GetFlagStatus(ADC1, ADC_FLAG_JEOC) != RESET)
-        {
-            s_voltage_raw = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
-            s_voltage_valid = 1;
-            s_voltage_busy = 0;
-        }
-        else if (++s_voltage_busy > 4U) s_voltage_busy = 0;
-        return;
-    }
-
-    if (s_park_halves >= ADC_VOLTAGE_PARK_HALVES)
-    {
-        ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);
-        ADC_SoftwareStartInjectedConvCmd(ADC1, ENABLE);
-        s_voltage_busy = 1;
-    }
+    if (ADC_GetFlagStatus(ADC1, ADC_FLAG_JEOC) == RESET) return;
+    s_voltage_raw = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
+    ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);
+    s_voltage_valid = 1;
 }
 
 /* 半传输累加前半块，传输完成累加后半块并发布；电流只标记是否采在驱动段，不丢块 */
@@ -282,9 +251,7 @@ void D_ADC_DMA_ISR(void)
         DMA_ClearITPendingBit(DMA1_IT_GL1);
         s_current_valid = 0;
         s_current_avg = 0;
-#if D_ADC_ENCODER_ENABLE
         s_encoder_valid = 0;
-#endif
         return;
     }
 
@@ -293,10 +260,8 @@ void D_ADC_DMA_ISR(void)
         DMA_ClearITPendingBit(DMA1_IT_HT1);
         s_current_half_sum = ADC_Block_Sum(0U, ADC_DMA_HALF_SAMPLES,
                                            ADC_DMA_RANK_CURRENT);
-#if D_ADC_ENCODER_ENABLE
         s_encoder_half_sum = ADC_Block_Sum(0U, ADC_DMA_HALF_SAMPLES,
                                            ADC_DMA_RANK_ENCODER);
-#endif
         ADC_Voltage_Service();
     }
 
@@ -304,11 +269,9 @@ void D_ADC_DMA_ISR(void)
     DMA_ClearITPendingBit(DMA1_IT_TC1);
     ADC_Voltage_Service();
 
-#if D_ADC_ENCODER_ENABLE
     ADC_Encoder_Publish(s_encoder_half_sum
         + ADC_Block_Sum(ADC_DMA_HALF_SAMPLES, ADC_DMA_FILTER_SAMPLES,
                         ADC_DMA_RANK_ENCODER));
-#endif
 
     /* 每块照常发布，只如实标记是否采在驱动段：过流/限流看标志，RIV 查询只要最新读数 */
     ADC_Current_Publish(s_current_half_sum
@@ -342,12 +305,6 @@ uint8_t D_ADC_Current_Read(uint16_t *value)
 }
 
 /* 上电标定的零电流ADC偏置，供诊断 */
-uint16_t D_ADC_Current_Offset_Get(void)
-{
-    return s_current_offset;
-}
-
-#if D_ADC_ENCODER_ENABLE
 /* 读电位器整块均值(Q4)，返回0仅在开机后未攒满第一块；触发常开，停转/保持/卸力时照常1kHz刷新 */
 uint8_t D_ADC_Encoder_Read(uint16_t *value_q4)
 {
@@ -364,7 +321,6 @@ uint8_t D_ADC_Encoder_Read(uint16_t *value_q4)
     if (valid) *value_q4 = q4;
     return valid;
 }
-#endif
 
 /* 读最近一次电池电压(ADC计数)：只读缓存，不启动转换、不动触发；开机后尚无结果时返回0 */
 uint16_t D_ADC_Voltage_Read(void)

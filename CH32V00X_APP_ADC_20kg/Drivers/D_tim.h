@@ -23,6 +23,9 @@
 #define ADC_CONV_TICKS     (ADC_CONV_HALFCYCLES   * ADC_CLK_DIV / 2U)
 #define ADC_LATENCY_TICKS  (ADC_TRIG_LATENCY_CYCLES * ADC_CLK_DIV)
 
+/* 窗口放不下时触发点停到续流段正中而不关闭：电位器角度仍需1kHz刷新，电流由上层标为无效 */
+#define ADC_TRIGGER_PARK_CCR       (TIM_PWM_RESOLUTION / 2U)
+
 /* 低于该幅值放不下采样窗口，触发点停到续流段并由上层判为无效 */
 #define ADC_TRIGGER_MIN_PWM_TICKS  (ADC_BLANK_TICKS + ADC_SAMPLE_TICKS \
                                   + ADC_CONV_TICKS + ADC_TAIL_MARGIN_TICKS)
@@ -31,7 +34,7 @@ void     D_TIM2_PWM_Init(void);         /* TIM2：20kHz PWM + CH4电流采样标
 void     D_TIM1_PWM_IC_Init(void);      /* TIM1：20kHz PWM + 捕获 + 调度时基更新中断 */
 uint8_t  D_TIM2_ADC_Trigger_Set(uint16_t pwm_ticks); /* 按幅值定位驱动段采样点 */
 uint16_t D_PWM_Read(void);              /* 读取最新捕获脉宽(us)，消费后无新帧返回0 */
-void     D_PWM_Input_Enable(uint8_t en);/* 使能捕获；失能时PA1推挽输出高电平 */
+void     D_PWM_Input_Enable(uint8_t en);/* 使能捕获；失能时PA1开漏置高释放共线信号 */
 void     D_TIM1_CC_ISR(void);           /* TIM1捕获中断处理，在ISR中调用 */
 void     D_TIM1_UP_ISR(void);           /* TIM1溢出中断处理，在ISR中调用 */
 

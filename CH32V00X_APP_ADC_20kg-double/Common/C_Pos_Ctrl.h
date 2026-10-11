@@ -46,7 +46,9 @@ void C_PosCtrl_Reset(void);
 int16_t C_PosCtrl_Update(const TrajRef_t *ref, const SpeedObsOut_t *obs,
                          uint8_t traj_done, PosCtrlDbg_t *dbg);
 
+/* 按对象参数比缩放模型相关增益(Q12，4096=标定值)：ka=加速度增益比 rho/k，kv=速度增益比 k。
+ * 加速度前馈、速度环P/I(保持速度环带宽不变)随 ka，速度前馈随 1/kv。下一拍生效。 */
+void C_PosCtrl_SetPlant(int32_t ka_q12, int32_t kv_q12);
+
 /* 设置对称输出上限(限功率用)，0或超上限恢复默认；积分抗饱和跟随此上限 */
 void C_PosCtrl_Set_Output_Limit(int16_t limit);
-
-uint8_t C_PosCtrl_In_Position(void);

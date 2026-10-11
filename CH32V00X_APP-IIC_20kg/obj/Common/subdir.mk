@@ -5,6 +5,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../Common/C_Anti_Wobble.c \
 ../Common/C_Pos_Ctrl.c \
 ../Common/C_Ring_Buf.c \
 ../Common/C_Speed_Observer.c \
@@ -12,6 +13,7 @@ C_SRCS += \
 ../Common/C_Traj_Planner.c 
 
 C_DEPS += \
+./Common/C_Anti_Wobble.d \
 ./Common/C_Pos_Ctrl.d \
 ./Common/C_Ring_Buf.d \
 ./Common/C_Speed_Observer.d \
@@ -19,6 +21,7 @@ C_DEPS += \
 ./Common/C_Traj_Planner.d 
 
 OBJS += \
+./Common/C_Anti_Wobble.o \
 ./Common/C_Pos_Ctrl.o \
 ./Common/C_Ring_Buf.o \
 ./Common/C_Speed_Observer.o \

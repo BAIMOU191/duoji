@@ -1,7 +1,6 @@
 Application/A_Tasks.o: ../Application/A_Tasks.c ../Application/A_Tasks.h \
  ../Application/A_Servo.h ../Application/A_UartCmd.h \
  ../Application/A_Protect.h ../Application/A_Config.h \
- ../Application/A_Parameter.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Common/C_Task_Scheduler.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_iwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/SRC/Peripheral/inc/ch32v00X.h \
@@ -34,7 +33,6 @@ Application/A_Tasks.o: ../Application/A_Tasks.c ../Application/A_Tasks.h \
 ../Application/A_UartCmd.h:
 ../Application/A_Protect.h:
 ../Application/A_Config.h:
-../Application/A_Parameter.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Common/C_Task_Scheduler.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_iwdg.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/SRC/Peripheral/inc/ch32v00X.h:

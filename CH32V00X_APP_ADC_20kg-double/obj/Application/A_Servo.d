@@ -1,6 +1,5 @@
 Application/A_Servo.o: ../Application/A_Servo.c ../Application/A_Servo.h \
- ../Application/A_Config.h ../Application/A_Parameter.h \
- ../Application/A_Sensor.h \
+ ../Application/A_Config.h ../Application/A_Sensor.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_adc.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/SRC/Peripheral/inc/ch32v00X.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/SRC/Core/core_riscv.h \
@@ -38,7 +37,6 @@ Application/A_Servo.o: ../Application/A_Servo.c ../Application/A_Servo.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Common/C_Ring_Buf.h
 ../Application/A_Servo.h:
 ../Application/A_Config.h:
-../Application/A_Parameter.h:
 ../Application/A_Sensor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/Drivers/D_adc.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg-double/SRC/Peripheral/inc/ch32v00X.h:
