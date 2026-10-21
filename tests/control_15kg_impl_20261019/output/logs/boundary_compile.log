@@ -1,0 +1,57 @@
+In file included from C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:17,
+                 from C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\unit.c:2:
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\System/flash.c: In function 'Flash_PageWrite':
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\System/flash.c:59:29: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   59 |     return (uint8_t)(memcmp((const void *)address, bytes, FLASH_PAGE_SIZE) == 0);
+      |                             ^
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c: In function 'physics_ms':
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:177:48: warning: using floating-point absolute value function 'fabs' when argument is of integer type 'int' [-Wabsolute-value]
+  177 |     vbus_now = P.vbus - P.rbat * fabs(i_avg) * fabs(duty_now) / 2400.0;
+      |                                                ^~~~
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c: In function 'run':
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:308:17: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  308 |                 if (vf < vmin) vmin = vf; if (vf > vmax) vmax = vf;
+      |                 ^~
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:308:43: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  308 |                 if (vf < vmin) vmin = vf; if (vf > vmax) vmax = vf;
+      |                                           ^~
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:309:17: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  309 |                 if (ref_v < rvmin) rvmin = ref_v; if (ref_v > rvmax) rvmax = ref_v;
+      |                 ^~
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:309:51: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  309 |                 if (ref_v < rvmin) rvmin = ref_v; if (ref_v > rvmax) rvmax = ref_v;
+      |                                                   ^~
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:254:12: warning: variable 'ring_ext' set but not used [-Wunused-but-set-variable]
+  254 |     double ring_ext = 0;
+      |            ^~~~~~~~
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c: In function 'audit_original_main':
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:475:9: warning: missing initializer for field 'ws' of 'CmdCase' [-Wmissing-field-initializers]
+  475 |         {"bigstep", sc_bigstep, 5000, 0}, {"reverse400", sc_reverse, 5500, 0}, {"reverse_arrive", sc_reverse_arrive, 7500, 0},
+      |         ^
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:417:68: note: 'ws' declared here
+  417 | typedef struct { const char *name; Script s; int dur; int pwm; int ws, we, kind; } CmdCase;
+      |                                                                    ^~
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:475:9: warning: missing initializer for field 'ws' of 'CmdCase' [-Wmissing-field-initializers]
+  475 |         {"bigstep", sc_bigstep, 5000, 0}, {"reverse400", sc_reverse, 5500, 0}, {"reverse_arrive", sc_reverse_arrive, 7500, 0},
+      |         ^
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:417:68: note: 'ws' declared here
+  417 | typedef struct { const char *name; Script s; int dur; int pwm; int ws, we, kind; } CmdCase;
+      |                                                                    ^~
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:475:9: warning: missing initializer for field 'ws' of 'CmdCase' [-Wmissing-field-initializers]
+  475 |         {"bigstep", sc_bigstep, 5000, 0}, {"reverse400", sc_reverse, 5500, 0}, {"reverse_arrive", sc_reverse_arrive, 7500, 0},
+      |         ^
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:417:68: note: 'ws' declared here
+  417 | typedef struct { const char *name; Script s; int dur; int pwm; int ws, we, kind; } CmdCase;
+      |                                                                    ^~
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:478:9: warning: missing initializer for field 'ws' of 'CmdCase' [-Wmissing-field-initializers]
+  478 |         {"sine_T20", sc_sine, 7000, 0, 1000, 6000, 2}, {"slow_2dps", sc_slow, 7000, 0, 1000, 4500, 1}, {"tiny_steps", sc_tiny, 4500, 0},
+      |         ^
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:417:68: note: 'ws' declared here
+  417 | typedef struct { const char *name; Script s; int dur; int pwm; int ws, we, kind; } CmdCase;
+      |                                                                    ^~
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:480:9: warning: missing initializer for field 'ws' of 'CmdCase' [-Wmissing-field-initializers]
+  480 |         {"hold", sc_hold, 4000, 0},
+      |         ^
+C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\sim.c:417:68: note: 'ws' declared here
+  417 | typedef struct { const char *name; Script s; int dur; int pwm; int ws, we, kind; } CmdCase;
+      |                                                                    ^~

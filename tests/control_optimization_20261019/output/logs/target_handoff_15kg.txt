@@ -1,0 +1,7 @@
+handoff_15kg normal   41244	    128	   3452	  44824	   af18	C:\Users\Admin\Desktop\duoji\tests\control_optimization_20261019\output\target_builds\handoff_15kg\CH32V00X_normal.elf
+handoff_15kg calibration   43188	    212	   4940	  48340	   bcd4	C:\Users\Admin\Desktop\duoji\tests\control_optimization_20261019\output\target_builds\handoff_15kg\CH32V00X_calibration.elf
+Compiler diagnostics: handoff_15kg C:\Users\Admin\Desktop\duoji\tests\control_optimization_20261019\source\target\handoff_15kg\SRC\Debug\debug.c: In function '_write':
+C:\Users\Admin\Desktop\duoji\tests\control_optimization_20261019\source\target\handoff_15kg\SRC\Debug\debug.c:287:16: warning: unused parameter 'fd' [-Wunused-parameter]
+  287 | int _write(int fd, char *buf, int size)
+      |            ~~~~^~
+

@@ -1,0 +1,1 @@
+CASE,load=0,T0=0,T1=0,at=0,delta=0,period=100,moving=0,vbefore=0.0000,vmin80=23.3027,dv_ref_acc=14.3500,du=154.0,amin=-184.761,amax=205.001,arr=231,settle=143,final=0.14516,fault=0,hard=0,meanv=29.7873,sdv=1.6094,lag=4.7759,fallback=0

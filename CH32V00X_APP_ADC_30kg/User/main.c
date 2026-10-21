@@ -10,22 +10,20 @@
 #include "D_tim.h"
 #include "D_opa.h"
 #include "D_adc.h"
-#include "D_motor.h"
 #include "D_tmp112.h"
 #include "D_ws2812.h"
 #include "D_iwdg.h"
 #include "C_Task_Scheduler.h"
 #include "A_Config.h"
 #include "A_Servo.h"
-#include "A_Sensor.h"
 #include "A_Protect.h"
 #include "A_Tasks.h"
 #include "A_Calib_Min.h"
 #include "iap.h"
 
-/* 定义 APP_MODE_CALIB 编译为开环硬件标定固件(见 A_Calib_Min.h)，标定完把打印出来的 #define 贴回 A_Config.h，再把这行注释掉 */
-//  #define APP_MODE_CALIB 
-
+/* 定义 APP_MODE_CALIB 编译为开环标定固件(见 A_Calib_Min.h)：在额定电压下跑一遍，把串口打印的标定块
+ * 整节替换 A_Config.h 的电机标定区，再把这行注释掉 */
+// #define APP_MODE_CALIB
 /* 程序入口：分层初始化后进入协作式调度主循环，不返回 */
 int main(void)
 {
@@ -58,7 +56,7 @@ int main(void)
     A_Calib_Min_Tasks_Init();          /* 注册标定、IAP与喂狗任务           */
 #else
     A_Servo_Init();                    /* 选输入源、初始化环路、执行上电动作 */
-    A_Protect_Init();                  /* 让保存的扭矩上限生效，须排在Servo之后 */
+    A_Protect_Init();                  /* 让保存的扭矩上限和硬件保护生效 */
     A_Tasks_Init();                    /* 注册正常业务任务                 */
 #endif
     D_IWDG_Init();                     /* 看门狗最后开，由最低优先级任务喂  */

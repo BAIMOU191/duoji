@@ -1,0 +1,347 @@
+/*
+ * iap.c —— APP 侧 IAP：查询(0x20)、进入升级(0x21)、固件信息块与硬件信息自动建立
+ * 帧：AA 55 | CMD | LEN(2,小端) | DATA | CRC32(4,小端) | 55 AA，应答 CMD = 命令 | 0x80，DATA[0] = 状态码。
+ * 总线上挂着多个舵机：坏帧、别人 ID 的帧、APP 不认识的帧一律不应答。
+ * 主机端测试可替换 IAP_HWINFO_PAGE，让硬件信息页落在内存数组里。
+ */
+#include "iap.h"
+#include "A_Config.h"
+#include "A_Servo.h"
+#include "D_uart.h"
+#include "flash.h"
+#include <string.h>
+
+#define IAP_TAIL1        0x55U
+#define IAP_TAIL2        0xAAU
+#define IAP_DATA_MAX     8U           /** APP 命令 DATA 最长 8 字节；更长的帧(如 Boot 的写页)不缓存 */
+
+#define IAP_CMD_QUERY    0x20U        /** 查询：ID -> ID、硬件信息4项、固件版本3项 */
+#define IAP_CMD_ENTER    0x21U        /** 进入升级：ID + 硬件信息4项 + 固件版本3项，全部一致才复位进 Boot */
+
+#define IAP_ST_OK        0U
+#define IAP_ST_MISMATCH  2U           /** 硬件信息不符 */
+
+#define HWINFO_MAGIC     0x46495748UL /** "HWIF" 按小端读出 */
+#define HWINFO_FORMAT    3U           /** 格式3：身份4项 + 额定速度/加速度/减速度/平滑时间τ/最小可靠位移 */
+#define IAP_FLAG_STARTED 0x44475055UL
+#define IAP_FLAG_DONE    0x4B4F5041UL
+#define IAP_FLAG_CRC_OFFSET  20U
+#define IAP_FLAG_DONE_OFFSET 24U
+
+#ifndef IAP_HWINFO_PAGE
+#define IAP_HWINFO_PAGE  ((const uint8_t *)HW_INFO_ADDR)
+#endif
+#ifndef IAP_FLAG_PAGE
+#define IAP_FLAG_PAGE    ((const uint8_t *)IAP_FLAG_ADDR)
+#endif
+
+const IAP_FwInfo_t IAP_FW_INFO __attribute__((section(".fw_info"), used)) = {
+    { 'S', 'V', 'F', 'W' },
+    FW_SERVO_TYPE, FW_HW_VERSION, FW_VOLTAGE, FW_TORQUE,
+    { SERVO_VERSION_MAJOR, SERVO_VERSION_MINOR, SERVO_VERSION_PATCH },
+    { 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU }
+};
+
+static uint8_t s_rx[3U + IAP_DATA_MAX + 4U + 2U]; /** CMD LEN(2) DATA CRC32(4) 55 AA，不含帧头 */
+static uint8_t s_pos;                             /** 当前帧已收字节数(含帧头)，0=等帧头 */
+static void (*s_stop_handler)(void);              /** 标定可替换进入升级前的停机动作 */
+static uint8_t s_reset_pending;                   /** 1=已应答进入升级，发完就复位进 Boot */
+
+static uint32_t Iap_Get32(const uint8_t *p)
+{
+    return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 | (uint32_t)p[3] << 24;
+}
+
+static uint16_t Iap_Get16(const uint8_t *p)
+{
+    return (uint16_t)p[0] | (uint16_t)p[1] << 8;
+}
+
+static void Iap_Put16(uint8_t *p, uint16_t value)
+{
+    p[0] = (uint8_t)value;
+    p[1] = (uint8_t)(value >> 8);
+}
+
+static void Iap_Put32(uint8_t *p, uint32_t value)
+{
+    p[0] = (uint8_t)value;
+    p[1] = (uint8_t)(value >> 8);
+    p[2] = (uint8_t)(value >> 16);
+    p[3] = (uint8_t)(value >> 24);
+}
+
+/* 标准 CRC-32(与 Python zlib.crc32 一致)，逐位计算不占表 */
+static uint32_t Iap_Crc32(const uint8_t *data, uint32_t len)
+{
+    uint32_t crc = 0xFFFFFFFFUL;
+    uint8_t  bit;
+
+    while (len--)
+    {
+        crc ^= *data++;
+        for (bit = 0U; bit < 8U; bit++)
+            crc = (crc >> 1) ^ (0xEDB88320UL & (0UL - (crc & 1UL)));
+    }
+    return ~crc;
+}
+
+uint8_t IAP_PreservedIdentityRead(uint8_t *id, uint8_t *baud_code)
+{
+    const uint8_t *page = IAP_FLAG_PAGE;
+
+    if (id == 0 || baud_code == 0) return 0U;
+    if (Iap_Get32(page) != IAP_FLAG_STARTED
+        || Iap_Get32(page + IAP_FLAG_DONE_OFFSET) != IAP_FLAG_DONE
+        || Iap_Get32(page + IAP_FLAG_CRC_OFFSET) != Iap_Crc32(page, IAP_FLAG_CRC_OFFSET)
+        || page[12] == 0U || page[13] > 254U || page[14] < 1U || page[14] > 8U) return 0U;
+    *id = page[13];
+    *baud_code = page[14];
+    return 1U;
+}
+
+/* 应答帧：CMD 取当前帧并置最高位，DATA = 状态码 + data，交给串口发送队列 */
+static void Iap_Reply(uint8_t status, const uint8_t *data, uint8_t n)
+{
+    uint8_t frame[12U + 8U]; /** 最长应答：查询带 8 字节 */
+    uint8_t i;
+
+    frame[0] = IAP_FRAME_HEAD1;
+    frame[1] = IAP_FRAME_HEAD2;
+    frame[2] = s_rx[0] | 0x80U;
+    frame[3] = (uint8_t)(n + 1U);
+    frame[4] = 0U;
+    frame[5] = status;
+    for (i = 0U; i < n; i++) frame[6U + i] = data[i];
+    Iap_Put32(frame + 6U + n, Iap_Crc32(frame + 2U, 4U + n));
+    frame[10U + n] = IAP_TAIL1;
+    frame[11U + n] = IAP_TAIL2;
+    (void)D_UART1_Tx_Write(frame, (uint8_t)(12U + n));
+}
+
+/* 本固件标定常量给出的运动规格：标定电压下的额定能力，平滑时间 τ = ka/kv(nV/µV 即 ms，四舍五入) */
+static void Iap_HwCapsFill(IAP_HwInfo_t *info)
+{
+    info->max_speed_dps = MOTOR_RATED_VEL_DPS;
+    info->max_accel_dps2 = MOTOR_RATED_ACC_DPS2;
+    info->max_decel_dps2 = MOTOR_RATED_DEC_DPS2;
+    info->smooth_ms = (uint16_t)((MOTOR_KA_NV + MOTOR_KV_UV / 2) / MOTOR_KV_UV);
+    info->min_step_cdeg = MOTOR_MIN_STEP_CDEG;
+}
+
+/* 读硬件信息页；格式1兼容原4项，缺少的运动规格取当前固件固定出厂值。 */
+uint8_t IAP_HwInfoRead(IAP_HwInfo_t *info)
+{
+    const uint8_t *page = IAP_HWINFO_PAGE;
+
+    if (info == 0) return 0U;
+    memset(info, 0xFF, sizeof(*info));
+    if (Iap_Get32(page) != HWINFO_MAGIC
+        || Iap_Crc32(page, 28U) != Iap_Get32(page + 28U)) return 0U;
+
+    info->format     = page[4];
+    info->servo_type = page[5];
+    info->hw_version = page[6];
+    info->voltage    = page[7];
+    info->torque     = page[8];
+    if (info->format >= HWINFO_FORMAT)
+    {
+        info->max_speed_dps   = Iap_Get16(page + 9U);
+        info->max_accel_dps2  = Iap_Get32(page + 11U);
+        info->max_decel_dps2  = Iap_Get32(page + 15U);
+        info->smooth_ms       = Iap_Get16(page + 19U);
+        info->min_step_cdeg   = Iap_Get16(page + 23U);
+    }
+    else
+    {
+        Iap_HwCapsFill(info);   /* 旧格式页：能力项按本固件(上电时 IAP_Init 会重写成新格式) */
+    }
+    return 1U;
+}
+
+/* 查询返回4项硬件身份。 */
+static uint8_t Iap_HwIdentityRead(uint8_t *identity)
+{
+    IAP_HwInfo_t info;
+    uint8_t valid = IAP_HwInfoRead(&info);
+
+    identity[0] = valid ? info.servo_type : 0xFFU;
+    identity[1] = valid ? info.hw_version : 0xFFU;
+    identity[2] = valid ? info.voltage    : 0xFFU;
+    identity[3] = valid ? info.torque     : 0xFFU;
+    return valid;
+}
+
+/* 4 项都不是 0xFF 才算确定的硬件身份；带 0xFF(不限)的固件说明不了舵机是哪一种 */
+static uint8_t Iap_HwInfoKnown(const uint8_t *info)
+{
+    uint8_t i;
+
+    for (i = 0U; i < 4U; i++)
+    {
+        if (info[i] == 0xFFU) return 0U;
+    }
+    return 1U;
+}
+
+/* 由身份4项和当前固件常量拼出整页内容 */
+static void Iap_HwInfoBuild(uint8_t *bytes, const uint8_t *info)
+{
+    IAP_HwInfo_t hw;
+    uint8_t i;
+
+    memset(bytes, 0xFF, FLASH_PAGE_SIZE);
+    Iap_Put32(bytes, HWINFO_MAGIC);
+    bytes[4] = HWINFO_FORMAT;
+    for (i = 0U; i < 4U; i++) bytes[5U + i] = info[i];
+    Iap_HwCapsFill(&hw);
+    Iap_Put16(bytes + 9U,  hw.max_speed_dps);
+    Iap_Put32(bytes + 11U, hw.max_accel_dps2);
+    Iap_Put32(bytes + 15U, hw.max_decel_dps2);
+    Iap_Put32(bytes + 19U, hw.smooth_ms);
+    Iap_Put16(bytes + 23U, hw.min_step_cdeg);
+    Iap_Put32(bytes + 28U, Iap_Crc32(bytes, 28U));
+}
+
+/* 按身份4项和当前固件常量写硬件信息页，写后读回确认。页内容已一致时不擦写 */
+static uint8_t Iap_HwInfoCreate(const uint8_t *info)
+{
+    uint32_t page[FLASH_PAGE_SIZE / sizeof(uint32_t)];
+    uint8_t *bytes = (uint8_t *)page;
+
+    Iap_HwInfoBuild(bytes, info);
+    if (memcmp(IAP_HWINFO_PAGE, bytes, FLASH_PAGE_SIZE) == 0) return 1U;
+    if (FLASH_ROM_ERASE(HW_INFO_ADDR, FLASH_PAGE_SIZE) != FLASH_COMPLETE) return 0U;
+    if (FLASH_ROM_WRITE(HW_INFO_ADDR, page, FLASH_PAGE_SIZE) != FLASH_COMPLETE) return 0U;
+    return (uint8_t)(memcmp(IAP_HWINFO_PAGE, bytes, FLASH_PAGE_SIZE) == 0);
+}
+
+/* 处理收齐的一帧 */
+static void Iap_Process(uint16_t len)
+{
+    const uint8_t *data = s_rx + 3U;
+    uint8_t        cmd  = s_rx[0];
+    uint8_t        info[8]; /** 本机身份：ID、硬件信息4项、固件版本3项。查询照此应答，进入升级照此比对 */
+
+    if (s_rx[7U + len] != IAP_TAIL1 || s_rx[8U + len] != IAP_TAIL2) return;
+    if (Iap_Crc32(s_rx, 3U + len) != Iap_Get32(data + len)) return;
+    if (len == 0U) return;
+    /* 255只用于单机广播查询；进入升级必须使用本机实际ID。 */
+    if (data[0] == 255U)
+    {
+        if (cmd != IAP_CMD_QUERY) return;
+    }
+    else if (data[0] != g_config.servo_id) return;
+
+    (void)Iap_HwIdentityRead(info + 1U);
+    info[0] = g_config.servo_id;
+    info[5] = SERVO_VERSION_MAJOR;
+    info[6] = SERVO_VERSION_MINOR;
+    info[7] = SERVO_VERSION_PATCH;
+
+    switch (cmd)
+    {
+    case IAP_CMD_QUERY:
+        if (len != 1U) return;
+        Iap_Reply(IAP_ST_OK, info, 8U);
+        break;
+
+    case IAP_CMD_ENTER:
+        if (len != 8U) return;
+        /* 硬件信息4项和固件版本3项必须与查询回去的一模一样：确认上位机查的就是本机当前这套固件 */
+        if (memcmp(data + 1U, info + 1U, 7U) != 0)
+        {
+            Iap_Reply(IAP_ST_MISMATCH, 0, 0U);
+            break;
+        }
+        /* 标定未初始化闭环，用其专用停机动作；正常固件仍走原来的卸力流程。 */
+        if (s_stop_handler) s_stop_handler();
+        else                A_Servo_Release(0U);
+        Iap_Reply(IAP_ST_OK, 0, 0U);
+        s_reset_pending = 1U;
+        break;
+
+    default:
+        break;
+    }
+}
+
+uint8_t IAP_Rx_Deal(uint8_t data)
+{
+    uint16_t len; /* DATA 长度 */
+
+    if (s_pos == 0U)
+    {
+        if (data == IAP_FRAME_HEAD1) s_pos = 1U;
+        return (uint8_t)(s_pos != 0U);
+    }
+    if (s_pos == 1U)
+    {
+        s_pos = (data == IAP_FRAME_HEAD2) ? 2U : (uint8_t)(data == IAP_FRAME_HEAD1); /* AA AA 55 也能对上帧头 */
+        return (uint8_t)(s_pos != 0U);
+    }
+
+    s_rx[s_pos - 2U] = data;
+    s_pos++;
+    if (s_pos < 5U) return 1U;                          /* CMD、LEN 还没收齐 */
+    len = (uint16_t)(s_rx[1] | (uint16_t)s_rx[2] << 8);
+    if (len > IAP_DATA_MAX)
+    {
+        s_pos = 0U;
+        return 0U;
+    }
+    if (s_pos < 11U + len) return 1U;
+    s_pos = 0U;
+    Iap_Process(len);
+    return 0U;
+}
+
+void IAP_Rx_Reset(void)
+{
+    s_pos = 0U;
+}
+
+/* 硬件信息页出厂空白时，把 fw_hw 写进去 */
+/* 升级规则：除总线ID和波特率外一律采用新固件。硬件信息页同样按本固件重写(身份4项取本固件适用硬件，
+ * 本固件不限型号时保留页里已有的身份)；内容一致不擦写。Boot 升级时会先擦除此页，WCH-Link 直接烧录则不会 */
+static void Iap_Provision(const uint8_t *fw_hw)
+{
+    uint8_t info[4];
+
+    if (!Iap_HwInfoKnown(fw_hw))
+    {
+        if (!Iap_HwIdentityRead(info)) return;   /* 不限型号又没有已知身份：写不出确定的硬件信息 */
+        fw_hw = info;
+    }
+    (void)Iap_HwInfoCreate(fw_hw);               /* 失败时下次上电重试，不影响舵机运行 */
+}
+
+void IAP_Init(void)
+{
+    static const uint8_t fw_hw[4] = { FW_SERVO_TYPE, FW_HW_VERSION, FW_VOLTAGE, FW_TORQUE };
+
+    Iap_Provision(fw_hw);
+}
+
+void IAP_SetStopHandler(void (*handler)(void))
+{
+    s_stop_handler = handler;
+}
+
+void IAP_Service(void)
+{
+    if (s_reset_pending && D_UART_Tx_Idle())
+    {
+        /* Boot从Flash快照ID/波特率；刚改过身份就升级也必须保留最新值。
+         * 写入失败留在APP重试，不能带着旧身份进入Boot。 */
+        if (!A_Config_SaveTask()) return;
+        RCC_ClearFlag();                                /* Boot 靠"只有软件复位标志"认出这是升级请求 */
+        SystemReset_StartMode(Start_Mode_BOOT);
+        NVIC_SystemReset();
+    }
+}
+
+uint8_t IAP_UpgradePending(void)
+{
+    return s_reset_pending;
+}

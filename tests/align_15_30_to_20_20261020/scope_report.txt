@@ -1,0 +1,487 @@
+########## CH32V00X_APP_ADC_15kg vs CH32V00X_APP_ADC_20kg ##########
+SAME           Application/A_Calib_Min.c
+SAME           Application/A_Calib_Min.h
+SAME           Application/A_Config.c
+DIFF           Application/A_Config.h  (-24/+23 lines, 9 hunks)
+      replace -1/+1 @15: #define FW_TORQUE     15U       /** 扭力型号 15kg */
+      replace -7/+7 @21: #define MOTOR_CAL_MV              7640   /* 标定电压，mV */
+      replace -4/+4 @29: #define MOTOR_SIGN                   1   /* 正电压使输出轴角度增大 */
+      replace -5/+2 @36:  * 带宽越高越硬、越跟手，但电位器噪声放大越多；约束见 C_Pos_Ctrl.h，生效时仍按约束钳位。 */
+      replace -2/+2 @43: #define TUNE_VEL_BW_RADS       ((CTRL_VEL_BW_DELAY_MAX < 120
+      replace -1/+1 @48: #define TUNE_LOAD_RATIO_X10     10U
+      replace -1/+1 @55: /* 恢复原运动默认值：V/A/D取额定能力的90%/70%/70%，即234/5600/5600。
+      replace -1/+1 @60: #define CFG_DEF_SMOOTH_MS        50  /** S曲线平滑时间(加速度从0升到A的时间
+      replace -2/+4 @78: #define CFG_SMOOTH_MAX_MS          TRAJ_SMOOTH_MS_MAX    /**
+ONLY-IN-20kg   Application/A_Debug.c
+ONLY-IN-20kg   Application/A_Debug.h
+SAME           Application/A_Protect.c
+SAME           Application/A_Protect.h
+SAME           Application/A_Sensor.c
+SAME           Application/A_Sensor.h
+DIFF           Application/A_Servo.c  (-315/+575 lines, 93 hunks)
+      replace -6/+3 @2:  * A_Servo.c —— 舵机编排层：一个控制拍的固定顺序 读编码器 -> 观测器 -> 轨迹 -> 控制器 ->
+      delete -1/+0 @11: #include "A_Config.h"
+      insert -0/+1 @13: #include "C_Motor_Model.h"
+      insert -0/+3 @15: #include "C_Speed_Observer.h"
+      insert -0/+1 @16: #include "D_motor.h"
+      insert -0/+1 @25: #define SERVO_HOLD_KP_SLEW_MS   10U   /* 运行中改保持 P：每10ms最多变 1
+      delete -1/+0 @30: 
+      replace -10/+7 @32: /* 脉宽内部用 1/8us(Q3)，给PWM输入的一阶跟随留精度 */
+      replace -1/+1 @43: typedef char cfg_pwm_full_matches_motor[(CFG_PWM_FULL == MOT
+      insert -0/+3 @49:     ServoMode_t mode;
+      insert -0/+2 @56:     uint16_t hold_kp;           /* 当前生效的保持 P(‰/°)，缓慢跟随运行参数 *
+      replace -1/+2 @60:     uint8_t  turn_sample_valid; /* raw_angle 是有效的定圈累计基准 */
+      replace -2/+3 @62:     uint8_t  escape_dir, escape_retried, vbus_n;
+      replace -1/+2 @65:     uint16_t traj_lo, traj_hi;  /* 与规划器一致的目标范围 */
+      insert -0/+1 @68:     uint16_t saturation_ticks; /* 输出饱和且跟踪落后、轨迹时钟被冻结的拍数，供堵转采样
+      insert -0/+3 @69:     uint16_t pwm_bus_cv;        /* 母线电压(驱动期间8样本均值)，厘伏 */
+      replace -1/+10 @70:     int16_t  out_limit;         /* 保护模块给的PWM上限 */
+      replace -1/+5 @72:     uint32_t vbus_sum;
+      replace -4/+194 @77: static uint8_t Servo_SubmitQ3(uint16_t q3, uint16_t value);
+      replace -1/+7 @84: static void Servo_StreamReset(void)
+      replace -1/+143 @86: static void Servo_StreamObserve(uint16_t requested_ms, uint8
+      replace -4/+1 @132: /* ============================== 生命周期 =====================
+      replace -1/+2 @137: /* 设定值为0或超过额定能力时取额定(额定已含余量) */
+      replace -4/+1 @139:     return (int32_t)((user > 0U && user < rated) ? user : ra
+      replace -1/+2 @145: /* 生效限值 = min(设定值, 额定)；加加速度 = max(A,D)/平滑时间，平滑时间为0时取 τ；另设最短运
+      replace -3/+7 @147:     const MotorCal_t *cal = C_MotorModel_Cal();
+      replace -27/+3 @151:     C_Traj_SetLimits(Servo_LimitOf((uint32_t)g_runtime_confi
+      replace -1/+7 @180: /* 控制带宽是固件整定常量(A_Config.h 第3节)，不对外开放 */
+      replace -6/+1 @182:     (void)C_PosCtrl_SetGains(&g);
+      replace -1/+2 @190: /* 保持参数：精度、齿隙、积分时间立即生效(改积分时间不阶跃输出)；保持位置环增益每10ms最多变 1/s */
+      replace -3/+1 @192:     uint16_t target = g_runtime_config.hold_kp;
+      replace -7/+4 @196:     if (target != s_servo.hold_kp && ++s_servo.stiff_slew_ms
+      replace -126/+1 @204:     C_PosCtrl_SetHold(g_runtime_config.position_resolution_c
+      replace -3/+3 @335:     A_Servo_ApplyTrajConfig();
+      replace -2/+2 @340:     if (Servo_IsPosition()) { Servo_SetTrajRange(); Servo_Re
+      replace -5/+7 @352:     s_servo.arrived   = 1U;
+      replace -1/+16 @358:     Servo_VbusUpdate(Servo_BootBusCv());
+      insert -0/+1 @360:     C_Traj_Step(&s_servo.ref, 0U);
+      replace -1/+1 @375:         || (Servo_IsPosition() && !s_servo.range_valid)) ret
+      replace -2/+2 @389:     if (!Servo_IsPosition())
+      replace -2/+2 @393:         if (s_servo.reverse != (MOTOR_SIGN < 0)) s_servo.mot
+      replace -1/+1 @396:         if (value && Servo_IsTurns())
+      replace -2/+2 @399:             s_servo.turn_sample_valid = (uint8_t)(raw != ENC
+      replace -1/+1 @406:     target = (uint16_t)Fx_ClampRange(Servo_PulseToAngle(q3),
+      replace -1/+1 @408:     Servo_StreamObserve(value, was_paused, target);
+      replace -2/+2 @438:     if (Servo_IsPosition() && s_servo.enc_state == SERVO_ENC
+      replace -1/+1 @452:     if (s_servo.enc_state != SERVO_ENC_ESCAPING && Servo_IsP
+      replace -1/+1 @461:     if (Servo_IsPosition() && s_servo.enc_state == SERVO_ENC
+      replace -1/+1 @463:         if (!(C_Traj_Is_Done() && C_PosCtrl_Reached())) Serv
+      replace -1/+1 @477:     s_servo.damping_acc = 0U;
+      replace -1/+1 @480:         if (Servo_IsPosition()) Servo_Resync(1U);
+      replace -1/+1 @513:     s_servo.damping_acc = 0U;
+      replace -1/+1 @530: /* SCK/SCZ：当前位置记为锚点(中点/500us端)，有效行程与零点由 Servo_SetModeFields 
+      replace -1/+9 @533:     int32_t  raw = A_Encoder_Read(), offset;
+      replace -1/+1 @536:     Servo_SetModeFields(s_servo.mode);
+      replace -1/+1 @538:     Servo_SetTrajRange();
+      replace -1/+1 @546: /* AMI/AMX：把行程一端收到当前位置并进入自定义模式(is_min=1为500us端，在哪头由方向决定)，可连续
+      replace -1/+8 @549:     int32_t  raw, pos;
+      insert -0/+5 @551:     g_config.custom_offset_cdeg = Servo_WrapAngle(s_servo.of
+      replace -2/+2 @561:     if (!Servo_IsPosition() || s_servo.span_cdeg == 0U || !S
+      replace -2/+2 @572:     if (!Servo_IsPosition() || !Servo_ReadPosition()) return
+      replace -1/+1 @589:     if (Servo_IsPosition() ? !s_servo.arrived : s_servo.rema
+      replace -5/+3 @596:     out->target_pwm   = Servo_AngleToPwm(s_servo.target_angl
+      replace -2/+2 @602:                          && s_servo.enc_fail == 0U && s_serv
+      replace -1/+1 @606: /* 控制与打印都是协作式任务；ISR不改s_servo，无需关中断或重读传感器。 */
+      replace -4/+1 @609:     uint8_t active = s_servo.debug_control_valid;
+      replace -13/+13 @618:     out->ref_cdeg = s_servo.ref.pos;
+      replace -2/+2 @633:     out->flags = (uint8_t)((active ? 1U : 0U) | (s_servo.deb
+      replace -2/+2 @641:     if (Servo_IsPosition()) (void)Servo_ReadPosition();
+      replace -1/+2 @649:     s_servo.out_limit = (int16_t)Fx_ClampRange(limit, 1, CFG
+      replace -3/+2 @655:     uint8_t driving = (uint8_t)(Servo_IsPosition() && s_serv
+      replace -3/+3 @659:     out->ref_delta  = s_servo.ref.pos - s_servo.motion_ref;
+      replace -2/+2 @663:     s_servo.motion_ref   = s_servo.ref.pos;
+      insert -0/+1 @666:     s_servo.saturation_ticks    = 0U;
+      replace -1/+1 @671:     if (Servo_IsPosition() && s_servo.torque == SERVO_TORQUE
+      replace -1/+1 @683:     if (Servo_IsTurns() && s_servo.remaining != UINT32_MAX &
+      replace -1/+1 @685:         if (s_servo.turn_sample_valid)
+      replace -1/+1 @687:             delta = raw - s_servo.raw_angle;
+      replace -2/+2 @693:         s_servo.raw_angle = raw;
+      replace -2/+2 @698:     Servo_Drive((int16_t)Fx_Clamp32(Servo_MvToDuty(s_servo.m
+      replace -1/+1 @702: /* 位置控制固定顺序：反馈 -> 观测 -> 轨迹 -> 控制 -> 驱动 */
+      insert -0/+3 @706:     uint8_t hold;
+      replace -1/+1 @710:         C_PosCtrl_Reset();
+      replace -1/+1 @714:     C_SpeedObs_Update(&s_servo.observer, s_servo.angle_circ,
+      replace -1/+1 @716:     /* 被合并的目标到最小间隔就下发；上一拍输出饱和且跟踪落后时冻结轨迹时钟(参考不再领先)，冻结拍数交给堵转检测
+      insert -0/+3 @719:     hold = (uint8_t)(s_servo.dbg.sat && (int64_t)s_servo.dbg
+      replace -2/+7 @720:     Servo_HoldParams();
+      replace -1/+1 @723:     if (!s_servo.arrived && !s_servo.move_pending && s_servo
+      delete -1/+0 @731:     A_Servo_SyncTorque();
+      replace -1/+1 @735:     s_servo.debug_control_valid = 0U;
+      replace -1/+8 @744:         /* 自定义阻尼：在短路制动和自由释放间按百分比交替，不产生方向电压。 */
+      replace -2/+2 @747:     if ((Servo_IsPosition() && !s_servo.range_valid)
+      replace -2/+2 @753:     if (Servo_IsPosition()) Servo_PositionControl();
+SAME           Application/A_Servo.h
+ONLY-IN-20kg   Application/A_Servo_Ctrl.c
+ONLY-IN-20kg   Application/A_Servo_Ctrl.h
+ONLY-IN-20kg   Application/A_StatusLed.c
+ONLY-IN-20kg   Application/A_StatusLed.h
+DIFF           Application/A_Tasks.c  (-19/+158 lines, 13 hunks)
+      replace -1/+1 @1: /* A_Tasks.c —— 应用任务入口与注册表。
+      replace -6/+7 @3:  *     0     1ms   ServoControl  实测位置 -> 观测器/轨迹 -> 控制器 -> H桥
+      delete -2/+0 @14: #include "A_Config.h"
+      insert -0/+2 @19: #include "D_ws2812.h"
+      insert -0/+40 @20: #include <stdio.h>
+      insert -0/+41 @37: /* 仅读现有状态，不重读传感器、不清故障、不干预运动。
+      replace -1/+26 @39:     static uint16_t phase;
+      replace -1/+1 @45:     A_Config_SaveTask(); /* 参数变脏时异步写Flash */
+      insert -0/+15 @49: /* VOFA+ FireWater: servo:ch0,ch1,...,ch17\r\n
+      replace -1/+18 @51:     ServoDebugTelemetry_t data;
+      replace -1/+1 @55: /*                           入口函数        周期ms 优先级(0最高) */
+      replace -5/+5 @57:     TASK_DEF(Task_ServoControl, 1,    0),
+      replace -1/+1 @63:     TASK_DEF(Task_Print, TASK_FIREWATER_PERIOD_MS, 5),
+SAME           Application/A_Tasks.h
+SAME           Application/A_UartCmd.c
+SAME           Application/A_UartCmd.h
+SAME           Common/C_Fixed.h
+SAME           Common/C_Motor_Model.c
+SAME           Common/C_Motor_Model.h
+DIFF           Common/C_Pos_Ctrl.c  (-22/+15 lines, 11 hunks)
+      delete -2/+0 @10: #define STICK_MOVE_MS  5U     /* 运动中这么久没挪过最小可靠位移且估计速度低于噪声底，才
+      delete -1/+0 @35:     int32_t  integral_q16;   /* mV，Q16 */
+      replace -1/+1 @61:     /* 速度环带宽上限：纯延迟的相位(ω·延迟 ≤ 1/3)与观测器带宽 */
+      delete -11/+0 @203: /* 积分加 di(mV Q16)，幅值不超过半个可用电压 */
+      delete -2/+0 @232: 
+      replace -1/+1 @246:         u_fb = Fx_MulShift(s_gain.kv_q16, i_in, 16)
+      replace -2/+2 @267:             int32_t ex = Fx_Deadband(e, s_gain.w_in);
+      insert -0/+1 @270:             int64_t hold_di = ((int64_t)s_gain.kih_q20 * ex)
+      replace -2/+8 @278:     default:   /* PC_HOLD */
+      insert -0/+1 @281:         di = ((int64_t)s_gain.kih_q20 * ex) >> 4;
+      insert -0/+1 @282:     }
+DIFF           Common/C_Pos_Ctrl.h  (-1/+1 lines, 1 hunks)
+      replace -1/+1 @5:  *     + Kv·(v_r + Kp·e − v̂) + kv·Kp·e + I              位置 
+SAME           Common/C_Ring_Buf.c
+SAME           Common/C_Ring_Buf.h
+SAME           Common/C_Speed_Observer.c
+SAME           Common/C_Speed_Observer.h
+SAME           Common/C_Task_Scheduler.c
+SAME           Common/C_Task_Scheduler.h
+DIFF           Common/C_Traj_Planner.c  (-189/+579 lines, 42 hunks)
+      replace -3/+2 @1: /* C_Traj_Planner.c 在线 S 曲线规划器：限幅换算 -> 最速三段 -> 时间拉伸 -> 巡航速度反
+      delete -1/+0 @6: 
+      replace -3/+90 @8: #define TRAJ_TICK_HZ      1000
+      insert -0/+10 @13:     /* 当前参考 */
+      replace -3/+3 @14:     int32_t vmax_cdps, amax_cdpss, dmax_cdpss, jmax_cdpss3;
+      replace -7/+4 @18:     /* 本段计划 */
+      replace -8/+2 @26:     /* 行程 */
+      replace -2/+5 @36: static void Traj_Lim_Make(TrajLim_t *l, int32_t a, int32_t j
+      replace -1/+18 @39:     a = Fx_ClampRange(a, TRAJ_AMAX_MIN_CDPSS, TRAJ_AMAX_MAX_
+      replace -2/+83 @41:     int64_t t;
+      replace -11/+9 @47:     s_tj.pos    = Fx_ClampRange(pos, s_tj.lo, s_tj.hi);
+      replace -5/+4 @62:     s_tj.lo = 0;
+      delete -14/+0 @68: }
+      replace -4/+4 @86:     if (hi < lo) return;
+      replace -1/+2 @92: /* 把段的 dv/段长 换算成厘度/秒^2(向零截断，正反向都只低不高) */
+      replace -2/+5 @94:     int64_t product = (int64_t)dv_qt * inv_q30;
+      replace -2/+11 @98: /* Plan 的工作区：运动方向为正的归一化坐标，最后由 Traj_Commit 换回全局符号。速度 Q16 厘度/拍
+      replace -2/+2 @101: /* 本段速度/加速度上限：用户设定；已有速度高于速度上限时以它为准(已有的动量仍要能消掉) */
+      replace -1/+2 @104:     TrajLim_t lim_acc;
+      replace -11/+11 @106:     p->vmax = Traj_DivSat((int64_t)s_tj.vmax_cdps << TRAJ_VE
+      replace -2/+2 @119: /* 第1步：不管请求时间，先求最速轨迹的三段时长 */
+      replace -2/+1 @122:     int32_t vp, d_ramp;
+      replace -2/+17 @125:     if (p->case_b) vp = Traj_Solve_Vp(&p->lim1, &p->lim3, p-
+      insert -0/+189 @129: /* 第2步：请求时间比最速还长 -> 三段同乘 lambda */
+      replace -17/+2 @131:     Traj_Prefix();
+      replace -3/+2 @150: /* 刹停不套最短运动时间 */
+      replace -5/+1 @154:     int32_t v;
+      replace -3/+3 @160:     Traj_Prefix();                       /* 刹停点按接管段之后的速度算 */
+      replace -1/+2 @165: /* jerk受限速度过渡的归一化型线：S速度比例，P其积分，A归一化加速度 */
+      replace -1/+1 @167:     int32_t ratio, pr, sr;
+      replace -8/+23 @169:     if (r <= 0) { *s = u; *p = (int32_t)(((int64_t)u * u) >>
+      replace -2/+2 @179: /* 参考推进一拍，输出位置与加速度(速度在 s_tj.vel_qt) */
+      replace -1/+3 @182:     const TrajSeg_t *g;
+      replace -10/+10 @184:     if (s_tj.pre_t < s_tj.pre_T)
+      replace -10/+4 @195:     /* 饱和保持只在加速/匀速段冻结：减速段冻结会把参考速度钉在高位、帮着冲过头 */
+      replace -4/+4 @206:         s_tj.pos = s_tj.p_end;
+      replace -2/+24 @211:     if (s_tj.t > s_tj.t1 && s_tj.t <= s_tj.t1 + s_tj.tc)
+      replace -1/+1 @217:     int32_t pos, acc, vel_qt;
+      replace -2/+13 @219:     Traj_CoreStep(hold, &pos, &acc);
+      replace -3/+1 @222: uint8_t C_Traj_Is_Done(void) { return (uint8_t)(s_tj.t >= s_
+      replace -11/+6 @226: void C_Traj_SetRangeOpen(int32_t lo, int32_t hi)
+      replace -16/+1 @238: int32_t C_Traj_GetPos(void) { return s_tj.pos; }
+DIFF           Common/C_Traj_Planner.h  (-22/+19 lines, 7 hunks)
+      replace -1/+1 @1: /* C_Traj_Planner.h 在线 jerk 受限 S 曲线规划器，固定1ms，纯算法
+      replace -11/+7 @3:  * 加速过渡—匀速—减速过渡，受 V/A/D/J 四个上限约束(七段式的在线形式)：速度差够大时过渡段加速度为梯形，
+      insert -0/+2 @23: #define TRAJ_JMAX_MIN_CDPSS3   100L        /* 1度/秒^3 */
+      replace -1/+1 @24: #define TRAJ_SMOOTH_MS_MAX      200U   /* 平滑时间(A/J)上限，ms：重规划
+      replace -3/+3 @32: /* 上限超出范围自动夹紧，下一次 Plan 生效 */
+      replace -5/+4 @37: void    C_Traj_SetRangeOpen(int32_t lo, int32_t hi); /* IIC多
+      replace -1/+1 @43: void    C_Traj_Step(TrajRef_t *out, uint8_t hold); /* hold=1
+SAME           Drivers/D_adc.c
+SAME           Drivers/D_adc.h
+SAME           Drivers/D_i2c.c
+SAME           Drivers/D_i2c.h
+SAME           Drivers/D_iwdg.c
+SAME           Drivers/D_iwdg.h
+SAME           Drivers/D_motor.c
+SAME           Drivers/D_motor.h
+SAME           Drivers/D_opa.c
+SAME           Drivers/D_opa.h
+SAME           Drivers/D_spi.c
+SAME           Drivers/D_spi.h
+SAME           Drivers/D_tim.c
+SAME           Drivers/D_tim.h
+SAME           Drivers/D_tmp112.c
+SAME           Drivers/D_tmp112.h
+SAME           Drivers/D_uart.c
+SAME           Drivers/D_uart.h
+SAME           Drivers/D_ws2812.c
+SAME           Drivers/D_ws2812.h
+SAME           System/ch32v00X_conf.h
+SAME           System/flash.c
+SAME           System/flash.h
+SAME           System/iap.c
+SAME           System/iap.h
+SAME           System/system_ch32v00X.c
+SAME           System/system_ch32v00X.h
+SAME           User/ch32v00X_it.c
+SAME           User/ch32v00X_it.h
+DIFF           User/main.c  (-0/+13 lines, 4 hunks)
+      insert -0/+1 @13: #include "D_motor.h"
+      insert -0/+1 @18: #include "C_Motor_Model.h"
+      insert -0/+1 @19: #include "A_Sensor.h"
+      insert -0/+10 @39:     {
+########## CH32V00X_APP_ADC_30kg vs CH32V00X_APP_ADC_20kg ##########
+SAME           Application/A_Calib_Min.c
+SAME           Application/A_Calib_Min.h
+SAME           Application/A_Config.c
+DIFF           Application/A_Config.h  (-23/+22 lines, 8 hunks)
+      replace -1/+1 @15: #define FW_TORQUE     30U       /** 扭力型号 30kg */
+      replace -8/+8 @21: #define MOTOR_CAL_MV              7666   /* 标定电压，mV */
+      replace -3/+3 @30: #define MOTOR_RATED_VEL_DPS        162   /* 额定最高速度，度/秒 */
+      replace -5/+2 @36:  * 带宽越高越硬、越跟手，但电位器噪声放大越多；约束见 C_Pos_Ctrl.h，生效时仍按约束钳位。 */
+      replace -2/+2 @43: #define TUNE_VEL_BW_RADS       ((CTRL_VEL_BW_DELAY_MAX < 120
+      replace -1/+1 @48: #define TUNE_LOAD_RATIO_X10     10U
+      replace -1/+1 @60: #define CFG_DEF_SMOOTH_MS        50  /** S曲线平滑时间(加速度从0升到A的时间
+      replace -2/+4 @78: #define CFG_SMOOTH_MAX_MS          TRAJ_SMOOTH_MS_MAX    /**
+ONLY-IN-20kg   Application/A_Debug.c
+ONLY-IN-20kg   Application/A_Debug.h
+SAME           Application/A_Protect.c
+SAME           Application/A_Protect.h
+SAME           Application/A_Sensor.c
+SAME           Application/A_Sensor.h
+DIFF           Application/A_Servo.c  (-315/+575 lines, 93 hunks)
+      replace -6/+3 @2:  * A_Servo.c —— 舵机编排层：一个控制拍的固定顺序 读编码器 -> 观测器 -> 轨迹 -> 控制器 ->
+      delete -1/+0 @11: #include "A_Config.h"
+      insert -0/+1 @13: #include "C_Motor_Model.h"
+      insert -0/+3 @15: #include "C_Speed_Observer.h"
+      insert -0/+1 @16: #include "D_motor.h"
+      insert -0/+1 @25: #define SERVO_HOLD_KP_SLEW_MS   10U   /* 运行中改保持 P：每10ms最多变 1
+      delete -1/+0 @30: 
+      replace -10/+7 @32: /* 脉宽内部用 1/8us(Q3)，给PWM输入的一阶跟随留精度 */
+      replace -1/+1 @43: typedef char cfg_pwm_full_matches_motor[(CFG_PWM_FULL == MOT
+      insert -0/+3 @49:     ServoMode_t mode;
+      insert -0/+2 @56:     uint16_t hold_kp;           /* 当前生效的保持 P(‰/°)，缓慢跟随运行参数 *
+      replace -1/+2 @60:     uint8_t  turn_sample_valid; /* raw_angle 是有效的定圈累计基准 */
+      replace -2/+3 @62:     uint8_t  escape_dir, escape_retried, vbus_n;
+      replace -1/+2 @65:     uint16_t traj_lo, traj_hi;  /* 与规划器一致的目标范围 */
+      insert -0/+1 @68:     uint16_t saturation_ticks; /* 输出饱和且跟踪落后、轨迹时钟被冻结的拍数，供堵转采样
+      insert -0/+3 @69:     uint16_t pwm_bus_cv;        /* 母线电压(驱动期间8样本均值)，厘伏 */
+      replace -1/+10 @70:     int16_t  out_limit;         /* 保护模块给的PWM上限 */
+      replace -1/+5 @72:     uint32_t vbus_sum;
+      replace -4/+194 @77: static uint8_t Servo_SubmitQ3(uint16_t q3, uint16_t value);
+      replace -1/+7 @84: static void Servo_StreamReset(void)
+      replace -1/+143 @86: static void Servo_StreamObserve(uint16_t requested_ms, uint8
+      replace -4/+1 @132: /* ============================== 生命周期 =====================
+      replace -1/+2 @137: /* 设定值为0或超过额定能力时取额定(额定已含余量) */
+      replace -4/+1 @139:     return (int32_t)((user > 0U && user < rated) ? user : ra
+      replace -1/+2 @145: /* 生效限值 = min(设定值, 额定)；加加速度 = max(A,D)/平滑时间，平滑时间为0时取 τ；另设最短运
+      replace -3/+7 @147:     const MotorCal_t *cal = C_MotorModel_Cal();
+      replace -27/+3 @151:     C_Traj_SetLimits(Servo_LimitOf((uint32_t)g_runtime_confi
+      replace -1/+7 @180: /* 控制带宽是固件整定常量(A_Config.h 第3节)，不对外开放 */
+      replace -6/+1 @182:     (void)C_PosCtrl_SetGains(&g);
+      replace -1/+2 @190: /* 保持参数：精度、齿隙、积分时间立即生效(改积分时间不阶跃输出)；保持位置环增益每10ms最多变 1/s */
+      replace -3/+1 @192:     uint16_t target = g_runtime_config.hold_kp;
+      replace -7/+4 @196:     if (target != s_servo.hold_kp && ++s_servo.stiff_slew_ms
+      replace -126/+1 @204:     C_PosCtrl_SetHold(g_runtime_config.position_resolution_c
+      replace -3/+3 @335:     A_Servo_ApplyTrajConfig();
+      replace -2/+2 @340:     if (Servo_IsPosition()) { Servo_SetTrajRange(); Servo_Re
+      replace -5/+7 @352:     s_servo.arrived   = 1U;
+      replace -1/+16 @358:     Servo_VbusUpdate(Servo_BootBusCv());
+      insert -0/+1 @360:     C_Traj_Step(&s_servo.ref, 0U);
+      replace -1/+1 @375:         || (Servo_IsPosition() && !s_servo.range_valid)) ret
+      replace -2/+2 @389:     if (!Servo_IsPosition())
+      replace -2/+2 @393:         if (s_servo.reverse != (MOTOR_SIGN < 0)) s_servo.mot
+      replace -1/+1 @396:         if (value && Servo_IsTurns())
+      replace -2/+2 @399:             s_servo.turn_sample_valid = (uint8_t)(raw != ENC
+      replace -1/+1 @406:     target = (uint16_t)Fx_ClampRange(Servo_PulseToAngle(q3),
+      replace -1/+1 @408:     Servo_StreamObserve(value, was_paused, target);
+      replace -2/+2 @438:     if (Servo_IsPosition() && s_servo.enc_state == SERVO_ENC
+      replace -1/+1 @452:     if (s_servo.enc_state != SERVO_ENC_ESCAPING && Servo_IsP
+      replace -1/+1 @461:     if (Servo_IsPosition() && s_servo.enc_state == SERVO_ENC
+      replace -1/+1 @463:         if (!(C_Traj_Is_Done() && C_PosCtrl_Reached())) Serv
+      replace -1/+1 @477:     s_servo.damping_acc = 0U;
+      replace -1/+1 @480:         if (Servo_IsPosition()) Servo_Resync(1U);
+      replace -1/+1 @513:     s_servo.damping_acc = 0U;
+      replace -1/+1 @530: /* SCK/SCZ：当前位置记为锚点(中点/500us端)，有效行程与零点由 Servo_SetModeFields 
+      replace -1/+9 @533:     int32_t  raw = A_Encoder_Read(), offset;
+      replace -1/+1 @536:     Servo_SetModeFields(s_servo.mode);
+      replace -1/+1 @538:     Servo_SetTrajRange();
+      replace -1/+1 @546: /* AMI/AMX：把行程一端收到当前位置并进入自定义模式(is_min=1为500us端，在哪头由方向决定)，可连续
+      replace -1/+8 @549:     int32_t  raw, pos;
+      insert -0/+5 @551:     g_config.custom_offset_cdeg = Servo_WrapAngle(s_servo.of
+      replace -2/+2 @561:     if (!Servo_IsPosition() || s_servo.span_cdeg == 0U || !S
+      replace -2/+2 @572:     if (!Servo_IsPosition() || !Servo_ReadPosition()) return
+      replace -1/+1 @589:     if (Servo_IsPosition() ? !s_servo.arrived : s_servo.rema
+      replace -5/+3 @596:     out->target_pwm   = Servo_AngleToPwm(s_servo.target_angl
+      replace -2/+2 @602:                          && s_servo.enc_fail == 0U && s_serv
+      replace -1/+1 @606: /* 控制与打印都是协作式任务；ISR不改s_servo，无需关中断或重读传感器。 */
+      replace -4/+1 @609:     uint8_t active = s_servo.debug_control_valid;
+      replace -13/+13 @618:     out->ref_cdeg = s_servo.ref.pos;
+      replace -2/+2 @633:     out->flags = (uint8_t)((active ? 1U : 0U) | (s_servo.deb
+      replace -2/+2 @641:     if (Servo_IsPosition()) (void)Servo_ReadPosition();
+      replace -1/+2 @649:     s_servo.out_limit = (int16_t)Fx_ClampRange(limit, 1, CFG
+      replace -3/+2 @655:     uint8_t driving = (uint8_t)(Servo_IsPosition() && s_serv
+      replace -3/+3 @659:     out->ref_delta  = s_servo.ref.pos - s_servo.motion_ref;
+      replace -2/+2 @663:     s_servo.motion_ref   = s_servo.ref.pos;
+      insert -0/+1 @666:     s_servo.saturation_ticks    = 0U;
+      replace -1/+1 @671:     if (Servo_IsPosition() && s_servo.torque == SERVO_TORQUE
+      replace -1/+1 @683:     if (Servo_IsTurns() && s_servo.remaining != UINT32_MAX &
+      replace -1/+1 @685:         if (s_servo.turn_sample_valid)
+      replace -1/+1 @687:             delta = raw - s_servo.raw_angle;
+      replace -2/+2 @693:         s_servo.raw_angle = raw;
+      replace -2/+2 @698:     Servo_Drive((int16_t)Fx_Clamp32(Servo_MvToDuty(s_servo.m
+      replace -1/+1 @702: /* 位置控制固定顺序：反馈 -> 观测 -> 轨迹 -> 控制 -> 驱动 */
+      insert -0/+3 @706:     uint8_t hold;
+      replace -1/+1 @710:         C_PosCtrl_Reset();
+      replace -1/+1 @714:     C_SpeedObs_Update(&s_servo.observer, s_servo.angle_circ,
+      replace -1/+1 @716:     /* 被合并的目标到最小间隔就下发；上一拍输出饱和且跟踪落后时冻结轨迹时钟(参考不再领先)，冻结拍数交给堵转检测
+      insert -0/+3 @719:     hold = (uint8_t)(s_servo.dbg.sat && (int64_t)s_servo.dbg
+      replace -2/+7 @720:     Servo_HoldParams();
+      replace -1/+1 @723:     if (!s_servo.arrived && !s_servo.move_pending && s_servo
+      delete -1/+0 @731:     A_Servo_SyncTorque();
+      replace -1/+1 @735:     s_servo.debug_control_valid = 0U;
+      replace -1/+8 @744:         /* 自定义阻尼：在短路制动和自由释放间按百分比交替，不产生方向电压。 */
+      replace -2/+2 @747:     if ((Servo_IsPosition() && !s_servo.range_valid)
+      replace -2/+2 @753:     if (Servo_IsPosition()) Servo_PositionControl();
+SAME           Application/A_Servo.h
+ONLY-IN-20kg   Application/A_Servo_Ctrl.c
+ONLY-IN-20kg   Application/A_Servo_Ctrl.h
+ONLY-IN-20kg   Application/A_StatusLed.c
+ONLY-IN-20kg   Application/A_StatusLed.h
+DIFF           Application/A_Tasks.c  (-19/+158 lines, 13 hunks)
+      replace -1/+1 @1: /* A_Tasks.c —— 应用任务入口与注册表。
+      replace -6/+7 @3:  *     0     1ms   ServoControl  实测位置 -> 观测器/轨迹 -> 控制器 -> H桥
+      delete -2/+0 @14: #include "A_Config.h"
+      insert -0/+2 @19: #include "D_ws2812.h"
+      insert -0/+40 @20: #include <stdio.h>
+      insert -0/+41 @37: /* 仅读现有状态，不重读传感器、不清故障、不干预运动。
+      replace -1/+26 @39:     static uint16_t phase;
+      replace -1/+1 @45:     A_Config_SaveTask(); /* 参数变脏时异步写Flash */
+      insert -0/+15 @49: /* VOFA+ FireWater: servo:ch0,ch1,...,ch17\r\n
+      replace -1/+18 @51:     ServoDebugTelemetry_t data;
+      replace -1/+1 @55: /*                           入口函数        周期ms 优先级(0最高) */
+      replace -5/+5 @57:     TASK_DEF(Task_ServoControl, 1,    0),
+      replace -1/+1 @63:     TASK_DEF(Task_Print, TASK_FIREWATER_PERIOD_MS, 5),
+SAME           Application/A_Tasks.h
+SAME           Application/A_UartCmd.c
+SAME           Application/A_UartCmd.h
+SAME           Common/C_Fixed.h
+SAME           Common/C_Motor_Model.c
+SAME           Common/C_Motor_Model.h
+DIFF           Common/C_Pos_Ctrl.c  (-22/+15 lines, 11 hunks)
+      delete -2/+0 @10: #define STICK_MOVE_MS  5U     /* 运动中这么久没挪过最小可靠位移且估计速度低于噪声底，才
+      delete -1/+0 @35:     int32_t  integral_q16;   /* mV，Q16 */
+      replace -1/+1 @61:     /* 速度环带宽上限：纯延迟的相位(ω·延迟 ≤ 1/3)与观测器带宽 */
+      delete -11/+0 @203: /* 积分加 di(mV Q16)，幅值不超过半个可用电压 */
+      delete -2/+0 @232: 
+      replace -1/+1 @246:         u_fb = Fx_MulShift(s_gain.kv_q16, i_in, 16)
+      replace -2/+2 @267:             int32_t ex = Fx_Deadband(e, s_gain.w_in);
+      insert -0/+1 @270:             int64_t hold_di = ((int64_t)s_gain.kih_q20 * ex)
+      replace -2/+8 @278:     default:   /* PC_HOLD */
+      insert -0/+1 @281:         di = ((int64_t)s_gain.kih_q20 * ex) >> 4;
+      insert -0/+1 @282:     }
+DIFF           Common/C_Pos_Ctrl.h  (-1/+1 lines, 1 hunks)
+      replace -1/+1 @5:  *     + Kv·(v_r + Kp·e − v̂) + kv·Kp·e + I              位置 
+SAME           Common/C_Ring_Buf.c
+SAME           Common/C_Ring_Buf.h
+SAME           Common/C_Speed_Observer.c
+SAME           Common/C_Speed_Observer.h
+SAME           Common/C_Task_Scheduler.c
+SAME           Common/C_Task_Scheduler.h
+DIFF           Common/C_Traj_Planner.c  (-189/+579 lines, 42 hunks)
+      replace -3/+2 @1: /* C_Traj_Planner.c 在线 S 曲线规划器：限幅换算 -> 最速三段 -> 时间拉伸 -> 巡航速度反
+      delete -1/+0 @6: 
+      replace -3/+90 @8: #define TRAJ_TICK_HZ      1000
+      insert -0/+10 @13:     /* 当前参考 */
+      replace -3/+3 @14:     int32_t vmax_cdps, amax_cdpss, dmax_cdpss, jmax_cdpss3;
+      replace -7/+4 @18:     /* 本段计划 */
+      replace -8/+2 @26:     /* 行程 */
+      replace -2/+5 @36: static void Traj_Lim_Make(TrajLim_t *l, int32_t a, int32_t j
+      replace -1/+18 @39:     a = Fx_ClampRange(a, TRAJ_AMAX_MIN_CDPSS, TRAJ_AMAX_MAX_
+      replace -2/+83 @41:     int64_t t;
+      replace -11/+9 @47:     s_tj.pos    = Fx_ClampRange(pos, s_tj.lo, s_tj.hi);
+      replace -5/+4 @62:     s_tj.lo = 0;
+      delete -14/+0 @68: }
+      replace -4/+4 @86:     if (hi < lo) return;
+      replace -1/+2 @92: /* 把段的 dv/段长 换算成厘度/秒^2(向零截断，正反向都只低不高) */
+      replace -2/+5 @94:     int64_t product = (int64_t)dv_qt * inv_q30;
+      replace -2/+11 @98: /* Plan 的工作区：运动方向为正的归一化坐标，最后由 Traj_Commit 换回全局符号。速度 Q16 厘度/拍
+      replace -2/+2 @101: /* 本段速度/加速度上限：用户设定；已有速度高于速度上限时以它为准(已有的动量仍要能消掉) */
+      replace -1/+2 @104:     TrajLim_t lim_acc;
+      replace -11/+11 @106:     p->vmax = Traj_DivSat((int64_t)s_tj.vmax_cdps << TRAJ_VE
+      replace -2/+2 @119: /* 第1步：不管请求时间，先求最速轨迹的三段时长 */
+      replace -2/+1 @122:     int32_t vp, d_ramp;
+      replace -2/+17 @125:     if (p->case_b) vp = Traj_Solve_Vp(&p->lim1, &p->lim3, p-
+      insert -0/+189 @129: /* 第2步：请求时间比最速还长 -> 三段同乘 lambda */
+      replace -17/+2 @131:     Traj_Prefix();
+      replace -3/+2 @150: /* 刹停不套最短运动时间 */
+      replace -5/+1 @154:     int32_t v;
+      replace -3/+3 @160:     Traj_Prefix();                       /* 刹停点按接管段之后的速度算 */
+      replace -1/+2 @165: /* jerk受限速度过渡的归一化型线：S速度比例，P其积分，A归一化加速度 */
+      replace -1/+1 @167:     int32_t ratio, pr, sr;
+      replace -8/+23 @169:     if (r <= 0) { *s = u; *p = (int32_t)(((int64_t)u * u) >>
+      replace -2/+2 @179: /* 参考推进一拍，输出位置与加速度(速度在 s_tj.vel_qt) */
+      replace -1/+3 @182:     const TrajSeg_t *g;
+      replace -10/+10 @184:     if (s_tj.pre_t < s_tj.pre_T)
+      replace -10/+4 @195:     /* 饱和保持只在加速/匀速段冻结：减速段冻结会把参考速度钉在高位、帮着冲过头 */
+      replace -4/+4 @206:         s_tj.pos = s_tj.p_end;
+      replace -2/+24 @211:     if (s_tj.t > s_tj.t1 && s_tj.t <= s_tj.t1 + s_tj.tc)
+      replace -1/+1 @217:     int32_t pos, acc, vel_qt;
+      replace -2/+13 @219:     Traj_CoreStep(hold, &pos, &acc);
+      replace -3/+1 @222: uint8_t C_Traj_Is_Done(void) { return (uint8_t)(s_tj.t >= s_
+      replace -11/+6 @226: void C_Traj_SetRangeOpen(int32_t lo, int32_t hi)
+      replace -16/+1 @238: int32_t C_Traj_GetPos(void) { return s_tj.pos; }
+DIFF           Common/C_Traj_Planner.h  (-22/+19 lines, 7 hunks)
+      replace -1/+1 @1: /* C_Traj_Planner.h 在线 jerk 受限 S 曲线规划器，固定1ms，纯算法
+      replace -11/+7 @3:  * 加速过渡—匀速—减速过渡，受 V/A/D/J 四个上限约束(七段式的在线形式)：速度差够大时过渡段加速度为梯形，
+      insert -0/+2 @23: #define TRAJ_JMAX_MIN_CDPSS3   100L        /* 1度/秒^3 */
+      replace -1/+1 @24: #define TRAJ_SMOOTH_MS_MAX      200U   /* 平滑时间(A/J)上限，ms：重规划
+      replace -3/+3 @32: /* 上限超出范围自动夹紧，下一次 Plan 生效 */
+      replace -5/+4 @37: void    C_Traj_SetRangeOpen(int32_t lo, int32_t hi); /* IIC多
+      replace -1/+1 @43: void    C_Traj_Step(TrajRef_t *out, uint8_t hold); /* hold=1
+SAME           Drivers/D_adc.c
+SAME           Drivers/D_adc.h
+SAME           Drivers/D_i2c.c
+SAME           Drivers/D_i2c.h
+SAME           Drivers/D_iwdg.c
+SAME           Drivers/D_iwdg.h
+SAME           Drivers/D_motor.c
+SAME           Drivers/D_motor.h
+SAME           Drivers/D_opa.c
+SAME           Drivers/D_opa.h
+SAME           Drivers/D_spi.c
+SAME           Drivers/D_spi.h
+SAME           Drivers/D_tim.c
+SAME           Drivers/D_tim.h
+SAME           Drivers/D_tmp112.c
+SAME           Drivers/D_tmp112.h
+SAME           Drivers/D_uart.c
+SAME           Drivers/D_uart.h
+SAME           Drivers/D_ws2812.c
+SAME           Drivers/D_ws2812.h
+SAME           System/ch32v00X_conf.h
+SAME           System/flash.c
+SAME           System/flash.h
+SAME           System/iap.c
+SAME           System/iap.h
+SAME           System/system_ch32v00X.c
+SAME           System/system_ch32v00X.h
+SAME           User/ch32v00X_it.c
+SAME           User/ch32v00X_it.h
+DIFF           User/main.c  (-0/+13 lines, 4 hunks)
+      insert -0/+1 @13: #include "D_motor.h"
+      insert -0/+1 @18: #include "C_Motor_Model.h"
+      insert -0/+1 @19: #include "A_Sensor.h"
+      insert -0/+10 @39:     {

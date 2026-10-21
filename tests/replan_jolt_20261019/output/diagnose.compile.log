@@ -1,0 +1,6 @@
+In file included from C:\Users\Admin\Desktop\duoji\tests\replan_jolt_20261019\sim.c:17,
+                 from C:\Users\Admin\Desktop\duoji\tests\replan_jolt_20261019\diagnose.c:2:
+C:\Users\Admin\Desktop\duoji\tests\replan_jolt_20261019\profiles\20_base\System/flash.c: In function 'Flash_PageWrite':
+C:\Users\Admin\Desktop\duoji\tests\replan_jolt_20261019\profiles\20_base\System/flash.c:59:29: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   59 |     return (uint8_t)(memcmp((const void *)address, bytes, FLASH_PAGE_SIZE) == 0);
+      |                             ^

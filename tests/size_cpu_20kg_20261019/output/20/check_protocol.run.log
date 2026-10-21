@@ -1,0 +1,3 @@
+PASS: 1500ms boot planning for saved/PWM/recovered targets; normal commands and motor units retained
+PASS: text CLE0/CLE and binary 07/08 reset parameters correctly; removed RAM system actions cannot change settings
+PASS: real voltage-model control chain, small target stream, pause/resume, parameter validation and motion ACK

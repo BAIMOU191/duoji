@@ -1,0 +1,40 @@
+In file included from C:\Users\Admin\Desktop\duoji\tests\full_audit_20261019\audit.c:24:
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\System/flash.c: In function 'Flash_PageWrite':
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\System/flash.c:59:29: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   59 |     return (uint8_t)(memcmp((const void *)address, bytes, FLASH_PAGE_SIZE) == 0);
+      |                             ^
+C:\Users\Admin\Desktop\duoji\tests\full_audit_20261019\audit.c: In function 'command':
+C:\Users\Admin\Desktop\duoji\tests\full_audit_20261019\audit.c:119:2: warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+  119 |  for(unsigned i=0;i<sizeof(f);i++)assert(C_Ring_Buf_Put(&rx,f[i]));A_Uart_Process();return;}
+      |  ^~~
+C:\Users\Admin\Desktop\duoji\tests\full_audit_20261019\audit.c:119:68: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'for'
+  119 |  for(unsigned i=0;i<sizeof(f);i++)assert(C_Ring_Buf_Put(&rx,f[i]));A_Uart_Process();return;}
+      |                                                                    ^~~~~~~~~~~~~~
+C:\Users\Admin\Desktop\duoji\tests\full_audit_20261019\audit.c: In function 'probes':
+C:\Users\Admin\Desktop\duoji\tests\full_audit_20261019\audit.c:187:5: warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+  187 |     for(unsigned i=0;i<sizeof(partial);i++)C_Ring_Buf_Put(&rx,partial[i]);A_Uart_Process();command(1800,0);
+      |     ^~~
+C:\Users\Admin\Desktop\duoji\tests\full_audit_20261019\audit.c:187:75: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'for'
+  187 |     for(unsigned i=0;i<sizeof(partial);i++)C_Ring_Buf_Put(&rx,partial[i]);A_Uart_Process();command(1800,0);
+      |                                                                           ^~~~~~~~~~~~~~
+In file included from C:\Users\Admin\Desktop\duoji\tests\full_audit_20261019\audit.c:33:
+In function 'Bin_Reply',
+    inlined from 'Bin_Frame' at C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\Application/A_UartCmd.c:581:30,
+    inlined from 'Wire_Byte' at C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\Application/A_UartCmd.c:601:67:
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\Application/A_UartCmd.c:314:17: warning: writing 2 bytes into a region of size 0 [-Wstringop-overflow=]
+  314 |     f[6U + len] = Bin_Crc8(f + 2, (uint8_t)(4U + len));
+      |     ~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\Application/A_UartCmd.c: In function 'Wire_Byte':
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\Application/A_UartCmd.c:309:13: note: at offset 258 into destination object 'f' of size 40
+  309 |     uint8_t f[BIN_FRAME_MAX];
+      |             ^
+In function 'Bin_Reply',
+    inlined from 'Bin_Frame' at C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\Application/A_UartCmd.c:581:30,
+    inlined from 'Wire_Byte' at C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\Application/A_UartCmd.c:601:67:
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\Application/A_UartCmd.c:315:42: warning: writing 1 byte into a region of size 0 [-Wstringop-overflow=]
+  315 |     f[7U + len] = BIN_TAIL1; f[8U + len] = BIN_TAIL2;
+      |                                          ^
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\Application/A_UartCmd.c: In function 'Wire_Byte':
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\Application/A_UartCmd.c:309:13: note: at offset 260 into destination object 'f' of size 40
+  309 |     uint8_t f[BIN_FRAME_MAX];
+      |             ^

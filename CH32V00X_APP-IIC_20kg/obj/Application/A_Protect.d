@@ -1,5 +1,6 @@
 Application/A_Protect.o: ../Application/A_Protect.c \
  ../Application/A_Protect.h ../Application/A_Config.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Common/C_Traj_Planner.h \
  ../Application/A_Sensor.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_adc.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X.h \
@@ -25,9 +26,11 @@ Application/A_Protect.o: ../Application/A_Protect.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X_wwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X_opa.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X.h \
- ../Application/A_Servo.h
+ ../Application/A_Servo.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Common/C_Fixed.h
 ../Application/A_Protect.h:
 ../Application/A_Config.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Common/C_Traj_Planner.h:
 ../Application/A_Sensor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers/D_adc.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X.h:
@@ -54,3 +57,4 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X_w
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X_opa.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc/ch32v00X.h:
 ../Application/A_Servo.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Common/C_Fixed.h:

@@ -46,7 +46,8 @@ typedef char guard_pot_cdeg_numerator_overflow[
 #define VOLTAGE_DIV_DEN 10U   /** 分压比分母 */
 
 /* 电流检测：60mΩ采样电阻 + OPA1 单端8x，满量程6.875A，1LSB≈1.68mA；只有驱动段电流流过采样电阻。
- * PGA基准VB=VDD/4 的零点台阶(约945计数)由上电标定扣除，可上报最大5.29A(低于AT8236斩波点5.5A)。 */
+ * PGA基准VB=VDD/4 把零点抬到约945计数：上电标定扣除、续流段跟踪温漂；正向可上报最大5.29A(低于AT8236斩波点5.5A)，
+ * 被倒拖回馈的反向电流也测得到(约-1.6A以内)。 */
 #define CURRENT_SENSE_MOHM 60U /** 采样电阻(毫欧) */
 #define CURRENT_SENSE_GAIN  8U /** OPA1单端PGA增益 */
 #define CURRENT_FULL_SCALE_MA \
@@ -55,6 +56,7 @@ typedef char guard_pot_cdeg_numerator_overflow[
 int32_t  A_Encoder_Read(void);                 /* 读编码器角度，厘度；失败返回ENCODER_ANGLE_ERROR */
 uint16_t A_Voltage_Read(void);                 /* 读电池电压，返回厘伏(V×100) */
 int16_t  A_Temperature_Read(void);             /* 读温度，返回0.1摄氏度；失败返回-32768 */
-uint8_t  A_Current_Read(uint16_t *current_ma); /* 读电流(mA)，总是写值；返回值=是否采在驱动段 */
+uint8_t  A_Current_ReadSigned(int32_t *current_ma); /* 绕组电流(mA)，与施加电压同向为正；返回1=本块测得到 */
+uint8_t  A_Current_Read(uint16_t *current_ma);      /* 电流大小(mA)，供保护与上报；返回值同上 */
 
 #endif /* __A_SENSOR_H__ */

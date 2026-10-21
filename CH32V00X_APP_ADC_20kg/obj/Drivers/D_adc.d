@@ -21,8 +21,7 @@ Drivers/D_adc.o: ../Drivers/D_adc.c ../Drivers/D_adc.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X_usart.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X_wwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X_opa.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X.h \
- ../Drivers/D_tim.h
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X.h
 ../Drivers/D_adc.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Core/core_riscv.h:
@@ -47,4 +46,3 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X_u
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X_wwdg.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X_opa.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X.h:
-../Drivers/D_tim.h:

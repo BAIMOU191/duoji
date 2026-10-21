@@ -1,0 +1,33 @@
+{
+  "cases": 196,
+  "before_after_identical": true,
+  "metrics": [
+    {
+      "diag": 0.0,
+      "factor": 1.0,
+      "overshoot_deg": 0.0372016,
+      "time_to_retract_0_1_deg_ms": null,
+      "final_error_deg": 0.0372016,
+      "reference_done_ms": 617.0,
+      "peak_ms": 691
+    },
+    {
+      "diag": 2.0,
+      "factor": 1.3,
+      "overshoot_deg": 0.2314767,
+      "time_to_retract_0_1_deg_ms": 55.0,
+      "final_error_deg": -0.1222919,
+      "reference_done_ms": 620.0,
+      "peak_ms": 615
+    },
+    {
+      "diag": 5.0,
+      "factor": 1.15,
+      "overshoot_deg": 0.3976397,
+      "time_to_retract_0_1_deg_ms": 193.0,
+      "final_error_deg": 0.156307,
+      "reference_done_ms": 618.0,
+      "peak_ms": 692
+    }
+  ]
+}

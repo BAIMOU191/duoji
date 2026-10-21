@@ -1,0 +1,32 @@
+{
+  "15": {
+    "baseline": {
+      "mean_command_lag_deg": 1.5494406896551727,
+      "max_command_error_deg": 4.047000000000008
+    },
+    "handoff": {
+      "mean_command_lag_deg": 3.8518689655172413,
+      "max_command_error_deg": 5.8920000000000075
+    }
+  },
+  "20": {
+    "baseline": {
+      "mean_command_lag_deg": 1.553435172413793,
+      "max_command_error_deg": 4.0570000000000075
+    },
+    "handoff": {
+      "mean_command_lag_deg": 3.845052413793104,
+      "max_command_error_deg": 5.912000000000007
+    }
+  },
+  "30": {
+    "baseline": {
+      "mean_command_lag_deg": 1.551729655172413,
+      "max_command_error_deg": 4.052999999999993
+    },
+    "handoff": {
+      "mean_command_lag_deg": 3.858958620689655,
+      "max_command_error_deg": 5.917999999999993
+    }
+  }
+}

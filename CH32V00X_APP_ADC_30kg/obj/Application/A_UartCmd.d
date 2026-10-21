@@ -1,5 +1,6 @@
 Application/A_UartCmd.o: ../Application/A_UartCmd.c \
  ../Application/A_UartCmd.h ../Application/A_Config.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Traj_Planner.h \
  ../Application/A_Sensor.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_adc.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Peripheral/inc/ch32v00X.h \
@@ -31,6 +32,7 @@ Application/A_UartCmd.o: ../Application/A_UartCmd.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/System/iap.h
 ../Application/A_UartCmd.h:
 ../Application/A_Config.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Traj_Planner.h:
 ../Application/A_Sensor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_adc.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Peripheral/inc/ch32v00X.h:

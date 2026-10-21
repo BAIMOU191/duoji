@@ -1,0 +1,10 @@
+In file included from C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_20kg_single\Application\A_UartCmd.c:7:
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_20kg_single\Application\A_Config.h:89:1: error: static assertion failed: "Invalid motor calibration"
+   89 | _Static_assert(MOTOR_KV_UV > 0 && MOTOR_KA_NV > 0 && MOTOR_FS_MV >= MOTOR_FC_MV && MOTOR_DELAY_US < 7000
+      | ^~~~~~~~~~~~~~
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_20kg_single\Application\A_Config.h:94:1: error: static assertion failed: "Invalid default motion/hold parameters"
+   94 | _Static_assert(CFG_DEF_RESOLUTION_CDEG >= CFG_RESOLUTION_MIN_CDEG && CFG_DEF_RESOLUTION_CDEG <= CFG_RESOLUTION_MAX_CDEG
+      | ^~~~~~~~~~~~~~
+C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_20kg_single\Application\A_Config.h:102:1: error: static assertion failed: "Invalid smoothing time range"
+  102 | _Static_assert(CFG_SMOOTH_MIN_MS >= 1U && CFG_SMOOTH_MIN_MS <= CFG_SMOOTH_MAX_MS
+      | ^~~~~~~~~~~~~~

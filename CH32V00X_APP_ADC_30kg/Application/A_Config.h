@@ -1,9 +1,10 @@
 #pragma once
 
 #include <stdint.h>
+#include "C_Traj_Planner.h"   /* 平滑时间、最短运动时间的上限以规划器为准 */
 
-/* 固件版本 主.次.修订，各0~255。 */
-#define SERVO_VERSION_MAJOR 2U
+/* 固件版本 主.次.修订，各0~255；0.0.0表示未发布版本。 */
+#define SERVO_VERSION_MAJOR 0U
 #define SERVO_VERSION_MINOR 0U
 #define SERVO_VERSION_PATCH 0U
 
@@ -13,35 +14,53 @@
 #define FW_VOLTAGE    8U        /** 电压型号 8V */
 #define FW_TORQUE     30U       /** 扭力型号 30kg */
 
-/* ==================== 2. 本机标定 ====================
- * 全部由 A_Calib_Min 标定固件打印，照抄这一节即可。换舵机只改这8个数。
- * 本机：30kg 电位器版，下面的值由标定程序打印后抄回。 */
-#define CAL_SPEED_SLOPE_Q16  8320
-#define CAL_FRICTION_PWM       63
-#define CAL_BREAKAWAY_PWM     177
-#define CAL_MOTOR_SIGN          1
-#define MODEL_TAU_MS           26
-#define MODEL_DELAY_TICKS       1
-#define MODEL_BRAKE_GAIN_Q8   314
-#define CAL_MIN_STEP_CDEG      49
+/* ==================== 2. 电机标定（标定固件打印，整节替换） ====================
+ * 电压域模型 U = kv·ω + ka·α + fc·sgn(ω)，静止且 |U| < fs 时粘住；参数与母线电压无关，
+ * 运行时电压按实测母线换算成占空比。额定能力为标定电压下的值(已留10%余量)，只用于配置校验与出厂默认值。
+ * 本节由 A_Calib_Min 标定固件实测打印，换电机或减速箱后重新标定并整节替换。 */
+#define MOTOR_CAL_MV              7666   /* 标定电压，mV */
+#define MOTOR_KV_UV                397   /* 反电势斜率，µV/(厘度/s) */
+#define MOTOR_KA_NV              7063   /* 加速系数，nV/(厘度/s²) */
+#define MOTOR_FC_MV                 127   /* 动摩擦，mV */
+#define MOTOR_FS_MV                413   /* 起转电压，mV */
+#define MOTOR_DELAY_US            3211   /* 输入到响应的纯延迟，µs */
+#define MOTOR_NOISE_CDEG             6   /* 静止读数噪声幅值(±)，厘度 */
+#define MOTOR_MIN_STEP_CDEG          13   /* 最小可靠位移，厘度 */
+#define MOTOR_SIGN                   1   /* 正电压使输出轴角度增大 = 1 */
+#define MOTOR_RATED_VEL_DPS        162   /* 额定最高速度，度/秒 */
+#define MOTOR_RATED_ACC_DPS2      7500   /* 额定零速加速度，度/秒² */
+#define MOTOR_RATED_DEC_DPS2      7500   /* 额定低速减速度，度/秒² */
+/* ==================== 电机标定结束 ==================== */
 
-/* ==================== 3. 调参 ====================
- * 改这一节要重跑 tests/run.py。带宽取"够用的最低"：电位器抽头的滑动接触噪声很大，
- * 环路一快就把噪声放大成抖动。速度环至少比位置环快2倍(第7节断言)；观测器至少比速度环快3倍、
- * 积分零点不高于位置环带宽——这两条在第6节自动满足(按需抬高观测器带宽/压低积分零点)，
- * 单独改其中一个不会编译失败。负载惯量与电机增益偏差由观测器在线自适应(C_Speed_Observer.h)，
- * 不需要为带载重调这一节。 */
-#define TUNE_STIFFNESS_RADS   9  /** 位置环带宽(rad/s) */
-#define TUNE_DAMPING         25  /** 速度环带宽 / 位置环带宽 的10倍 */
-#define TUNE_INTEGRAL_RADS    8  /** 速度积分零点(rad/s)，不得高于位置环带宽 */
-#define TUNE_OBS_BW_HZ       11  /** 观测器带宽(Hz)，受纯延迟约束 */
-#define TUNE_RESOLUTION_CDEG 50  /** 到位精度标度(厘度)：位置死区与各到位窗口，实际停住误差约1.5倍；只影响位置窗口 */
-#define CFG_DEF_HOLD_STIFF   12 /** 到位保持刚度出厂值(PWM/厘度)，运行时可在0~12内修改 */
-#define CFG_HOLD_STIFF_MAX   12U /** 对外统一上限；0=关闭保持弹簧 */
-#define TUNE_HOLD_DAMP_X      0  /** 保持弹簧的速度阻尼 = 该值x速度环P增益；0=不带阻尼(本机型无手臂负载) */
-#define TUNE_ACCEL_MIN_MS    25  /** 小位移加速段最短时间(ms)，约1倍tau；短于纯延迟没有意义 */
+/* ==================== 3. 控制器整定(固件常量，不对外) ====================
+ * 带宽越高越硬、越跟手，但电位器噪声放大越多；约束见 C_Pos_Ctrl.h，生效时仍按约束钳位。
+ * 电位器滑动时的读数噪声比静止大得多：速度环 120 rad/s / 观测器 21Hz 时，仿真里这份噪声被放大成运动中
+ * 10%~20% 的速度起伏(实机"转动时一直加减速")；降到 70 rad/s / 16Hz 后起伏约减半，空载到位不变，
+ * 重惯量负载(4倍电机惯量)点到点过冲约多1°。仍嫌抖可降到 60(更顺、带载更软)，要更硬可提到 80~100。 */
+#define TUNE_OBS_BW_HZ          16   /** 观测器三重极点带宽(Hz)，速度环带宽不超过它 */
+/* 速度环带宽受纯延迟限制 ω_v·延迟 ≤ 1/3(与 C_PosCtrl_Init 同一公式)，取值不超过它 */
+#define CTRL_VEL_BW_DELAY_MAX  ((MOTOR_DELAY_US > 333) ? 1000000U / (3U * MOTOR_DELAY_US) : 1000U)
+#define TUNE_VEL_BW_RADS       ((CTRL_VEL_BW_DELAY_MAX < 70U) ? CTRL_VEL_BW_DELAY_MAX : 70U)  /** 速度环带宽 ω_v，rad/s */
+#define TUNE_POS_BW_RADS       ((TUNE_VEL_BW_RADS / 4U < 20U) ? TUNE_VEL_BW_RADS / 4U : 20U)  /** 位置环带宽 ω_p，rad/s：≤ ω_v/4，再按负载惯量比收敛 */
+#define TUNE_INT_BW_RADS         5U  /** 速度积分零点 ω_i，rad/s，≤ ω_p */
+/* 实测版新增唯一负载整定量：J_load/J_motor×10，10=负载惯量等于电机自身，总惯量2倍。
+ * 仅供观测器/闭环带宽适配，不修改轨迹限值或加速度前馈；改后重新编译，不占Flash/SRAM协议地址。 */
+#define TUNE_LOAD_RATIO_X10     20U
 
-/* ==================== 4. 硬件量程与旋向 ==================== */
+/* ==================== 4. 运行参数出厂值 ====================
+ * 精度、齿隙、刚度、V/A/D、平滑时间、最短运动时间是运行参数(Flash/SRAM 两份，可由协议修改)，这里只是出厂值。 */
+#define CFG_DEF_RESOLUTION_CDEG 50U  /** 到位精度：误差在它以内且静止才算到位，厘度 */
+#define CFG_DEF_HOLD_KP         80  /** 保持 P，‰/°：超出到位窗 1° 输出标定电压的 1.5×P‰(实际效果为参数的1.5倍)；*/
+#define CFG_DEF_HOLD_KI           0  /** 保持 I，‰/(°·s)：超出 1° 持续 1s，输出再加标定电压的 1.5×I‰；0=积分不动，只用到位时继承的托举力 */
+/* 恢复原运动默认值：V/A/D取额定能力的90%/70%/70%，具体值由本型号标定参数计算。
+ * 控制器优化独立保留；实际限值仍由现有Flash/SRAM参数决定，0表示按额定。 */
+#define CFG_DEF_VMAX_DPS       (MOTOR_RATED_VEL_DPS * 9U / 10U)
+#define CFG_DEF_AMAX_DPS2      (MOTOR_RATED_ACC_DPS2 * 7U / 10U)
+#define CFG_DEF_DMAX_DPS2      (MOTOR_RATED_DEC_DPS2 * 7U / 10U)
+#define CFG_DEF_SMOOTH_MS        50  /** 平滑时间(加速度从0升到A的时间，即规划器速度滑动平均的窗口)，ms；0=自动取机械时间常数τ */
+#define CFG_DEF_MOVE_MIN_MS    150U  /** 最短运动时间，ms；0=关闭：每段运动至少走这么久(带时间的取较大者)，小动作按比例降低 V/A/J */
+
+/* ==================== 5. 硬件量程与旋向 ==================== */
 #define CDEG_RANGE          36000 /** 整圈角度，厘度 */
 #define CFG_PWM_FULL         2400 /** PWM满量程，必须与驱动层实际限制一致 */
 #define CFG_TICK_HZ          1000 /** 控制任务频率(Hz) */
@@ -50,61 +69,43 @@
 #define SERVO_PWM_MID        1500 /** 电机模式零速指令 */
 #define SERVO_PWM_MAX        2500 /** 协议最大脉宽，也是电机模式正向满速 */
 
-/* ==================== 5. 轨迹出厂默认值 ====================
- * 这五个是运行时参数，存在 Flash 里、可由总线指令改(见下面的 Config_t)，这里只是出厂值。
- * 单位是真实物理量，不是百分比或档位；实际生效值 = min(设定值, 本机硬件能力)。*/
-#define CFG_DEF_VMAX_DPS         153
-#define CFG_DEF_AMAX_DPS2       4000
-#define CFG_DEF_DMAX_DPS2       4000
-#define CFG_DEF_JMAX_DPS3    2000000
-#define CFG_DEF_MOVE_MIN_MS      55
+/* ==================== 6. 运行参数范围 ====================
+ * 范围即生效范围：写入越界的值被拒绝，读回的就是实际生效值(V/A/D 的 0 表示按额定，平滑时间的 0 表示自动取 τ)。
+ * 有物理或实现约束的上下限都由约束本身推出，不另写数字。 */
+#define CFG_TRAJ_VMAX_MAX_DPS      MOTOR_RATED_VEL_DPS   /** 速度上限=额定能力 */
+#define CFG_TRAJ_AMAX_MAX_DPS2     MOTOR_RATED_ACC_DPS2
+#define CFG_TRAJ_DMAX_MAX_DPS2     MOTOR_RATED_DEC_DPS2
+#define CFG_SMOOTH_MAX_MS          TRAJ_SMOOTH_MS_MAX    /** 平滑时间上限，ms：规划器速度滑动平均的窗口上限 */
+#define CFG_SMOOTH_MIN_MS          1U                    /** 平滑时间下限，ms(0 另外允许=自动取 τ) */
+#define CFG_MOVE_MIN_MAX_MS        TRAJ_MOVE_MIN_MS_MAX  /** 最短运动时间上限，ms */
+#define CFG_HOLD_KP_MAX            100U  /** 保持 P 上限，‰/°：设100时超出 1° 给 15% 标定电压(实际效果×1.5) */
+#define CFG_HOLD_KI_MAX            100U  /** 保持 I 上限，‰/(°·s) */
+#define CFG_RESOLUTION_MIN_CDEG    (MOTOR_MIN_STEP_CDEG * 3U / 2U)  /** 到位精度下限=1.5×最小可靠位移(与 C_PosCtrl 捕获窗同一公式) */
+#define CFG_RESOLUTION_MAX_CDEG    500U
 
-/* ==================== 6. 对象模型(派生量，不要手改) ====================
- * 一阶电机模型 dv/dt = (Kv*(u-d) - v)/tau，三个算法文件都要用。 */
-#define PLANT_NET_PWM (((CFG_PWM_FULL - CAL_FRICTION_PWM) > 0) ? (CFG_PWM_FULL - CAL_FRICTION_PWM) : 1) /** 扣除摩擦后的净PWM */
-#define PLANT_VSS_CDPS ((int32_t)(((int64_t)PLANT_NET_PWM << 16) / CAL_SPEED_SLOPE_Q16))                /** 满PWM稳态速度，厘度/秒 */
-#define PLANT_A0_CDPSS ((int32_t)(((int64_t)PLANT_VSS_CDPS * 1000) / MODEL_TAU_MS))                     /** 零速起步加速度，厘度/秒^2 */
-#define PLANT_KA_Q8_RAW ((int32_t)(((int64_t)65536 * 1000 * 256) / ((int64_t)CAL_SPEED_SLOPE_Q16 * MODEL_TAU_MS)))
-#define PLANT_KA_Q8 ((PLANT_KA_Q8_RAW > 0) ? PLANT_KA_Q8_RAW : 1)                                       /** 加速度增益，Q8 */
-#define PLANT_FF_MARGIN_PWM 250                                                                         /** 前馈之外必须留给反馈的PWM余量 */
-/* 留足反馈余量后的最大速度：速度上限、速度指令限幅都取它，不随轨迹设定变 */
-#define PLANT_VMAX_HW_CDPS ((int32_t)(((int64_t)PLANT_VSS_CDPS * (CFG_PWM_FULL - PLANT_FF_MARGIN_PWM - CAL_FRICTION_PWM)) / PLANT_NET_PWM))
-/* 对外公布的轨迹能力。计算值不低于已经验证过的出厂参数，且与硬件信息页使用同一组定义。 */
-#define PLANT_VMAX_RATIO_Q15 ((int32_t)(((int64_t)PLANT_VMAX_HW_CDPS << 15) / PLANT_VSS_CDPS))
-#define PLANT_AMAX_HW_RAW_DPS2 ((uint32_t)((((int64_t)PLANT_A0_CDPSS * (32768L - PLANT_VMAX_RATIO_Q15 / 2)) >> 15) / 100))
-#define PLANT_AMAX_HW_DPS2 ((PLANT_AMAX_HW_RAW_DPS2 > CFG_DEF_AMAX_DPS2) ? PLANT_AMAX_HW_RAW_DPS2 : CFG_DEF_AMAX_DPS2)
-#define PLANT_DMAX_HW_RAW_DPS2 ((uint32_t)(((int64_t)(CFG_PWM_FULL - PLANT_FF_MARGIN_PWM) * 65536 * 1000 * 256) / ((int64_t)CAL_SPEED_SLOPE_Q16 * MODEL_TAU_MS * MODEL_BRAKE_GAIN_Q8) / 100))
-#define PLANT_DMAX_HW_DPS2 ((PLANT_DMAX_HW_RAW_DPS2 > CFG_DEF_DMAX_DPS2) ? PLANT_DMAX_HW_RAW_DPS2 : CFG_DEF_DMAX_DPS2)
-#define PLANT_JMAX_HW_RAW_DPS3 ((uint32_t)PLANT_AMAX_HW_DPS2 * 500U)
-#define PLANT_JMAX_HW_MODEL_DPS3 ((PLANT_JMAX_HW_RAW_DPS3 > 2000000U) ? 2000000U : PLANT_JMAX_HW_RAW_DPS3)
-#define PLANT_JMAX_HW_DPS3 ((PLANT_JMAX_HW_MODEL_DPS3 > CFG_DEF_JMAX_DPS3) ? PLANT_JMAX_HW_MODEL_DPS3 : CFG_DEF_JMAX_DPS3)
-/* 最小有意义的速度指令：比它还小的指令分辨不出方向，摩擦前馈和观测器都拿它当零速刻度 */
-#define PLANT_WCMD_MIN_CDPS (TUNE_STIFFNESS_RADS * CAL_MIN_STEP_CDEG / 4)
-/* 调参约束自动满足：积分零点不高于位置环带宽，观测器至少比速度环快3倍(不够就抬，受第7节纯延迟上限约束) */
-#define PLANT_INTEGRAL_RADS ((TUNE_INTEGRAL_RADS < TUNE_STIFFNESS_RADS) ? TUNE_INTEGRAL_RADS : TUNE_STIFFNESS_RADS)
-#define PLANT_VEL_BW_RADS   (TUNE_STIFFNESS_RADS * TUNE_DAMPING / 10)
-#define PLANT_OBS_BW_MIN_HZ ((PLANT_VEL_BW_RADS * 30000L + 62831L) / 62832L)
-#define PLANT_OBS_BW_HZ     ((TUNE_OBS_BW_HZ > PLANT_OBS_BW_MIN_HZ) ? TUNE_OBS_BW_HZ : PLANT_OBS_BW_MIN_HZ)
-/* 观测器把位置抖动微分成速度噪声，噪声底 ≈ 观测器带宽 * 最小可靠位移 * 3/8；所有速度阈值以它为刻度 */
-#define PLANT_VEL_NOISE_CDPS (PLANT_OBS_BW_HZ * CAL_MIN_STEP_CDEG * 3 / 8)
+/* 速度噪声底：观测器把读数噪声微分成速度噪声，所有静止判据、速度死区以它为刻度。
+ * 白噪声下速度噪声峰值 ≈ 2 × 观测器带宽 × 读数噪声(3σ)；实机读数有尖峰、且噪声随电位器位置变化(静止时观测速度
+ * 偶到300~400)，取3倍。另不低于按最小可靠位移估的量。只按最小步长算时，步长标得小(13)会把它压到100左右，
+ * 低于实际噪声，静止判据长期不成立：进不了保持，积分追着噪声来回挪 */
+#define CTRL_VEL_NOISE_STEP (TUNE_OBS_BW_HZ * MOTOR_MIN_STEP_CDEG * 3 / 8)
+#define CTRL_VEL_NOISE_READ (TUNE_OBS_BW_HZ * MOTOR_NOISE_CDEG * 3)
+#define CTRL_VEL_NOISE_CDPS ((CTRL_VEL_NOISE_STEP > CTRL_VEL_NOISE_READ) ? CTRL_VEL_NOISE_STEP : CTRL_VEL_NOISE_READ)
 
-/* ==================== 7. 编译期断言 ==================== */
-/* 观测器带宽上限：纯延迟 L 的相位裕度要求 2*pi*f*(2L+1)*T <= 1 */
-_Static_assert (PLANT_OBS_BW_HZ * 62832L * (2 * MODEL_DELAY_TICKS + 1) <= CFG_TICK_HZ * 10000L,
-                "观测器带宽超过纯延迟允许的上限(位置环/速度环带宽太高，观测器被自动抬到了延迟上限之外)");
-_Static_assert (TUNE_DAMPING >= 20, "速度环没有比位置环快2倍");
-_Static_assert (CAL_MIN_STEP_CDEG >= 1, "最小可靠位移必须>=1厘度");
-_Static_assert (TUNE_ACCEL_MIN_MS * 2 >= 2 * MODEL_DELAY_TICKS + 1, "加速段短于纯延迟，等于加速度阶跃");
-_Static_assert (CFG_DEF_HOLD_STIFF <= CFG_HOLD_STIFF_MAX, "保持刚度默认值超出 0~12");
-_Static_assert (TUNE_RESOLUTION_CDEG >= 1 && MODEL_TAU_MS > 0 && CAL_SPEED_SLOPE_Q16 > 0,
-                "标定值非法(分辨率/时间常数/速度斜率)");
-_Static_assert (CAL_MOTOR_SIGN == 1 || CAL_MOTOR_SIGN == -1, "电机符号只能是 +1 或 -1");
-_Static_assert (CAL_FRICTION_PWM < CFG_PWM_FULL && CAL_BREAKAWAY_PWM < CFG_PWM_FULL,
-                "摩擦/起转PWM超过满量程");
-/* 默认最大速度不得超过本机硬件上限，否则上电时 Config_Repair 会把它修回出厂值，
- * 而出厂值本身又非法。判据必须和 Config_Repair 里的那一条逐字相同。 */
-_Static_assert ((int32_t)CFG_DEF_VMAX_DPS * 100 <= PLANT_VMAX_HW_CDPS,
-                "CFG_DEF_VMAX_DPS 超过本机硬件上限(PLANT_VMAX_HW_CDPS/100 度/秒)");
+_Static_assert(MOTOR_KV_UV > 0 && MOTOR_KA_NV > 0 && MOTOR_FS_MV >= MOTOR_FC_MV && MOTOR_DELAY_US < 7000
+               && MOTOR_CAL_MV > 0 && MOTOR_MIN_STEP_CDEG >= 1, "Invalid motor calibration");
+_Static_assert(MOTOR_SIGN == 1 || MOTOR_SIGN == -1, "Invalid motor direction");
+_Static_assert(TUNE_POS_BW_RADS * 4U <= TUNE_VEL_BW_RADS && TUNE_INT_BW_RADS <= TUNE_POS_BW_RADS && TUNE_INT_BW_RADS >= 1U
+               && TUNE_VEL_BW_RADS * 1000U <= TUNE_OBS_BW_HZ * 6283U, "Controller bandwidths violate constraints");
+_Static_assert(CFG_DEF_RESOLUTION_CDEG >= CFG_RESOLUTION_MIN_CDEG && CFG_DEF_RESOLUTION_CDEG <= CFG_RESOLUTION_MAX_CDEG
+               && CFG_RESOLUTION_MIN_CDEG >= 1U
+               && CFG_DEF_HOLD_KP <= CFG_HOLD_KP_MAX
+               && CFG_DEF_HOLD_KI <= CFG_HOLD_KI_MAX
+               && (CFG_DEF_SMOOTH_MS == 0U || (CFG_DEF_SMOOTH_MS >= CFG_SMOOTH_MIN_MS && CFG_DEF_SMOOTH_MS <= CFG_SMOOTH_MAX_MS))
+               && CFG_DEF_MOVE_MIN_MS <= CFG_MOVE_MIN_MAX_MS,
+               "Invalid default motion/hold parameters");
+/* 平滑时间：下限要在上限之内；自动值 τ = ka/kv 也不能超过接管段上限 */
+_Static_assert(CFG_SMOOTH_MIN_MS >= 1U && CFG_SMOOTH_MIN_MS <= CFG_SMOOTH_MAX_MS
+               && (MOTOR_KA_NV + MOTOR_KV_UV - 1) / MOTOR_KV_UV <= CFG_SMOOTH_MAX_MS, "Invalid smoothing time range");
 
 /*
  * ==================== 8. 掉电保存参数与访问接口 ====================
@@ -160,24 +161,25 @@ typedef struct {
     uint16_t pulse_hi;             /** SMX 标定的脉冲上界，500~2500，须 > pulse_lo */
     uint16_t cal_anchor_cdeg;      /** 校准锚点的编码器原始角度，厘度 */
     /* ---- 新增字段从这里往下追加 ---- */
-    uint32_t traj_amax_dps2;       /** 轨迹最大加速度，度/秒^2；0=硬件最大值 */
-    uint32_t traj_dmax_dps2;       /** 轨迹最大减速度，度/秒^2；0=硬件最大值 */
-    uint32_t traj_jmax_dps3;       /** 轨迹最大加加速度，度/秒^3；0=硬件最大值 */
-    uint16_t traj_vmax_dps;        /** 轨迹最大速度，度/秒；0=硬件最大值 */
-    uint16_t traj_move_min_ms;     /** 小位移最短运动时间，ms；0=关闭 */
+    uint32_t traj_amax_dps2;       /** 轨迹最大加速度，度/秒^2，≤额定；0=按额定 */
+    uint32_t traj_dmax_dps2;       /** 轨迹最大减速度，度/秒^2，≤额定；0=按额定 */
+    uint16_t traj_vmax_dps;        /** 轨迹最大速度，度/秒，≤额定；0=按额定 */
+    uint16_t traj_smooth_ms;       /** S曲线平滑时间(加速度0→A)，ms；0=自动(τ)，或 CFG_SMOOTH_MIN_MS~200 */
+    uint16_t traj_move_min_ms;     /** 最短运动时间，ms；0=关闭。每段运动至少走这么久，小动作按比例降低 V/A/J */
     uint16_t prot_current_limit_ma;/** 过流保护阈值，mA */
     uint16_t prot_current_time_ms; /** 过流超过阈值后持续多久触发，ms */
     uint16_t prot_temp_limit_dC;   /** 过温保护阈值，0.1摄氏度 */
     uint16_t prot_temp_time_ms;    /** 过温超过阈值后持续多久触发，ms */
-    uint16_t prot_stall_ref_cdeg;  /** 堵转判定：参考位移下限，厘度/20ms */
-    uint16_t prot_stall_act_cdeg;  /** 堵转判定：实际位移上限，厘度/20ms */
+    uint16_t prot_stall_act_cdeg;  /** 堵转判定：实际位移上限，厘度/20ms；参考位移阈值固定为它的 PROT_STALL_REF_RATIO 倍 */
     uint16_t prot_stall_trip;      /** 连续多少次成立后判堵转 */
-    uint16_t reserved0;            /** 显式占满32位对齐尾部，固定为0 */
-    uint8_t  hold_stiff;           /** 到位保持刚度，0~12 PWM/厘度，0=关闭 */
-    uint8_t  reserved1[3];         /** 尾部对齐占位，全部固定为0 */
-    uint8_t  protect_enable;       /** 保护功能位：温度/电流/堵转/电压 */
+    uint16_t position_resolution_cdeg; /** 到位精度，厘度，CFG_RESOLUTION_MIN_CDEG~500 */
+    uint16_t hold_kp;              /** 保持 P，‰/°，0~CFG_HOLD_KP_MAX */
+    uint16_t reserved0;            /** 保留(原齿隙，布局不变) */
+    uint16_t hold_ki;              /** 保持 I，‰/(°·s)，0~CFG_HOLD_KI_MAX；0=积分不动 */
+    uint8_t  protect_enable;       /** 保护功能位：bit0温度 bit1电流 bit2堵转 bit3电压，0~15 */
     uint8_t  voltage_min_dv;       /** 最低工作电压，0.1V */
     uint8_t  voltage_max_dv;       /** 最高工作电压，0.1V */
+    uint8_t  reserved1;            /** 对齐保留 */
     uint16_t min_start_torque_ckgcm; /** 最小启动扭矩，0.01 kgf·cm；0=关闭门槛 */
     uint32_t image_tag;            /** 写入这份参数的固件镜像指纹；与当前固件不同=刚换过固件，见 A_Config_Init */
 } Config_t;
@@ -188,23 +190,24 @@ typedef struct {
     uint16_t torque_limit_ckgcm;   /* 扭矩上限，0.01 kgf·cm */
     uint32_t traj_amax_dps2;
     uint32_t traj_dmax_dps2;
-    uint32_t traj_jmax_dps3;
     uint16_t traj_vmax_dps;
+    uint16_t traj_smooth_ms;
     uint16_t traj_move_min_ms;
     uint16_t prot_current_limit_ma;
     uint16_t prot_current_time_ms;
     uint16_t prot_temp_limit_dC;
     uint16_t prot_temp_time_ms;
-    uint16_t prot_stall_ref_cdeg;
     uint16_t prot_stall_act_cdeg;
     uint16_t prot_stall_trip;
-    uint8_t  hold_stiff;
+    uint16_t hold_kp;
+    uint16_t hold_ki;
     uint8_t  protect_enable;
     uint8_t  voltage_min_dv;
     uint8_t  voltage_max_dv;
     uint16_t min_start_torque_ckgcm; /* 最小启动扭矩，0.01 kgf·cm */
     uint8_t  torque_mode;          /** 0=自由释放，1=正常，2=自定义阻尼 */
     uint8_t  damping_percent;      /** 自定义阻尼占空比，0~100 */
+    uint16_t position_resolution_cdeg;
 } RuntimeConfig_t;
 
 extern Config_t        g_config;         /** Flash 参数实例，修改后须 MarkDirty */
@@ -212,9 +215,9 @@ extern RuntimeConfig_t g_runtime_config; /** SRAM 实时参数实例，不自动
 
 uint16_t A_Config_TorqueMax(void); /* 硬件扭矩上限，0.01 kgf·cm；无有效硬件页时按FW_TORQUE */
 void     A_Config_Init(void);                             /* 上电加载；同一固件非法字段单独修复，换过固件或坏页回默认并保留ID与波特率 */
-void     A_Config_Default(uint8_t keep_id);               /* 恢复默认，keep_id=1保留ID */
+void     A_Config_Default(uint8_t keep_id);                /* 用户恢复默认：非0仅保留ID；0全部恢复；波特率均回115200 */
 void     A_Config_MarkDirty(void);                        /* 登记改动，唤醒保存任务，不在指令路径写Flash */
-void     A_Config_SaveTask(void);                         /* 最低优先级任务：参数变脏时落盘 */
+uint8_t  A_Config_SaveTask(void);                         /* 参数变脏时落盘；1=已保存/无待保存，0=失败待重试 */
 void     A_Config_BindSaveEvent(volatile uint8_t *event); /* 绑定保存任务的run标志 */
 uint32_t A_Config_Baudrate(void);                         /* baud_code换算为实际波特率 */
 void     A_Config_ReloadRuntime(uint8_t reset_transient); /* Flash参数复制到SRAM；非0同时恢复运行模式默认值 */

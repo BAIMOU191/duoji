@@ -2,8 +2,9 @@
 #define __A_PROTECT_H__
 
 #include <stdint.h>
+#include "A_Config.h"   /* 堵转阈值上限按额定速度推出 */
 
-/* A_Protect.h —— 保护与功率限制，一个10ms任务内分频；详见 docs/ALGORITHM_NOTES.md。 */
+/* A_Protect.h —— 保护与功率限制，一个10ms任务内分频。 */
 
 /* 设置、上报与启动门槛统一使用0.01 kgf·cm；换算参数实测后在此调整。 */
 #define TORQUE_IDLE_CURRENT_MA   100U  /* 空载损耗电流，暂取0.1A */
@@ -62,13 +63,13 @@ static inline uint16_t A_Torque_CurrentLimit(uint16_t torque_ckgcm,
 #define PROT_ENABLE_CURRENT  0x02U
 #define PROT_ENABLE_STALL    0x04U
 #define PROT_ENABLE_VOLTAGE  0x08U
-#define PROT_ENABLE_IMPLEMENTED 0x0FU
+#define PROT_ENABLE_IMPLEMENTED 0x0FU   /** 已实现的功能位，也是对外取值上限 */
 #define PROT_ENABLE_DEFAULT     0x0FU
 
-/* 工作电压单位为0.1V；用户设置范围为5.0~9.0V，采样边界额外保留0.2V内部容差。 */
-#define PROT_VOLTAGE_MIN_DEFAULT_DV 50U
+/* 工作电压单位为0.1V；用户设置范围为6.0~9.0V，采样有效边界仍为4.8~9.2V。 */
+#define PROT_VOLTAGE_MIN_DEFAULT_DV 60U
 #define PROT_VOLTAGE_MAX_DEFAULT_DV 90U
-#define PROT_VOLTAGE_CFG_MIN_DV     50U
+#define PROT_VOLTAGE_CFG_MIN_DV     60U
 #define PROT_VOLTAGE_CFG_MAX_DV     90U
 #define PROT_VOLTAGE_ABS_MIN_DV     48U
 #define PROT_VOLTAGE_ABS_MAX_DV     92U
@@ -76,18 +77,23 @@ static inline uint16_t A_Torque_CurrentLimit(uint16_t torque_ckgcm,
 #define PROT_VOLTAGE_TRIP_MS        50U
 #define PROT_VOLTAGE_RECOVER_MS    500U
 
-/* 堵转：每 PROT_STALL_PERIOD_MS 采一次参考与实际位移，连续达到配置次数才判定。
- * REF 取 ACT 的4倍避免含糊地带。触发后就地保持，不卸力、不记故障位(被按住或撞限位是可恢复事件)。 */
+/* 上下各留回差后仍须有恢复区间，不能只剩一个采样点。协议与开机修复共用。 */
+static inline uint8_t A_Protect_VoltageRangeValid(uint16_t lo, uint16_t hi)
+{
+    return (uint8_t)(lo >= PROT_VOLTAGE_CFG_MIN_DV && hi <= PROT_VOLTAGE_CFG_MAX_DV
+                 && lo + 2U * PROT_VOLTAGE_HYST_DV < hi);
+}
+
+/* 堵转：每 PROT_STALL_PERIOD_MS 采一次参考与实际位移，连续达到配置次数才判定。对外只有实际位移阈值，
+ * 参考位移阈值固定为它的 PROT_STALL_REF_RATIO 倍，两者拉开避免含糊地带。触发后就地保持，不卸力、不记故障位
+ * (被按住或撞限位是可恢复事件)。 */
 #define PROT_STALL_PERIOD_MS          20U /** 堵转检测周期(ms)，须是10ms基拍的整数倍 */
-#define PROT_STALL_REF_DEFAULT_CDEG  128U /** 出厂参考位移阈值，厘度/周期 */
-#define PROT_STALL_REF_MIN_CDEG       40U /** 用户可设参考位移阈值下限 */
-#define PROT_STALL_REF_MAX_CDEG     1000U /** 用户可设参考位移阈值上限 */
+#define PROT_STALL_REF_RATIO           4U /** 参考位移阈值 = 实际位移阈值 × 它 */
 #define PROT_STALL_ACT_DEFAULT_CDEG   32U /** 出厂实际位移阈值，厘度/周期 */
-#define PROT_STALL_ACT_MIN_CDEG        1U /** 用户可设实际位移阈值下限 */
-#define PROT_STALL_ACT_MAX_CDEG      500U /** 用户可设实际位移阈值上限 */
-#define PROT_STALL_THRESHOLD_DEFAULT_CDEG PROT_STALL_ACT_DEFAULT_CDEG
-#define PROT_STALL_THRESHOLD_MIN_CDEG     10U /** 对外单一阈值；内部参考阈值固定为它的4倍 */
-#define PROT_STALL_THRESHOLD_MAX_CDEG    250U
+#define PROT_STALL_THRESHOLD_MIN_CDEG 10U /** 对外阈值(实际位移)下限 */
+/** 对外阈值上限：参考阈值不能超过额定速度一个周期走的距离，否则"参考在走"永远不成立，只剩饱和冻结一条判据 */
+#define PROT_STALL_THRESHOLD_MAX_CDEG ((uint16_t)((uint32_t)MOTOR_RATED_VEL_DPS * 100U * PROT_STALL_PERIOD_MS / 1000U \
+                                                  / PROT_STALL_REF_RATIO))
 #define PROT_STALL_TRIP_DEFAULT        5U /** 出厂连续判定次数，5x20=100ms */
 #define PROT_STALL_TRIP_MIN            1U /** 用户可设连续次数下限 */
 #define PROT_STALL_TRIP_MAX          100U /** 用户可设连续次数上限 */
@@ -101,7 +107,7 @@ static inline uint16_t A_Torque_CurrentLimit(uint16_t torque_ckgcm,
 #define PROT_FAULT_OVERVOLT    0x0010U /** 过压 */
 #define PROT_FAULT_VOLT_INVALID 0x0020U /** 电压采样尚无有效值 */
 
-void    A_Protect_Init(void);                 /* 须在A_Servo_Init之后调用 */
+void    A_Protect_Init(void);                 /* 须在电机输出入口初始化后调用 */
 void    A_Protect_Task(void);                 /* 10ms任务入口 */
 uint8_t A_Protect_SetTorque(uint16_t torque_ckgcm); /* 设扭矩上限并落盘，单位0.01 kgf·cm */
 uint16_t A_Protect_GetTorque(void);          /* 读已生效扭矩上限，0.01 kgf·cm */

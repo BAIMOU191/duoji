@@ -1,8 +1,8 @@
 Application/A_Calib_Min.o: ../Application/A_Calib_Min.c \
  ../Application/A_Calib_Min.h ../Application/A_Config.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Task_Scheduler.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_motor.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_tim.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Traj_Planner.h \
+ ../Application/A_Sensor.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_adc.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Peripheral/inc/ch32v00X.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Core/core_riscv.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/System/system_ch32v00X.h \
@@ -26,17 +26,19 @@ Application/A_Calib_Min.o: ../Application/A_Calib_Min.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Peripheral/inc/ch32v00X_wwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Peripheral/inc/ch32v00X_opa.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Peripheral/inc/ch32v00X.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_adc.h \
- ../Application/A_Sensor.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Fixed.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Task_Scheduler.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_motor.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_tim.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_iwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_uart.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Ring_Buf.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/System/iap.h
 ../Application/A_Calib_Min.h:
 ../Application/A_Config.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Task_Scheduler.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_motor.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_tim.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Traj_Planner.h:
+../Application/A_Sensor.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_adc.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Peripheral/inc/ch32v00X.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Core/core_riscv.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/System/system_ch32v00X.h:
@@ -60,8 +62,10 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Peripheral/inc/ch32v00X_u
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Peripheral/inc/ch32v00X_wwdg.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Peripheral/inc/ch32v00X_opa.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/SRC/Peripheral/inc/ch32v00X.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_adc.h:
-../Application/A_Sensor.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Fixed.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Task_Scheduler.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_motor.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_tim.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_iwdg.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_uart.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Ring_Buf.h:

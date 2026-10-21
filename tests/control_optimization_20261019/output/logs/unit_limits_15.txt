@@ -1,0 +1,4 @@
+PASS hard_limit_grid cases=714
+PASS arrival_event_separate_from_holding_and_fresh_motion
+PASS zero_distance_target_while_already_holding
+PASS stop_resynchronizes_while_arrival_event_already_set

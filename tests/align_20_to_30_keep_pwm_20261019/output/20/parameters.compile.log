@@ -1,0 +1,11 @@
+In file included from C:\Users\Admin\Desktop\duoji\tests\replan_20kg_impl_20261019\protocol_fixture.c:1,
+                 from C:\Users\Admin\Desktop\duoji\tests\replan_20kg_impl_20261019\parameters.c:2:
+C:\Users\Admin\Desktop\duoji\tests\replan_20kg_impl_20261019\variant_alignment_sim.c: In function 'record_timed':
+C:\Users\Admin\Desktop\duoji\tests\replan_20kg_impl_20261019\variant_alignment_sim.c:41:72: error: implicit declaration of function 'C_Traj_PlanTimed'; did you mean 'C_Traj_Plan'? [-Wimplicit-function-declaration]
+   41 | static void record_timed(int32_t target,uint16_t ms) { last_plan_ms=ms;C_Traj_PlanTimed(target,ms); }
+      |                                                                        ^~~~~~~~~~~~~~~~
+      |                                                                        C_Traj_Plan
+C:\Users\Admin\Desktop\duoji\tests\replan_20kg_impl_20261019\variant_alignment_sim.c: At top level:
+C:\Users\Admin\Desktop\duoji\tests\replan_20kg_impl_20261019\variant_alignment_sim.c:41:13: warning: 'record_timed' defined but not used [-Wunused-function]
+   41 | static void record_timed(int32_t target,uint16_t ms) { last_plan_ms=ms;C_Traj_PlanTimed(target,ms); }
+      |             ^~~~~~~~~~~~

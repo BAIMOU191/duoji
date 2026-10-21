@@ -46,6 +46,7 @@
   </table>
   <p>波特率档位：1=9600、2=19200、3=38400、4=57600、5=115200、6=128000、7=256000、8=1000000。升级成功后APP恢复到升级前保留的档位；若升级前A/B参数页均无效且没有有效IAP快照，则新APP采用代码默认值：ID 0、档位5。</p>
   <div class="bad note"><strong>总线要求：</strong>建议升级时只连接一台舵机。Boot帧不含ID，多台设备同时停在Boot会同时应答并同时写入。广播查询ID 255也只能在单机连接时使用。</div>
+  <div class="note"><strong>进入Boot前保存：</strong>APP先用当前波特率发完进入升级应答，再确认待保存参数写入Flash成功，保证Boot快照取得最新ID和波特率；保存失败时留在APP重试，不提前复位。</div>
   <div class="note"><strong>ID 255限制：</strong>ID 255只允许用于 <code>CMD=20</code> 查询实际ID。进入升级及升级脚本的 <code>--id</code> 参数必须使用0～254，不能使用广播ID 255。</div>
 
   <h2 id="frame">二、通用帧格式</h2>

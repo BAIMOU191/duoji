@@ -1,51 +1,46 @@
+/* C_Traj_Planner.h 在线轨迹规划器，固定1ms，纯算法
+ *
+ * 两级，点到点、带时间、连续轨迹共用同一套：
+ *   1. 跟踪器：速度朝终点走，受 速度上限/加速度/减速度 约束，按制动曲线 v ≤ √(2·D·剩余距离) 刚好停在终点，
+ *      新目标随时接上(从当前位置、速度继续，不先停)。
+ *   2. 平滑：对跟踪器速度做长度=平滑时间的滑动平均。加速度变成斜坡(加加速度 ≤ A/平滑时间)，
+ *      曲线单调、终点不变、不会过冲；代价是整段多走一个平滑时间。
+ * 三种用法只是第1级的参数不同：
+ *   Plan(点到点/带时间)：时长取 max(T, 最短运动时间)，比最快走法长时 V/λ、A/λ²、D/λ² 整体放慢。
+ *   Follow(连续轨迹)：速度 = 平均指令速度 + (剩余距离 − 速度·展望)/(2·展望)，A、D 用全值；指令到达早晚不均时速度也平稳。
+ *   Stop：按减速度刹停，不回拉。
+ * 只认用户上限，不含电机能力；运行中由 hold(饱和且落后)冻结时钟兜底。
+ * 每拍只有乘加移位(制动段多一次整数开方)，除法只在 Plan/Follow/SetLimits 里。单位：厘度、厘度/秒、厘度/秒^2。 */
 #ifndef __C_TRAJ_PLANNER_H__
 #define __C_TRAJ_PLANNER_H__
 
 #include <stdint.h>
 
-/*
- * C_Traj_Planner —— 在线jerk受限S曲线规划器
- *
- * 加速过渡—匀速—减速过渡，受最大速度/加速度/减速度/加加速度四个上限约束(标准七段式的在线形式)：
- * 速度差够大时过渡段加速度为梯形，否则为三角形。加速侧还受硬件可用加速度、减速侧受硬件制动上限约束。
- * 每次Plan以当前参考状态为起点求最短轨迹，请求时间更长时整体拉伸(速度/lambda，加速度/lambda^2)。
- * 单位：位置厘度，速度厘度/秒，加速度厘度/秒^2。每拍只做乘加移位，除法和开方只在Plan里。
- */
-
-/* C_Traj_Set_Limits 接受的范围，超出自动夹紧。速度上限是本机硬件值 PLANT_VMAX_HW_CDPS。 */
+#define TRAJ_VMAX_MIN_CDPS       1L
+#define TRAJ_VMAX_MAX_CDPS  100000L        /* 1000度/秒 */
 #define TRAJ_AMAX_MIN_CDPSS    100L        /* 1度/秒^2 */
-#define TRAJ_AMAX_MAX_CDPSS   10000000L    /* 100000度/秒^2 */
-#define TRAJ_JMAX_MIN_CDPSS3    100L       /* 1度/秒^3 */
-#define TRAJ_JMAX_MAX_CDPSS3  200000000L   /* 2000000度/秒^3，此时斜坡短于1拍=加速度阶跃 */
+#define TRAJ_AMAX_MAX_CDPSS 10000000L      /* 100000度/秒^2 */
+#define TRAJ_MOVE_MIN_MS_MAX    500U
+#define TRAJ_SMOOTH_MS_MAX      200U       /* 平滑时间上限，ms：滑动平均窗口长度(占 2 字节/ms 的RAM) */
 
 typedef struct {
-    int32_t pos;
-    int32_t vel;
-    int32_t acc;
+    int32_t pos, vel, acc;
+    uint8_t done;           /* 1 = 参考已静止在终点 */
 } TrajRef_t;
 
-/* 初始化并停在 init_pos，轨迹上限取 A_Config.h 的出厂默认值(随后由 A_Servo 按 Flash 参数下发) */
-void C_Traj_Init(int32_t init_pos);
-
-/* 设置轨迹上限：速度厘度/秒、加速度与减速度厘度/秒^2、加加速度厘度/秒^3；后三项为0时取对应硬件最大值，
- * 超出可设范围自动夹紧，下一次Plan生效 */
-void C_Traj_Set_Limits(int32_t vmax_cdps, int32_t amax_cdpss, int32_t dmax_cdpss, int32_t jmax_cdpss3);
-void C_Traj_Set_MoveMinMs(uint16_t move_min_ms); /* 0=关闭，最大200ms，下一次Plan生效 */
-
-/* 对象加速度增益比(Q12，4096=标定值，>1 表示负载更重)：硬件加速度/制动上限按它缩小，下一次 Plan 起生效 */
-void C_Traj_SetPlant(int32_t ka_q12);
-
-/* 设置不可跨越的行程[lo,hi]，参考被夹入范围并停住；不走最短路径，不穿越死区 */
-void C_Traj_Set_Range(int32_t lo, int32_t hi);
-void C_Traj_Hold(int32_t pos); /* 立即在指定位置停住，用于暂停/停止 */
-
-/* 从当前参考规划到target_pos；time_ms=0或不可达时取最快，更长时均匀拉伸 */
-void C_Traj_Plan(int32_t target_pos, uint16_t time_ms);
-
-/* 推进1拍；hold非0时冻结轨迹时钟(饱和且落后)，减速段不冻结 */
-void C_Traj_Step(TrajRef_t *out, uint8_t hold);
-
+void    C_Traj_Init(int32_t pos);
+/* 速度、加速度、减速度上限超出范围自动夹紧，下一次 Plan 生效；平滑时间(ms，1~200)在参考静止时生效 */
+void    C_Traj_SetLimits(int32_t vel, int32_t acc, int32_t dec, uint16_t smooth_ms);
+/* 最短运动时间(ms，0=关闭，含平滑时间)：每段 Plan 至少走这么久(带时间的取两者较大)，按整体拉伸降低 V/A/D */
+void    C_Traj_SetMoveMinMs(uint16_t ms);
+void    C_Traj_SetRange(int32_t lo, int32_t hi);   /* 不可跨越的行程；参考夹进范围并停住 */
+void    C_Traj_SetRangeOpen(int32_t lo, int32_t hi); /* 扩展范围，不打断当前参考 */
+int32_t C_Traj_GetPos(void);                       /* 第1级(跟踪器)当前位置：新规划的起点 */
+void    C_Traj_Hold(int32_t pos);                  /* 立即静止在 pos，清空平滑窗口 */
+void    C_Traj_Plan(int32_t target, uint16_t time_ms);   /* 点到点；time_ms=到达时间(0=最快)，含平滑时间 */
+void    C_Traj_Follow(int32_t target, int32_t vel_cdps, uint16_t horizon_ms); /* 连续轨迹：按平均指令速度走，滞后偏离 速度·horizon 的部分慢慢追平 */
+void    C_Traj_Stop(void);                         /* 按减速度刹停，不回拉 */
+void    C_Traj_Step(TrajRef_t *out, uint8_t hold); /* hold=1：非减速时冻结时钟一拍 */
 uint8_t C_Traj_Is_Done(void);
-uint16_t C_Traj_Get_Ticks(void);
 
 #endif /* __C_TRAJ_PLANNER_H__ */

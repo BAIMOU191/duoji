@@ -1,0 +1,762 @@
+{
+  "baseline": {
+    "15": {
+      "out": 48,
+      "ring": 203.0,
+      "os_med": 7.095,
+      "os_p90": 18.0,
+      "os_max": 217.51,
+      "fault": 16.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 11179.0,
+      "capture_maxdu": 369.0
+    },
+    "20": {
+      "out": 41,
+      "ring": 162.0,
+      "os_med": 5.485,
+      "os_p90": 14.64,
+      "os_max": 132.06,
+      "fault": 15.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 9251.0,
+      "capture_maxdu": 745.0
+    },
+    "30": {
+      "out": 60,
+      "ring": 258.0,
+      "os_med": 4.1850000000000005,
+      "os_p90": 7.7,
+      "os_max": 253.15,
+      "fault": 3.0,
+      "stall": 2.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6042.0,
+      "capture_maxdu": 235.0
+    }
+  },
+  "capture": {
+    "15": {
+      "out": 16,
+      "ring": 189.0,
+      "os_med": 7.095,
+      "os_p90": 18.0,
+      "os_max": 217.51,
+      "fault": 16.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 11179.0,
+      "capture_maxdu": 362.0
+    },
+    "20": {
+      "out": 21,
+      "ring": 214.0,
+      "os_med": 5.47,
+      "os_p90": 13.16,
+      "os_max": 132.06,
+      "fault": 14.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 9251.0,
+      "capture_maxdu": 359.0
+    },
+    "30": {
+      "out": 23,
+      "ring": 276.0,
+      "os_med": 4.1850000000000005,
+      "os_p90": 7.7,
+      "os_max": 253.15,
+      "fault": 3.0,
+      "stall": 2.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6042.0,
+      "capture_maxdu": 203.0
+    }
+  },
+  "feedback": {
+    "15": {
+      "out": 14,
+      "ring": 211.0,
+      "os_med": 6.94,
+      "os_p90": 17.86,
+      "os_max": 96.11,
+      "fault": 12.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 13028.0,
+      "capture_maxdu": 518.0
+    },
+    "20": {
+      "out": 16,
+      "ring": 211.0,
+      "os_med": 5.41,
+      "os_p90": 12.97,
+      "os_max": 259.93,
+      "fault": 18.0,
+      "stall": 4.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 12053.0,
+      "capture_maxdu": 548.0
+    },
+    "30": {
+      "out": 15,
+      "ring": 233.0,
+      "os_med": 3.4450000000000003,
+      "os_p90": 7.46,
+      "os_max": 20.88,
+      "fault": 2.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6581.0,
+      "capture_maxdu": 368.0
+    }
+  },
+  "inertia1": {
+    "15": {
+      "out": 15,
+      "ring": 94.0,
+      "os_med": 6.775,
+      "os_p90": 17.49,
+      "os_max": 190.91,
+      "fault": 19.0,
+      "stall": 4.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6180.0,
+      "capture_maxdu": 310.0
+    },
+    "20": {
+      "out": 19,
+      "ring": 147.0,
+      "os_med": 5.175,
+      "os_p90": 17.44,
+      "os_max": 242.76,
+      "fault": 14.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 4082.0,
+      "capture_maxdu": 395.0
+    },
+    "30": {
+      "out": 16,
+      "ring": 126.0,
+      "os_med": 3.5149999999999997,
+      "os_p90": 7.13,
+      "os_max": 158.1,
+      "fault": 4.0,
+      "stall": 4.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6969.0,
+      "capture_maxdu": 295.0
+    }
+  },
+  "inertia2": {
+    "15": {
+      "out": 18,
+      "ring": 94.0,
+      "os_med": 6.72,
+      "os_p90": 15.72,
+      "os_max": 168.48,
+      "fault": 19.0,
+      "stall": 5.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 5693.0,
+      "capture_maxdu": 324.0
+    },
+    "20": {
+      "out": 23,
+      "ring": 76.0,
+      "os_med": 5.085,
+      "os_p90": 18.43,
+      "os_max": 131.52,
+      "fault": 15.0,
+      "stall": 4.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 4345.0,
+      "capture_maxdu": 439.0
+    },
+    "30": {
+      "out": 16,
+      "ring": 101.0,
+      "os_med": 3.91,
+      "os_p90": 8.2,
+      "os_max": 19.03,
+      "fault": 1.0,
+      "stall": 2.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6640.0,
+      "capture_maxdu": 208.0
+    }
+  },
+  "limits": {
+    "15": {
+      "out": 9,
+      "ring": 104.0,
+      "os_med": 7.59,
+      "os_p90": 18.73,
+      "os_max": 68.74,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 11498.0,
+      "capture_maxdu": 293.0
+    },
+    "20": {
+      "out": 16,
+      "ring": 146.0,
+      "os_med": 5.8149999999999995,
+      "os_p90": 13.55,
+      "os_max": 44.36,
+      "fault": 0.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 10309.0,
+      "capture_maxdu": 468.0
+    },
+    "30": {
+      "out": 13,
+      "ring": 125.0,
+      "os_med": 3.795,
+      "os_p90": 8.48,
+      "os_max": 21.49,
+      "fault": 0.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 7349.0,
+      "capture_maxdu": 295.0
+    }
+  },
+  "load_profile": {
+    "15": {
+      "out": 11,
+      "ring": 99.0,
+      "os_med": 5.975,
+      "os_p90": 17.12,
+      "os_max": 63.66,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 11678.0,
+      "capture_maxdu": 448.0
+    },
+    "20": {
+      "out": 12,
+      "ring": 145.0,
+      "os_med": 4.4,
+      "os_p90": 11.96,
+      "os_max": 42.12,
+      "fault": 0.0,
+      "stall": 5.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 11008.0,
+      "capture_maxdu": 611.0
+    },
+    "30": {
+      "out": 13,
+      "ring": 129.0,
+      "os_med": 3.745,
+      "os_p90": 8.42,
+      "os_max": 20.36,
+      "fault": 0.0,
+      "stall": 2.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 7178.0,
+      "capture_maxdu": 325.0
+    }
+  },
+  "load25": {
+    "15": {
+      "out": 10,
+      "ring": 114.0,
+      "os_med": 3.215,
+      "os_p90": 11.64,
+      "os_max": 41.66,
+      "fault": 2.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 10875.0,
+      "capture_maxdu": 371.0
+    },
+    "20": {
+      "out": 16,
+      "ring": 126.0,
+      "os_med": 1.5550000000000002,
+      "os_p90": 7.45,
+      "os_max": 30.81,
+      "fault": 4.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3133.0,
+      "capture_maxdu": 665.0
+    },
+    "30": {
+      "out": 14,
+      "ring": 126.0,
+      "os_med": 2.995,
+      "os_p90": 6.33,
+      "os_max": 17.72,
+      "fault": 2.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6584.0,
+      "capture_maxdu": 293.0
+    }
+  },
+  "load10": {
+    "15": {
+      "out": 11,
+      "ring": 82.0,
+      "os_med": 0.665,
+      "os_p90": 4.79,
+      "os_max": 175.82,
+      "fault": 1.0,
+      "stall": 2.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 9631.0,
+      "capture_maxdu": 494.0
+    },
+    "20": {
+      "out": 13,
+      "ring": 74.0,
+      "os_med": 0.27,
+      "os_p90": 1.48,
+      "os_max": 14.62,
+      "fault": 0.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 5798.0,
+      "capture_maxdu": 465.0
+    },
+    "30": {
+      "out": 12,
+      "ring": 112.0,
+      "os_med": 1.165,
+      "os_p90": 4.23,
+      "os_max": 10.45,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 5581.0,
+      "capture_maxdu": 314.0
+    }
+  },
+  "load25v70": {
+    "15": {
+      "out": 11,
+      "ring": 107.0,
+      "os_med": 3.41,
+      "os_p90": 8.06,
+      "os_max": 21.35,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 8419.0,
+      "capture_maxdu": 328.0
+    },
+    "20": {
+      "out": 11,
+      "ring": 133.0,
+      "os_med": 2.01,
+      "os_p90": 6.21,
+      "os_max": 17.97,
+      "fault": 0.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3496.0,
+      "capture_maxdu": 482.0
+    },
+    "30": {
+      "out": 14,
+      "ring": 133.0,
+      "os_med": 2.5250000000000004,
+      "os_p90": 5.81,
+      "os_max": 10.12,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3210.0,
+      "capture_maxdu": 369.0
+    }
+  },
+  "hold_i10": {
+    "15": {
+      "out": 16,
+      "ring": 94.0,
+      "os_med": 6.77,
+      "os_p90": 17.49,
+      "os_max": 190.91,
+      "fault": 19.0,
+      "stall": 4.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6180.0,
+      "capture_maxdu": 310.0
+    },
+    "20": {
+      "out": 20,
+      "ring": 147.0,
+      "os_med": 5.17,
+      "os_p90": 17.44,
+      "os_max": 242.76,
+      "fault": 14.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 4082.0,
+      "capture_maxdu": 395.0
+    },
+    "30": {
+      "out": 16,
+      "ring": 126.0,
+      "os_med": 3.5149999999999997,
+      "os_p90": 7.13,
+      "os_max": 158.1,
+      "fault": 4.0,
+      "stall": 4.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6969.0,
+      "capture_maxdu": 295.0
+    }
+  },
+  "stream": {
+    "15": {
+      "out": 15,
+      "ring": 94.0,
+      "os_med": 6.775,
+      "os_p90": 17.49,
+      "os_max": 190.91,
+      "fault": 19.0,
+      "stall": 4.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6180.0,
+      "capture_maxdu": 310.0
+    },
+    "20": {
+      "out": 19,
+      "ring": 147.0,
+      "os_med": 5.175,
+      "os_p90": 17.44,
+      "os_max": 242.76,
+      "fault": 14.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 4082.0,
+      "capture_maxdu": 395.0
+    },
+    "30": {
+      "out": 16,
+      "ring": 126.0,
+      "os_med": 3.5149999999999997,
+      "os_p90": 7.13,
+      "os_max": 158.1,
+      "fault": 4.0,
+      "stall": 4.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6969.0,
+      "capture_maxdu": 295.0
+    }
+  },
+  "optimized": {
+    "15": {
+      "out": 11,
+      "ring": 107.0,
+      "os_med": 3.41,
+      "os_p90": 8.06,
+      "os_max": 21.35,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 8419.0,
+      "capture_maxdu": 328.0
+    },
+    "20": {
+      "out": 11,
+      "ring": 133.0,
+      "os_med": 2.01,
+      "os_p90": 6.21,
+      "os_max": 17.97,
+      "fault": 0.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3496.0,
+      "capture_maxdu": 482.0
+    },
+    "30": {
+      "out": 14,
+      "ring": 133.0,
+      "os_med": 2.5250000000000004,
+      "os_p90": 5.81,
+      "os_max": 10.12,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3210.0,
+      "capture_maxdu": 369.0
+    }
+  },
+  "opt_j0": {
+    "15": {
+      "out": 11,
+      "ring": 188.0,
+      "os_med": 3.16,
+      "os_p90": 8.27,
+      "os_max": 21.65,
+      "fault": 0.0,
+      "stall": 2.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6280.0,
+      "capture_maxdu": 563.0
+    },
+    "20": {
+      "out": 13,
+      "ring": 192.0,
+      "os_med": 1.8450000000000002,
+      "os_p90": 6.18,
+      "os_max": 18.61,
+      "fault": 0.0,
+      "stall": 4.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 4742.0,
+      "capture_maxdu": 405.0
+    },
+    "30": {
+      "out": 9,
+      "ring": 181.0,
+      "os_med": 2.18,
+      "os_p90": 4.88,
+      "os_max": 9.1,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 4487.0,
+      "capture_maxdu": 398.0
+    }
+  },
+  "opt_j2": {
+    "15": {
+      "out": 19,
+      "ring": 101.0,
+      "os_med": 3.835,
+      "os_p90": 8.48,
+      "os_max": 20.19,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 7377.0,
+      "capture_maxdu": 358.0
+    },
+    "20": {
+      "out": 13,
+      "ring": 104.0,
+      "os_med": 2.16,
+      "os_p90": 6.1,
+      "os_max": 17.7,
+      "fault": 0.0,
+      "stall": 4.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 2528.0,
+      "capture_maxdu": 421.0
+    },
+    "30": {
+      "out": 15,
+      "ring": 113.0,
+      "os_med": 2.75,
+      "os_p90": 4.92,
+      "os_max": 10.95,
+      "fault": 0.0,
+      "stall": 2.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3257.0,
+      "capture_maxdu": 210.0
+    }
+  },
+  "opt_j4": {
+    "15": {
+      "out": 13,
+      "ring": 75.0,
+      "os_med": 4.195,
+      "os_p90": 8.69,
+      "os_max": 21.3,
+      "fault": 0.0,
+      "stall": 2.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 6096.0,
+      "capture_maxdu": 143.0
+    },
+    "20": {
+      "out": 12,
+      "ring": 89.0,
+      "os_med": 2.73,
+      "os_p90": 6.45,
+      "os_max": 18.16,
+      "fault": 0.0,
+      "stall": 4.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3128.0,
+      "capture_maxdu": 258.0
+    },
+    "30": {
+      "out": 19,
+      "ring": 91.0,
+      "os_med": 3.1950000000000003,
+      "os_p90": 6.06,
+      "os_max": 10.85,
+      "fault": 0.0,
+      "stall": 2.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3098.0,
+      "capture_maxdu": 130.0
+    }
+  },
+  "opt_hold_i10": {
+    "15": {
+      "out": 12,
+      "ring": 107.0,
+      "os_med": 3.41,
+      "os_p90": 8.06,
+      "os_max": 21.35,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 8419.0,
+      "capture_maxdu": 328.0
+    },
+    "20": {
+      "out": 10,
+      "ring": 133.0,
+      "os_med": 2.01,
+      "os_p90": 6.21,
+      "os_max": 17.97,
+      "fault": 0.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3496.0,
+      "capture_maxdu": 482.0
+    },
+    "30": {
+      "out": 14,
+      "ring": 133.0,
+      "os_med": 2.5250000000000004,
+      "os_p90": 5.81,
+      "os_max": 10.12,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3210.0,
+      "capture_maxdu": 364.0
+    }
+  },
+  "opt_hold_i30": {
+    "15": {
+      "out": 12,
+      "ring": 107.0,
+      "os_med": 3.4299999999999997,
+      "os_p90": 8.06,
+      "os_max": 21.35,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 8419.0,
+      "capture_maxdu": 328.0
+    },
+    "20": {
+      "out": 11,
+      "ring": 132.0,
+      "os_med": 2.01,
+      "os_p90": 6.21,
+      "os_max": 17.97,
+      "fault": 0.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3496.0,
+      "capture_maxdu": 482.0
+    },
+    "30": {
+      "out": 14,
+      "ring": 133.0,
+      "os_med": 2.5250000000000004,
+      "os_p90": 5.81,
+      "os_max": 10.12,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3210.0,
+      "capture_maxdu": 364.0
+    }
+  },
+  "opt_hold_i60": {
+    "15": {
+      "out": 11,
+      "ring": 107.0,
+      "os_med": 3.6,
+      "os_p90": 8.06,
+      "os_max": 21.35,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 8419.0,
+      "capture_maxdu": 328.0
+    },
+    "20": {
+      "out": 11,
+      "ring": 132.0,
+      "os_med": 2.01,
+      "os_p90": 6.21,
+      "os_max": 17.97,
+      "fault": 0.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3496.0,
+      "capture_maxdu": 482.0
+    },
+    "30": {
+      "out": 15,
+      "ring": 133.0,
+      "os_med": 2.5250000000000004,
+      "os_p90": 5.81,
+      "os_max": 10.12,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3210.0,
+      "capture_maxdu": 370.0
+    }
+  },
+  "handoff": {
+    "15": {
+      "out": 11,
+      "ring": 107.0,
+      "os_med": 3.41,
+      "os_p90": 8.06,
+      "os_max": 21.35,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 8419.0,
+      "capture_maxdu": 0.0
+    },
+    "20": {
+      "out": 12,
+      "ring": 133.0,
+      "os_med": 2.01,
+      "os_p90": 6.21,
+      "os_max": 17.97,
+      "fault": 0.0,
+      "stall": 3.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3496.0,
+      "capture_maxdu": 0.0
+    },
+    "30": {
+      "out": 14,
+      "ring": 130.0,
+      "os_med": 2.5250000000000004,
+      "os_p90": 5.81,
+      "os_max": 10.12,
+      "fault": 0.0,
+      "stall": 1.0,
+      "hard_violations": 0.0,
+      "state_maxdu": 3210.0,
+      "capture_maxdu": 0.0
+    }
+  }
+}

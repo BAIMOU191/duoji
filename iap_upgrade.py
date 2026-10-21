@@ -13,9 +13,9 @@
 
 # ============================== 配置 ==============================
 PORT      = 'COM141'                                        # 串口号
-SERVO_ID  = 0                                             # 舵机 ID，0~254
+SERVO_ID  = 0                                            # 舵机 ID，0~254
 APP_BAUD  = 115200                                        # 舵机当前的波特率
-HEX_FILE  = r'CH32V00X_APP_ADC_30kg\obj\CH32V00X_APP.hex'      # 要烧录的固件
+HEX_FILE  = r'CH32V00X_APP_ADC_20kg\obj\CH32V00X_APP.hex'      # 要烧录的固件
 # ==================================================================
 
 import argparse

@@ -1,0 +1,2 @@
+CAL,30kg,kv=397,ka=7063,fc=127,fs=413,delay=3211,tau=17.8ms,vel_noise=378,Kv_q16=0,kp=0,ki_q20=0,kh_q16=0,wv=103
+30kg,inertia4,ext_release,track=2.22,stops=0,rev=0,sat=0.00,freeze=0.00,maxdu=178,settle=1,final=-0.12,os=0.00,ring=0,vmean=0,vmin_r=0.00,ripple=0.00,refvmin_r=0.00,lag=0.00,stall=0,fault=0,arr=169,state_changes=3,state_maxdu=178,capture_maxdu=35,hard_violations=0,current_peak=1447,hold_entries=1

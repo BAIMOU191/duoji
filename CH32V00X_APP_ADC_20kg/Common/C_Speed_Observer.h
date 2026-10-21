@@ -1,40 +1,33 @@
+/* C_Speed_Observer.h 三状态模型观测器(位置、速度、扰动电压)，固定1ms，纯算法
+ *
+ * 预测：v' = v + α·(g·(u − d − 摩擦) − v)，α = T·kv/ka，g = 1/kv；p' = p + T·v；d' = d
+ * 校正：位置残差同时修正三个状态，增益按三重极点 e^(−2πf·T) 配置。
+ * 静摩擦感知：低速且净电压不足起转时按"粘住"预测(速度预测为0)，避免卡住时估出假速度。 */
 #ifndef __C_SPEED_OBSERVER_H__
 #define __C_SPEED_OBSERVER_H__
 
 #include <stdint.h>
+#include "C_Motor_Model.h"
 
-/*
- * C_Speed_Observer.h —— 3状态模型观测器(位置/速度/负载扰动)
- *
- * 编码器单源求速度降噪必加滞后，这里引入第二个信息源：已下发PWM + 标定的一阶电机模型
- *     dv/dt = (Kv*(u - d) - v) / tau,  dp/dt = v
- * 每拍模型预测，再用编码器残差按固定增益 L1/L2/L3 修正。增益在 C_Speed_Observer.c 开头
- * 编译期做三重极点配置(极点 exp(-2*pi*TUNE_OBS_BW_HZ*T))算出。
- *
- * 实现要点：输入按纯延迟对齐并乘 CAL_MOTOR_SIGN；输入先扣库仑摩擦(零速附近连续过渡)；
- * d 只在观测器内部用，不前馈到PWM(负载补偿归速度环积分)。状态Q8，每拍无除法。
- *
- * 模型的惯量/速度增益可按对象参数比缩放(C_SpeedObs_SetPlant)，比值由 C_Plant_Adapt 在线学习。
- */
+#define SPEED_OBS_HISTORY 8U   /* 输入延迟对齐的历史长度，延迟须小于它 */
 
 typedef struct {
-    int32_t pos;    /* 滤波后位置，厘度 */
-    int32_t vel;    /* 速度估计，厘度/秒，无滞后 */
-    int32_t load;   /* 负载扰动估计，等效PWM计数，仅供调试，不要用作前馈 */
-    int32_t effort; /* 本拍模型用的净输入(延迟对齐、扣过摩擦)，PWM计数 */
-    int32_t load_q8;/* 同 load，Q8，供对象参数自学习回归用 */
+    int32_t pos, vel;   /* 估计位置(厘度)、速度(厘度/s) */
+    int32_t dist;       /* 扰动估计，mV，阻碍正向为正；仅供诊断 */
+    uint8_t stuck;      /* 1 = 按静摩擦粘住预测 */
 } SpeedObsOut_t;
 
-#define OBS_PLANT_ONE 4096 /** 对象参数比值的 1.0(Q12) */
+/* 实例由调用者持有 */
+typedef struct {
+    int32_t pos_q8, vel_q8, dist_q8;
+    int16_t history[SPEED_OBS_HISTORY];
+    uint8_t index;
+} SpeedObserver_t;
 
-/* 初始化，init_pos 为当前编码器角度(厘度) */
-void C_SpeedObs_Init(int32_t init_pos);
-
-/* 1ms调用一次；pwm_applied 为上一拍实际施加的PWM，纯延迟对齐在内部完成 */
-void C_SpeedObs_Update(int32_t measured_pos, int16_t pwm_applied, SpeedObsOut_t *out);
-
-/* 按对象参数比(Q12，OBS_PLANT_ONE=标定值)缩放模型；Init 不清 */
-void    C_SpeedObs_SetPlant(int32_t rho_q12, int32_t k_q12);
-int32_t C_SpeedObs_AlphaQ15(void);   /* 观测器极点，Q15，自学习的回归量滤波用同一个 */
+/* 按模型与带宽计算增益，所有实例共用；vel_noise=速度噪声底(厘度/s)，低于它才可能判粘住 */
+void C_SpeedObs_Configure(const MotorCal_t *cal, uint16_t bandwidth_hz, int32_t vel_noise);
+void C_SpeedObs_Init(SpeedObserver_t *obs, int32_t pos);
+/* 每1ms调用：pos=实测位置，valid=0时只预测；u_mv=上一拍实际施加电压(角度增大为正) */
+void C_SpeedObs_Update(SpeedObserver_t *obs, int32_t pos, uint8_t valid, int32_t u_mv, SpeedObsOut_t *out);
 
 #endif /* __C_SPEED_OBSERVER_H__ */

@@ -5,8 +5,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
-../Common/C_Friction.c \
-../Common/C_Plant_Adapt.c \
+../Common/C_Motor_Model.c \
 ../Common/C_Pos_Ctrl.c \
 ../Common/C_Ring_Buf.c \
 ../Common/C_Speed_Observer.c \
@@ -14,8 +13,7 @@ C_SRCS += \
 ../Common/C_Traj_Planner.c 
 
 C_DEPS += \
-./Common/C_Friction.d \
-./Common/C_Plant_Adapt.d \
+./Common/C_Motor_Model.d \
 ./Common/C_Pos_Ctrl.d \
 ./Common/C_Ring_Buf.d \
 ./Common/C_Speed_Observer.d \
@@ -23,8 +21,7 @@ C_DEPS += \
 ./Common/C_Traj_Planner.d 
 
 OBJS += \
-./Common/C_Friction.o \
-./Common/C_Plant_Adapt.o \
+./Common/C_Motor_Model.o \
 ./Common/C_Pos_Ctrl.o \
 ./Common/C_Ring_Buf.o \
 ./Common/C_Speed_Observer.o \
@@ -43,5 +40,5 @@ DIR_EXPANDS += \
 
 # Each subdirectory must supply rules for building sources it contributes
 Common/%.o: ../Common/%.c
-	@	riscv-wch-elf-gcc -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Core" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Debug" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/User" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/System" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Application" -std=gnu99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
+	@	riscv-wch-elf-gcc -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Core" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Debug" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/User" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/System" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Application" -std=gnu99 -flto -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
 

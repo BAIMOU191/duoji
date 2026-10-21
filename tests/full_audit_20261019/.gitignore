@@ -1,0 +1,3 @@
+*.exe
+target_builds/
+__pycache__/

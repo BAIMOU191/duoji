@@ -1,8 +1,4 @@
-#ifndef __A_TASKS_H__
-#define __A_TASKS_H__
+#pragma once
 
-/* A_Tasks.h 应用任务注册入口。任务表只在A_Tasks.c内部可见。 */
-
-void A_Tasks_Init(void);   /* 注册任务表，启动调度器 */
-
-#endif /* __A_TASKS_H__ */
+/* 注册应用任务表，并绑定配置保存事件。 */
+void A_Tasks_Init(void);

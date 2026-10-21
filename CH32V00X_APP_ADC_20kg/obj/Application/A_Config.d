@@ -1,6 +1,7 @@
 Application/A_Config.o: ../Application/A_Config.c \
- ../Application/A_Config.h ../Application/A_Protect.h \
- ../Application/A_Sensor.h \
+ ../Application/A_Config.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Traj_Planner.h \
+ ../Application/A_Protect.h ../Application/A_Sensor.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_adc.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Core/core_riscv.h \
@@ -28,6 +29,7 @@ Application/A_Config.o: ../Application/A_Config.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/System/flash.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/System/iap.h
 ../Application/A_Config.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Traj_Planner.h:
 ../Application/A_Protect.h:
 ../Application/A_Sensor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_adc.h:

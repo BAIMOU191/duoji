@@ -1,0 +1,4 @@
+C:\Users\Admin\Desktop\duoji\tests\control_chain_review_20261019\continued_validation\target_sources\base0_15kg\SRC\Debug\debug.c: In function '_write':
+C:\Users\Admin\Desktop\duoji\tests\control_chain_review_20261019\continued_validation\target_sources\base0_15kg\SRC\Debug\debug.c:287:16: warning: unused parameter 'fd' [-Wunused-parameter]
+  287 | int _write(int fd, char *buf, int size)
+      |            ~~~~^~

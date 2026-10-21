@@ -29,15 +29,13 @@ User/main.o: ../User/main.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_tim.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_opa.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_adc.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_motor.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_tim.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_tmp112.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_ws2812.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_iwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Task_Scheduler.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Config.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Traj_Planner.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Servo.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Sensor.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Protect.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Tasks.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Calib_Min.h \
@@ -72,15 +70,13 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_i2c.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_tim.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_opa.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_adc.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_motor.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_tim.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_tmp112.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_ws2812.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Drivers/D_iwdg.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Task_Scheduler.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Config.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Common/C_Traj_Planner.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Servo.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Sensor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Protect.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Tasks.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_30kg/Application/A_Calib_Min.h:

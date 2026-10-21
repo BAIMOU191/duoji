@@ -125,6 +125,7 @@ uint8_t D_UART1_Rx_Get(uint8_t *data)
     return (uint8_t)(C_Ring_Buf_Get(&s_rx_rb, data) ? 1U : 0U);
 }
 
+
 /* 整帧入队(全进或全不进)，发送机空闲则立即启动；0=未使能/参数无效/空间不足 */
 uint8_t D_UART1_Tx_Write(const uint8_t *data, uint8_t len)
 {

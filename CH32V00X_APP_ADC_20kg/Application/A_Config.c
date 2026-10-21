@@ -32,7 +32,7 @@ typedef char guard_config_tail_padding
 typedef char guard_config_exceeds_flash_payload
     [(sizeof(Config_t) <= CONFIG_PAYLOAD_MAX) ? 1 : -1];
 
-/* 固件镜像指纹：对整个固件镜像(向量表、代码、常量、.data 初值)做 FNV-1a 散列。；详见 docs/ALGORITHM_NOTES.md。 */
+/* 固件镜像指纹：对整个固件镜像(向量表、代码、常量、.data 初值)做 FNV-1a 散列。 */
 #ifndef CONFIG_IMAGE_TAG
 extern const uint8_t _data_lma[], _data_vma[], _edata[]; /* 链接脚本：.data 初值在 flash 里的位置与长度 */
 
@@ -66,17 +66,18 @@ static void Config_FillDefaults(void)
     g_config.pulse_hi             = SERVO_PWM_MAX;
     g_config.traj_amax_dps2       = CFG_DEF_AMAX_DPS2;
     g_config.traj_dmax_dps2       = CFG_DEF_DMAX_DPS2;
-    g_config.traj_jmax_dps3       = CFG_DEF_JMAX_DPS3;
+    g_config.traj_smooth_ms       = CFG_DEF_SMOOTH_MS;
     g_config.traj_vmax_dps        = CFG_DEF_VMAX_DPS;
     g_config.traj_move_min_ms     = CFG_DEF_MOVE_MIN_MS;
     g_config.prot_current_limit_ma= PROT_CURRENT_LIMIT_DEFAULT_MA;
     g_config.prot_current_time_ms = PROT_CURRENT_TIME_DEFAULT_MS;
     g_config.prot_temp_limit_dC   = PROT_TEMP_LIMIT_DEFAULT_DC;
     g_config.prot_temp_time_ms    = PROT_TEMP_TIME_DEFAULT_MS;
-    g_config.prot_stall_ref_cdeg  = PROT_STALL_REF_DEFAULT_CDEG;
     g_config.prot_stall_act_cdeg  = PROT_STALL_ACT_DEFAULT_CDEG;
     g_config.prot_stall_trip      = PROT_STALL_TRIP_DEFAULT;
-    g_config.hold_stiff           = CFG_DEF_HOLD_STIFF;
+    g_config.hold_kp              = CFG_DEF_HOLD_KP;
+    g_config.hold_ki              = CFG_DEF_HOLD_KI;
+    g_config.position_resolution_cdeg = CFG_DEF_RESOLUTION_CDEG;
     g_config.protect_enable       = PROT_ENABLE_DEFAULT;
     g_config.voltage_min_dv       = PROT_VOLTAGE_MIN_DEFAULT_DV;
     g_config.voltage_max_dv       = PROT_VOLTAGE_MAX_DEFAULT_DV;
@@ -87,16 +88,15 @@ void A_Config_ReloadRuntime(uint8_t reset_transient)
 {
 #define COPY(field) g_runtime_config.field = g_config.field;
     COPY(torque_limit_ckgcm)
-    COPY(traj_amax_dps2) COPY(traj_dmax_dps2) COPY(traj_jmax_dps3)
+    COPY(traj_amax_dps2) COPY(traj_dmax_dps2) COPY(traj_smooth_ms)
     COPY(traj_vmax_dps) COPY(traj_move_min_ms)
     COPY(prot_current_limit_ma) COPY(prot_current_time_ms)
     COPY(prot_temp_limit_dC) COPY(prot_temp_time_ms)
     COPY(prot_stall_act_cdeg) COPY(prot_stall_trip)
-    COPY(hold_stiff) COPY(protect_enable)
+    COPY(hold_kp) COPY(hold_ki) COPY(protect_enable)
+    COPY(position_resolution_cdeg)
     COPY(voltage_min_dv) COPY(voltage_max_dv) COPY(min_start_torque_ckgcm)
 #undef COPY
-    /* 对外只保留一个堵转阈值；参考位移固定为实际位移阈值的4倍。 */
-    g_runtime_config.prot_stall_ref_cdeg   = (uint16_t)(g_config.prot_stall_act_cdeg * 4U);
     if (reset_transient)
     {
         g_runtime_config.torque_mode       = 1U;
@@ -104,10 +104,11 @@ void A_Config_ReloadRuntime(uint8_t reset_transient)
     }
 }
 
-/* 恢复出厂参数，keep_id=1保留总线ID(CLE0)，0=连ID一起清零(CLE) */
+/* 用户恢复默认：keep_id=1仅保留ID，=0连ID也恢复；波特率一律回出厂值。
+ * IAP换固件保留ID与波特率的规则独立在A_Config_Init中处理。 */
 void A_Config_Default(uint8_t keep_id)
 {
-    uint8_t id = g_config.servo_id; /** 先存下来，清空后再按需要写回 */
+    uint8_t id = g_config.servo_id;
 
     Config_FillDefaults();
     if (keep_id) g_config.servo_id = id;
@@ -139,22 +140,24 @@ static void Config_Repair(Config_t *c)
         c->custom_offset_cdeg = c->custom_span_cdeg = 0U; c->custom_reverse = 0U;
         if (c->servo_mode == SERVO_MODE_CUSTOM) c->servo_mode = SERVO_MODE_270_CW;
     }
-    REPAIR(traj_vmax_dps, (int32_t)c->traj_vmax_dps * 100 <= PLANT_VMAX_HW_CDPS);
-    REPAIR(traj_amax_dps2, c->traj_amax_dps2 <= PLANT_AMAX_HW_DPS2);
-    REPAIR(traj_dmax_dps2, c->traj_dmax_dps2 <= PLANT_DMAX_HW_DPS2);
-    REPAIR(traj_jmax_dps3, c->traj_jmax_dps3 <= PLANT_JMAX_HW_DPS3);
-    REPAIR(traj_move_min_ms, c->traj_move_min_ms <= 200U);
+    REPAIR(traj_vmax_dps, c->traj_vmax_dps <= CFG_TRAJ_VMAX_MAX_DPS);
+    REPAIR(traj_amax_dps2, c->traj_amax_dps2 <= CFG_TRAJ_AMAX_MAX_DPS2);
+    REPAIR(traj_dmax_dps2, c->traj_dmax_dps2 <= CFG_TRAJ_DMAX_MAX_DPS2);
+    REPAIR(traj_smooth_ms, c->traj_smooth_ms == 0U
+                           || (c->traj_smooth_ms >= CFG_SMOOTH_MIN_MS && c->traj_smooth_ms <= CFG_SMOOTH_MAX_MS));
+    REPAIR(traj_move_min_ms, c->traj_move_min_ms <= CFG_MOVE_MIN_MAX_MS);
     REPAIR(prot_current_limit_ma, c->prot_current_limit_ma >= PROT_CURRENT_LIMIT_MIN_MA && c->prot_current_limit_ma <= PROT_CURRENT_LIMIT_MAX_MA);
     REPAIR(prot_current_time_ms, c->prot_current_time_ms >= PROT_CURRENT_TIME_MIN_MS && c->prot_current_time_ms <= PROT_CURRENT_TIME_MAX_MS);
     REPAIR(prot_temp_limit_dC, c->prot_temp_limit_dC >= PROT_TEMP_LIMIT_MIN_DC && c->prot_temp_limit_dC <= PROT_TEMP_LIMIT_MAX_DC);
     REPAIR(prot_temp_time_ms, c->prot_temp_time_ms >= PROT_TEMP_TIME_MIN_MS && c->prot_temp_time_ms <= PROT_TEMP_TIME_MAX_MS);
     REPAIR(prot_stall_act_cdeg, c->prot_stall_act_cdeg >= PROT_STALL_THRESHOLD_MIN_CDEG && c->prot_stall_act_cdeg <= PROT_STALL_THRESHOLD_MAX_CDEG);
-    c->prot_stall_ref_cdeg = (uint16_t)(c->prot_stall_act_cdeg * 4U);
     REPAIR(prot_stall_trip, c->prot_stall_trip >= PROT_STALL_TRIP_MIN && c->prot_stall_trip <= PROT_STALL_TRIP_MAX);
-    REPAIR(hold_stiff, c->hold_stiff <= CFG_HOLD_STIFF_MAX);
-    c->reserved0 = 0U; memset(c->reserved1, 0, sizeof(c->reserved1));
-    if (c->voltage_min_dv < PROT_VOLTAGE_CFG_MIN_DV || c->voltage_max_dv > PROT_VOLTAGE_CFG_MAX_DV
-        || (uint16_t)c->voltage_min_dv + PROT_VOLTAGE_HYST_DV > c->voltage_max_dv)
+    REPAIR(hold_kp, c->hold_kp <= CFG_HOLD_KP_MAX);
+    REPAIR(hold_ki, c->hold_ki <= CFG_HOLD_KI_MAX);
+    REPAIR(protect_enable, (c->protect_enable & (uint8_t)~PROT_ENABLE_IMPLEMENTED) == 0U);
+    REPAIR(position_resolution_cdeg, c->position_resolution_cdeg >= CFG_RESOLUTION_MIN_CDEG
+                                     && c->position_resolution_cdeg <= CFG_RESOLUTION_MAX_CDEG);
+    if (!A_Protect_VoltageRangeValid(c->voltage_min_dv, c->voltage_max_dv))
     { c->voltage_min_dv = g_config.voltage_min_dv; c->voltage_max_dv = g_config.voltage_max_dv; }
     REPAIR(min_start_torque_ckgcm, c->min_start_torque_ckgcm <= A_Config_TorqueMax());
 #undef REPAIR
@@ -173,7 +176,7 @@ void A_Config_Init(void)
     stored = g_config;
     loaded = FLASH_Config_Load(&stored, sizeof(stored), stored_version) == sizeof(stored);
 
-    /* 同一份固件写的参数才沿用；换过固件(版本号或镜像任一不同)一律回出厂值，只留ID和波特率 */
+    /* 配置版本与镜像指纹一致时沿用保存参数。 */
     if (loaded && memcmp(stored_version, k_version, sizeof(k_version)) == 0
         && stored.image_tag == s_image_tag)
     {
@@ -218,7 +221,7 @@ void A_Config_BindSaveEvent(volatile uint8_t *event)
 }
 
 /* 保存任务：参数变脏时写Flash，失败保持dirty下次重试 */
-void A_Config_SaveTask(void)
+uint8_t A_Config_SaveTask(void)
 {
     if (s_dirty && FLASH_Config_Save(&g_config, sizeof(g_config), k_version))
     {
@@ -227,6 +230,7 @@ void A_Config_SaveTask(void)
     /* 调度器在调用前已消费事件；写入失败必须重新安排低优先级重试，
      * 否则脏配置将一直得不到保存。 */
     if (s_dirty && s_save_event != 0) *s_save_event = 1U;
+    return (uint8_t)!s_dirty;
 }
 
 /* 把配置里的波特率编号换算成实际波特率，编号越界时返回115200 */

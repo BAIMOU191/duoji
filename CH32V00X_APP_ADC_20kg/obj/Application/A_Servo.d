@@ -1,5 +1,11 @@
 Application/A_Servo.o: ../Application/A_Servo.c ../Application/A_Servo.h \
- ../Application/A_Config.h ../Application/A_Sensor.h \
+ ../Application/A_Servo_Ctrl.h ../Application/A_Config.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Traj_Planner.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Speed_Observer.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Motor_Model.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Pos_Ctrl.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Traj_Planner.h \
+ ../Application/A_Sensor.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_adc.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Core/core_riscv.h \
@@ -25,20 +31,18 @@ Application/A_Servo.o: ../Application/A_Servo.c ../Application/A_Servo.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X_opa.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X.h \
  ../Application/A_Protect.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Speed_Observer.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Plant_Adapt.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Speed_Observer.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Traj_Planner.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Pos_Ctrl.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Traj_Planner.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Fixed.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_motor.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_tim.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_tim.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_uart.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Ring_Buf.h
 ../Application/A_Servo.h:
+../Application/A_Servo_Ctrl.h:
 ../Application/A_Config.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Traj_Planner.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Speed_Observer.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Motor_Model.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Pos_Ctrl.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Traj_Planner.h:
 ../Application/A_Sensor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_adc.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X.h:
@@ -65,15 +69,7 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X_w
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X_opa.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/SRC/Peripheral/inc/ch32v00X.h:
 ../Application/A_Protect.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Speed_Observer.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Plant_Adapt.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Speed_Observer.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Traj_Planner.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Pos_Ctrl.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Traj_Planner.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Fixed.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_motor.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_tim.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_tim.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Drivers/D_uart.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_ADC_20kg/Common/C_Ring_Buf.h:

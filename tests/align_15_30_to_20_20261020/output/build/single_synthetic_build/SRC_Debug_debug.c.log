@@ -1,0 +1,4 @@
+C:\Users\Admin\Desktop\duoji\tests\align_15_30_to_20_20261020\output\build\CH32V00X_APP_ADC_20kg_single_synthetic_model_TARGET_CHECK_ONLY\SRC\Debug\debug.c: In function '_write':
+C:\Users\Admin\Desktop\duoji\tests\align_15_30_to_20_20261020\output\build\CH32V00X_APP_ADC_20kg_single_synthetic_model_TARGET_CHECK_ONLY\SRC\Debug\debug.c:287:16: warning: unused parameter 'fd' [-Wunused-parameter]
+  287 | int _write(int fd, char *buf, int size)
+      |            ~~~~^~

@@ -1,0 +1,2 @@
+CAL,20kg,kv=343,ka=9997,fc=157,fs=463,delay=2024,tau=29.1ms,vel_noise=378,Kv_q16=0,kp=0,ki_q20=0,kh_q16=0,wv=120
+20kg,randload,ext_stream200,track=2.07,stops=0,rev=9,sat=0.01,freeze=0.01,maxdu=3564,settle=-1,final=-1.65,os=1.48,ring=43,vmean=1978,vmin_r=-0.80,ripple=4.09,refvmin_r=0.00,lag=0.00,stall=0,fault=0,arr=919,state_changes=41,state_maxdu=3564,capture_maxdu=627,hard_violations=0,current_peak=2309,hold_entries=1

@@ -1,0 +1,64 @@
+{
+  "base0": {},
+  "A0": {
+    "CX_EMF_PCT": 100,
+    "CX_STREAM": 1
+  },
+  "T1": {
+    "CX_STILL_MS": 200,
+    "CX_EMF_PCT": 100,
+    "CX_STREAM": 1
+  },
+  "T2": {
+    "CX_STILL_MS": 200,
+    "CX_EMF_PCT": 100,
+    "CX_STREAM": 1,
+    "CX_CORR": 1,
+    "CX_J_X10": 20,
+    "CX_J_FF": 0
+  },
+  "T3": {
+    "CX_STILL_MS": 200,
+    "CX_EMF_PCT": 100,
+    "CX_STREAM": 1,
+    "CX_CORR": 1,
+    "CX_J_X10": 20,
+    "CX_J_FF": 0,
+    "CX_DOB_BW": 30,
+    "CX_DOB_GATE": 1,
+    "CX_DOB_GATE_MV": 100
+  },
+  "T3_J10": {
+    "CX_STILL_MS": 200,
+    "CX_EMF_PCT": 100,
+    "CX_STREAM": 1,
+    "CX_CORR": 1,
+    "CX_J_X10": 10,
+    "CX_J_FF": 0,
+    "CX_DOB_BW": 30,
+    "CX_DOB_GATE": 1,
+    "CX_DOB_GATE_MV": 100
+  },
+  "T3_J30": {
+    "CX_STILL_MS": 200,
+    "CX_EMF_PCT": 100,
+    "CX_STREAM": 1,
+    "CX_CORR": 1,
+    "CX_J_X10": 30,
+    "CX_J_FF": 0,
+    "CX_DOB_BW": 30,
+    "CX_DOB_GATE": 1,
+    "CX_DOB_GATE_MV": 100
+  },
+  "T3_J40": {
+    "CX_STILL_MS": 200,
+    "CX_EMF_PCT": 100,
+    "CX_STREAM": 1,
+    "CX_CORR": 1,
+    "CX_J_X10": 40,
+    "CX_J_FF": 0,
+    "CX_DOB_BW": 30,
+    "CX_DOB_GATE": 1,
+    "CX_DOB_GATE_MV": 100
+  }
+}

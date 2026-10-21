@@ -150,7 +150,7 @@
 					},
 					"optimization": {
 						"language_standard": "gnu99",
-						"other_optimization_flags": ""
+						"other_optimization_flags": "-flto"
 					},
 					"warnings": {
 						"warn_if_a_global_function_has_no_prototype": false,
@@ -235,7 +235,7 @@
 						"use_wch_printffloat": false,
 						"use_wch_printf": false,
 						"use_iqmath": false,
-						"other_linker_flags": ""
+						"other_linker_flags": "-flto"
 					}
 				},
 				"cpplinker": {

@@ -1,0 +1,19 @@
+{
+  "base0_15kg": {
+    "passed": true,
+    "warnings": 1,
+    "log": "base0_15kg normal   40396\t    128\t   3444\t  43968\t   abc0\tC:\\Users\\Admin\\Desktop\\duoji\\tests\\control_chain_review_20261019\\continued_validation\\target_builds\\base0_15kg\\CH32V00X_normal.elf\nbase0_15kg calibration   43156\t    212\t   4932\t  48300\t   bcac\tC:\\Users\\Admin\\Desktop\\duoji\\tests\\control_chain_review_20261019\\continued_validation\\target_builds\\base0_15kg\\CH32V00X_calibration.elf\nCompiler diagnostics: base0_15kg C:\\Users\\Admin\\Desktop\\duoji\\tests\\control_chain_review_20261019\\continued_validation\\target_sources\\base0_15kg\\SRC\\Debug\\debug.c: In function '_write':\nC:\\Users\\Admin\\Desktop\\duoji\\tests\\control_chain_review_20261019\\continued_validation\\target_sources\\base0_15kg\\SRC\\Debug\\debug.c:287:16: warning: unused parameter 'fd' [-Wunused-parameter]\n  287 | int _write(int fd, char *buf, int size)\n      |            ~~~~^~\n\n"
+  },
+  "T3_15kg": {
+    "passed": false,
+    "log": "C:\\Users\\Admin\\Desktop\\duoji\\tests\\control_chain_review_20261019\\continued_validation\\target_builds\\T3_15kg\\normal_link.log\nd:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/bin/ld.exe: C:\\Users\\Admin\\Desktop\\duoji\\tests\\control_chain_review_20261019\\continued_validation\\target_builds\\T3_15kg\\Common_C_Pos_Ctrl.c.o: in function `PosCtrl_HoldGains':\nC_Pos_Ctrl.c:(.text.PosCtrl_HoldGains+0xd2): undefined reference to `sqrt'\ncollect2.exe: error: ld returned 1 exit status\n"
+  },
+  "T3_20kg": {
+    "passed": false,
+    "log": "C:\\Users\\Admin\\Desktop\\duoji\\tests\\control_chain_review_20261019\\continued_validation\\target_builds\\T3_20kg\\normal_link.log\nd:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/bin/ld.exe: C:\\Users\\Admin\\Desktop\\duoji\\tests\\control_chain_review_20261019\\continued_validation\\target_builds\\T3_20kg\\Common_C_Pos_Ctrl.c.o: in function `PosCtrl_HoldGains':\nC_Pos_Ctrl.c:(.text.PosCtrl_HoldGains+0xd2): undefined reference to `sqrt'\ncollect2.exe: error: ld returned 1 exit status\n"
+  },
+  "T3_30kg": {
+    "passed": false,
+    "log": "C:\\Users\\Admin\\Desktop\\duoji\\tests\\control_chain_review_20261019\\continued_validation\\target_builds\\T3_30kg\\normal_link.log\nd:/software/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/bin/ld.exe: C:\\Users\\Admin\\Desktop\\duoji\\tests\\control_chain_review_20261019\\continued_validation\\target_builds\\T3_30kg\\Common_C_Pos_Ctrl.c.o: in function `PosCtrl_HoldGains':\nC_Pos_Ctrl.c:(.text.PosCtrl_HoldGains+0xd2): undefined reference to `sqrt'\ncollect2.exe: error: ld returned 1 exit status\n"
+  }
+}

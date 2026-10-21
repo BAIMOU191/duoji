@@ -1,0 +1,4 @@
+before/
+output/
+__pycache__/
+variant_alignment_sim.c

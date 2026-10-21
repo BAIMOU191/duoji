@@ -61,20 +61,24 @@ int16_t A_Temperature_Read(void)
     return D_TMP112_Read_Temp();
 }
 
-/* 读与PWM同步采到的绕组电流(mA)。值总是写出；返回值=是否采在驱动段(否则读到的0是测不到而非无电流) */
+/* 与PWM同步采到的绕组电流(mA)：与施加电压同向为正(电机在出力)，反向为负(被负载倒拖、在回馈)。
+ * 值总是写出；返回0时(驱动段太窄、刚换段或卸力)读数是"测不到"而不是"没有电流" */
+uint8_t A_Current_ReadSigned(int32_t *current_ma)
+{
+    int32_t q4 = 0;   /* 扣零点、带符号的块均值，Q4计数 */
+    uint8_t ok = D_ADC_Current_Read(&q4);
+
+    /* |q4| ≤ 65520，乘满量程不溢出 */
+    *current_ma = q4 * (int32_t)CURRENT_FULL_SCALE_MA / (int32_t)(ADC_FULL_SCALE * D_ADC_CURRENT_SCALE);
+    return ok;
+}
+
 uint8_t A_Current_Read(uint16_t *current_ma)
 {
-    uint16_t raw_adc = 0; /* 已扣除零点偏置的ADC计数 */
-    uint32_t ma;          /* 换算出的电流，毫安      */
-    uint8_t  in_window;   /* 本块是否采在驱动段内    */
+    int32_t ma;
+    uint8_t ok = A_Current_ReadSigned(&ma);
 
-    if (current_ma == 0) return 0;
-    in_window = D_ADC_Current_Read(&raw_adc);
-
-    /* 满量程电流编译期算好，按计数线性插值，无溢出无除零 */
-    ma = (uint32_t)raw_adc * CURRENT_FULL_SCALE_MA / ADC_FULL_SCALE;
-    if (ma > 0xFFFFU) ma = 0xFFFFU;
-
-    *current_ma = (uint16_t)ma;
-    return in_window;
+    if (ma < 0) ma = -ma;   /* 回馈电流同样计入 */
+    *current_ma = (uint16_t)((ma > 0xFFFF) ? 0xFFFF : ma);
+    return ok;
 }

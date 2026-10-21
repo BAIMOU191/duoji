@@ -1,0 +1,237 @@
+--- before/Application/A_Config.c
++++ after/Application/A_Config.c
+@@ -157,8 +157,7 @@
+     REPAIR(protect_enable, (c->protect_enable & (uint8_t)~PROT_ENABLE_IMPLEMENTED) == 0U);
+     REPAIR(position_resolution_cdeg, c->position_resolution_cdeg >= CFG_RESOLUTION_MIN_CDEG
+                                      && c->position_resolution_cdeg <= CFG_RESOLUTION_MAX_CDEG);
+-    if (c->voltage_min_dv < PROT_VOLTAGE_CFG_MIN_DV || c->voltage_max_dv > PROT_VOLTAGE_CFG_MAX_DV
+-        || (uint16_t)c->voltage_min_dv + PROT_VOLTAGE_HYST_DV > c->voltage_max_dv)
++    if (!A_Protect_VoltageRangeValid(c->voltage_min_dv, c->voltage_max_dv))
+     { c->voltage_min_dv = g_config.voltage_min_dv; c->voltage_max_dv = g_config.voltage_max_dv; }
+     REPAIR(min_start_torque_ckgcm, c->min_start_torque_ckgcm <= A_Config_TorqueMax());
+ #undef REPAIR
+--- before/Application/A_Protect.c
++++ after/Application/A_Protect.c
+@@ -33,7 +33,6 @@
+ 
+ typedef struct {
+     uint16_t fault;      /** PROT_FAULT_* 位掩码 */
+-    uint8_t  released;   /** 1=当前的卸力由本模块发出，只有它该由本模块解除 */
+     uint16_t torque_ckgcm; /** 已生效的扭矩上限，与g_config不一致时重算 */
+     uint16_t cur_cnt;    /** 连续过流拍数 */
+     uint16_t temp_cnt;   /** 连续过温采样数 */
+@@ -95,9 +94,11 @@
+     uint16_t torque = g_runtime_config.torque_limit_ckgcm;
+ 
+     if (torque > rated) torque = rated;
++    if (s_prot.pwm_limit != 0 && s_prot.torque_ckgcm == torque) return;
+     s_prot.torque_ckgcm = torque;
+     s_prot.i_limit_ma = A_Torque_CurrentLimit(torque, rated);
+ #if PROT_CURRENT_DERATING_ENABLE
++    /* 同值写不重置降额；真正改扭矩重建初始上限，避免零扭矩恢复后无有效采样而无法起转。 */
+     s_prot.pwm_limit = (int16_t)((uint32_t)s_prot.i_limit_ma * CFG_PWM_FULL
+                                / TORQUE_STALL_CURRENT_MA);
+     if (s_prot.pwm_limit < PROT_LIMIT_MIN) s_prot.pwm_limit = PROT_LIMIT_MIN;
+@@ -110,6 +111,13 @@
+ /* 同步可配置保护参数。时间向上取整到实际任务/采样周期，保证不会早于用户设定值触发。 */
+ static void Protect_ApplyConfig(void)
+ {
++    /* 提高阈值后旧历史不足以证明仍超限；改严保留已成立的证据。
++     * 时间参数只改触发门槛；扭矩和其它检测器的改动不清本检测器历史。 */
++    if (g_runtime_config.prot_current_limit_ma > s_prot.current_limit_ma) s_prot.cur_cnt = 0U;
++    if (g_runtime_config.prot_temp_limit_dC > s_prot.temp_limit_dC) s_prot.temp_cnt = 0U;
++    if (g_runtime_config.prot_stall_act_cdeg != s_prot.stall_act_cdeg) s_prot.stall_cnt = 0U;
++    if (g_runtime_config.torque_limit_ckgcm != s_prot.torque_ckgcm || s_prot.pwm_limit == 0)
++        Protect_ApplyTorqueSetting();
+ #define APPLY(cache, config) s_prot.cache = g_runtime_config.config;
+     PROTECT_SETTINGS(APPLY)
+ #undef APPLY
+@@ -118,10 +126,6 @@
+                                            / PROT_TICK_MS);
+     s_prot.temp_trip_samples = (uint16_t)((s_prot.temp_time_ms + PROT_TEMP_SAMPLE_MS - 1U)
+                                           / PROT_TEMP_SAMPLE_MS);
+-    s_prot.cur_cnt = 0U;
+-    s_prot.temp_cnt = 0U;
+-    s_prot.stall_cnt = 0U;
+-    Protect_ApplyTorqueSetting();
+ }
+ 
+ /* 设置物理扭矩上限并落盘，返回0=超过硬件上限 */
+@@ -373,26 +377,6 @@
+ 
+ /* ============================== 故障落实 ============================== */
+ 
+-/* 把故障状态落实到舵机：逐拍复检(故障期间上位机可能发ULR或运动指令)；
+- * 恢复只解除本模块发出的卸力，不撤销用户自己的ULK。 */
+-static void Protect_Enforce(void)
+-{
+-    if (!A_Protect_CanDrive())
+-    {
+-        if (A_Servo_TorqueOn())
+-        {
+-            A_Servo_Release(0U); /* 低阻力：自由转，功耗最低，降温最快 */
+-            s_prot.released = 1U;
+-        }
+-    }
+-    else if (s_prot.released)
+-    {
+-        s_prot.released = 0U;
+-        A_Servo_RestoreTorque(); /* 目标已在卸力时丢弃，恢复后原地保持 */
+-    }
+-}
+-
+-
+ /* =========================== 生命周期与任务 =========================== */
+ 
+ /* 初始化保护模块，须在 A_Servo_Init 之后调用 */
+@@ -438,5 +422,5 @@
+         Protect_OverTemp();
+     }
+ 
+-    Protect_Enforce();
+-}
++    A_Servo_SyncTorque(); /* 只同步实际输出，不改写用户扭矩请求。 */
++}
+--- before/Application/A_Protect.h
++++ after/Application/A_Protect.h
+@@ -77,6 +77,13 @@
+ #define PROT_VOLTAGE_TRIP_MS        50U
+ #define PROT_VOLTAGE_RECOVER_MS    500U
+ 
++/* 上下各留回差后仍须有恢复区间，不能只剩一个采样点。协议与开机修复共用。 */
++static inline uint8_t A_Protect_VoltageRangeValid(uint16_t lo, uint16_t hi)
++{
++    return (uint8_t)(lo >= PROT_VOLTAGE_CFG_MIN_DV && hi <= PROT_VOLTAGE_CFG_MAX_DV
++                 && lo + 2U * PROT_VOLTAGE_HYST_DV < hi);
++}
++
+ /* 堵转：每 PROT_STALL_PERIOD_MS 采一次参考与实际位移，连续达到配置次数才判定。对外只有实际位移阈值，
+  * 参考位移阈值固定为它的 PROT_STALL_REF_RATIO 倍，两者拉开避免含糊地带。触发后就地保持，不卸力、不记故障位
+  * (被按住或撞限位是可恢复事件)。 */
+--- before/Application/A_Servo.c
++++ after/Application/A_Servo.c
+@@ -233,7 +233,7 @@
+ {
+     uint32_t mv = (uint32_t)cv * 10U;
+ 
+-    if (mv == 0U) return;
++    if (cv < PROT_VOLTAGE_ABS_MIN_DV * 10U || cv > PROT_VOLTAGE_ABS_MAX_DV * 10U) return;
+     s_servo.pwm_bus_cv  = cv;
+     s_servo.to_duty_q16 = (int32_t)(((uint32_t)CFG_PWM_FULL << 16) / mv);
+     s_servo.to_mv_q16   = (int32_t)((mv << 16) / CFG_PWM_FULL);
+@@ -245,7 +245,8 @@
+ {
+     uint16_t cv = A_Voltage_Read();
+ 
+-    if (duty != 0 && cv >= PROT_VOLTAGE_ABS_MIN_DV * 10U && cv <= PROT_VOLTAGE_ABS_MAX_DV * 10U) {
++    if (s_servo.pwm_bus_cv == 0U) Servo_VbusUpdate(cv); /* 首份有效电压不依赖驱动已出力。 */
++    else if (duty != 0 && cv >= PROT_VOLTAGE_ABS_MIN_DV * 10U && cv <= PROT_VOLTAGE_ABS_MAX_DV * 10U) {
+         s_servo.vbus_sum += cv;
+         if (++s_servo.vbus_n >= 8U) {
+             cv = (uint16_t)((s_servo.vbus_sum + 4U) >> 3);
+@@ -419,7 +420,7 @@
+ {
+     int16_t pwm;
+ 
+-    if (++s_servo.escape_ticks >= (s_servo.escape_retried ? 2U : 1U) * SERVO_ESCAPE_TICKS)
++    if (++s_servo.escape_ticks >= SERVO_ESCAPE_TICKS)
+     {
+         if (s_servo.escape_retried)
+         {
+@@ -547,6 +548,7 @@
+     Servo_ClearCommand();
+     if (Servo_IsPosition()) { Servo_SetTrajRange(); Servo_Resync(1U); }
+     else { s_servo.enc_state = SERVO_ENC_OK; s_servo.paused = 0U; C_PosCtrl_Reset(); }
++    A_Servo_SyncTorque();
+     Servo_ApplyTorqueOutput();
+ }
+ 
+@@ -596,7 +598,7 @@
+ 
+     if (lo < Q3_MIN) lo = Q3_MIN;
+     if (hi > Q3_MAX) hi = Q3_MAX;
+-    if (s_servo.enc_state == SERVO_ENC_FAULT || A_Protect_Fault() != PROT_FAULT_NONE
++    if (s_servo.enc_state == SERVO_ENC_FAULT || !A_Protect_CanDrive()
+         || (Servo_IsPosition() && !s_servo.range_valid)) return SERVO_SUBMIT_STATE;
+     if (lo > hi || q3 < lo || q3 > hi) return SERVO_SUBMIT_VALUE;
+     if (s_servo.torque != SERVO_TORQUE_ON) A_Servo_RestoreTorque();
+@@ -691,23 +693,36 @@
+     Servo_ApplyTorqueOutput();
+ }
+ 
+-/* 卸力：0=低阻力自由转，1=高阻力短路制动；先改状态再停，避免先刹一下 */
++/* torque_mode只表示用户请求；故障只改变实际状态，恢复不复活旧目标。 */
++void A_Servo_SyncTorque(void)
++{
++    uint8_t torque = !A_Protect_CanDrive() ? SERVO_RELEASE_LOW
++                   : g_runtime_config.torque_mode == 1U ? SERVO_TORQUE_ON
++                   : g_runtime_config.torque_mode == 2U ? SERVO_RELEASE_HIGH : SERVO_RELEASE_LOW;
++    if (torque == s_servo.torque) return;
++    s_servo.torque = torque;
++    s_servo.damping_acc = 0U;
++    if (torque == SERVO_TORQUE_ON) {
++        (void)Servo_ReadPosition();
++        if (Servo_IsPosition()) Servo_Resync(1U);
++        Servo_Drive(0);
++    }
++    else A_Servo_Stop();
++}
++
++/* 卸力：0=低阻力自由转，1=高阻力短路制动。 */
+ void A_Servo_Release(uint8_t high_resistance)
+ {
+     g_runtime_config.torque_mode = high_resistance ? 2U : 0U;
+-    s_servo.torque      = high_resistance ? SERVO_RELEASE_HIGH : SERVO_RELEASE_LOW;
+-    s_servo.damping_acc = 0U;
+-    A_Servo_Stop();
++    A_Servo_SyncTorque();
++    A_Servo_Stop(); /* 同档重复卸力也取消脱困中排队的命令。 */
+ }
+ 
+ void A_Servo_RestoreTorque(void)
+ {
+-    if (!A_Protect_CanDrive() || s_servo.torque == SERVO_TORQUE_ON) return;
++    if (!A_Protect_CanDrive()) return;
+     g_runtime_config.torque_mode = 1U;
+-    s_servo.torque = SERVO_TORQUE_ON;
+-    (void)Servo_ReadPosition();
+-    if (Servo_IsPosition()) Servo_Resync(1U);
+-    Servo_Drive(0);
++    A_Servo_SyncTorque();
+ }
+ 
+ uint8_t A_Servo_SetTorqueMode(uint8_t mode)
+@@ -967,6 +982,7 @@
+ void A_Servo_Control(void)
+ {
+     uint16_t pulse;
++    A_Servo_SyncTorque();
+     if (s_stream.age < 0xFFFFU) s_stream.age++;
+     if (s_stream.age > SERVO_STREAM_MAX_MS) s_stream.consistent = 0U;
+     s_servo.debug_control_valid = 0U;
+--- before/Application/A_Servo.h
++++ after/Application/A_Servo.h
+@@ -56,6 +56,7 @@
+ void     A_Servo_Stop(void);
+ void     A_Servo_Release(uint8_t high_resistance);      /* 卸力：0=自由转，1=短路制动 */
+ void     A_Servo_RestoreTorque(void);
++void     A_Servo_SyncTorque(void);                      /* 用户请求与保护禁止合成实际状态 */
+ uint8_t  A_Servo_SetTorqueMode(uint8_t mode);           /* 0=自由，1=正常，2=自定义阻尼 */
+ uint8_t  A_Servo_SetDamping(uint8_t percent);           /* 自定义阻尼 0~100% */
+ uint8_t  A_Servo_SetMode(uint8_t mode);                 /* 切换工作模式并落盘 */
+--- before/Application/A_UartCmd.c
++++ after/Application/A_UartCmd.c
+@@ -495,10 +495,10 @@
+         g_config.prot_stall_act_cdeg = g_runtime_config.prot_stall_act_cdeg = (uint16_t)value;
+         A_Config_MarkDirty(); return BIN_ST_OK;
+     case PARAM_VOLTAGE_MIN:
+-    case PARAM_VOLTAGE_MAX:   /* 上下限之间至少留回差 */
++    case PARAM_VOLTAGE_MAX:   /* 上下各留回差后仍有恢复区间 */
+         if (len != 1U) return BIN_ST_LENGTH;
+-        if ((id == PARAM_VOLTAGE_MIN) ? (value < PROT_VOLTAGE_CFG_MIN_DV || value + PROT_VOLTAGE_HYST_DV > g_config.voltage_max_dv)
+-                                      : (value > PROT_VOLTAGE_CFG_MAX_DV || g_config.voltage_min_dv + PROT_VOLTAGE_HYST_DV > value))
++        if (!A_Protect_VoltageRangeValid(id == PARAM_VOLTAGE_MIN ? (uint16_t)value : g_config.voltage_min_dv,
++                                        id == PARAM_VOLTAGE_MAX ? (uint16_t)value : g_config.voltage_max_dv))
+             return BIN_ST_VALUE;
+         if (id == PARAM_VOLTAGE_MIN) g_config.voltage_min_dv = g_runtime_config.voltage_min_dv = (uint8_t)value;
+         else                         g_config.voltage_max_dv = g_runtime_config.voltage_max_dv = (uint8_t)value;

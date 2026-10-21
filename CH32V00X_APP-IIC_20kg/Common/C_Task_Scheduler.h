@@ -15,16 +15,15 @@
 
 typedef struct {
     volatile uint8_t  run;      /* 就绪标志：置1后等待被调度               */
-    volatile uint8_t  active;   /* 正在执行；期间到期只记超时，不再次排队  */
+    volatile uint8_t  active;   /* 正在执行；期间到期不再次排队           */
     uint16_t timer;             /* 周期倒计时(tick)，归零时置run           */
     uint16_t period;            /* 执行周期(tick)；0=不周期触发，只靠事件  */
-    volatile uint16_t overrun;  /* 到期时上一次还没跑完的累计次数(诊断用)  */
     uint8_t  prio;              /* 优先级，0最高                           */
     void   (*task_hook)(void);  /* 任务入口函数                            */
 } Task_t;
 
 #define TASK_DEF(func, period_tick, priority) \
-    { 0, 0, 0, (period_tick), 0, (priority), (func) } /* 构造任务描述 */
+    { 0, 0, 0, (period_tick), (priority), (func) } /* 构造任务描述 */
 
 #define C_TASK_INIT(tasks) C_Task_Init((tasks), TASK_ARRAY_COUNT(tasks)) /* 注册任务表，长度自动推导 */
 

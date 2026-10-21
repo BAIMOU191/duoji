@@ -1,0 +1,3 @@
+PASS polynomial signed joins=64 steps=120800 V_A_D_J_range_and_terminal_checks
+PASS polynomial_stop_hold_and_saturated_braking
+PASS opposite_direction_fallback_matches_original_plan

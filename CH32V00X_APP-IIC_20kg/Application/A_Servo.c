@@ -1,15 +1,15 @@
 /*
  * A_Servo.c —— 舵机编排层：一个控制拍的固定顺序 读编码器 -> 观测器 -> 轨迹 -> 控制器 -> H桥。
  * 位置模式(1~6, 11)走闭环；电机模式(7~10)开环给PWM、只用编码器数圈。
- * 反馈为MT6701圆周坐标，支持360度位置与多圈轨迹，连续读失败时停机。
+ * MT6701反馈整圈回绕；应用层展开为连续坐标后交给同一观测器/规划器/控制器。读失败停机，无开环脱困。
  */
 
 #include "A_Servo.h"
 #include "A_Config.h"
+#include "C_Motor_Model.h"
 #include "A_Sensor.h"
 #include "A_Protect.h"
 #include "C_Speed_Observer.h"
-#include "C_Plant_Adapt.h"
 #include "C_Traj_Planner.h"
 #include "C_Pos_Ctrl.h"
 #include "C_Fixed.h"
@@ -21,27 +21,21 @@
 
 #define SERVO_ENC_FAIL_MAX      5U    /* 连续读失败这么多次才判编码器失效 */
 #define SERVO_INPUT_DETECT_MS   60U   /* 上电嗅探PWM的时间窗，覆盖两个50Hz周期 */
-#define SERVO_RETARGET_MIN_MS   5U    /* 运动中的普通目标最快每5ms合并重规划一次 */
+#define SERVO_MERGE_MS          4U    /* 更密的普通目标合并成一条(只留最新) */
+#define SERVO_HOLD_KP_SLEW_MS   10U   /* 运行中改保持 P：每10ms最多变 1‰/°，避免力矩阶跃 */
+#define SERVO_BOOT_MOVE_MS      1500U /* 上电位置复位传给规划器的请求时间，ms */
 
 /* 脉宽内部用 1/8us(Q3)，给PWM输入的一阶跟随留精度 */
-#define SERVO_MULTITURN 1 /* 磁编码版支持多圈位置轨迹 */
-#define SERVO_MT_MAX_TURNS 9U
-#define SERVO_MT_TURN_CDEG CDEG_RANGE
-#define SERVO_MT_SEG_MAX_MS 60000UL
-
 #define Q3(us)       ((uint16_t)((uint16_t)(us) << 3))
 #define Q3_MIN       Q3(SERVO_PWM_MIN)
 #define Q3_MID       Q3(SERVO_PWM_MID)
 #define Q3_MAX       Q3(SERVO_PWM_MAX)
 #define Q3_SPAN      (Q3_MAX - Q3_MIN)
-#define PWM_SNAP_Q3  Q3(7U)           /* PWM输入偏差超过7us判为真动作直接跳过去，否则1/8跟随 */
-#define PWM_DB_US    2U               /* PWM输入的目标死区(us) */
-#define SERVO_PWM_NOMINAL_CV  ((uint32_t)FW_VOLTAGE * 100U)   /* 电压补偿的标称电压，厘伏 */
-#define VBUS_LIM_Q16 ((uint32_t)(((uint64_t)CFG_PWM_FULL << 16) / SERVO_PWM_NOMINAL_CV))
+#define PWM_DB_Q3    Q3(2U)           /* PWM输入回差死区：静止吸收±2us抖动，移动时连续跟随 */
 
 typedef char cfg_pwm_full_matches_motor[(CFG_PWM_FULL == MOTOR_PWM_MAX) ? 1 : -1];
 
-enum { SERVO_ENC_OK = 0, SERVO_ENC_ESCAPING, SERVO_ENC_FAULT };        /* 编码器状态 */
+enum { SERVO_ENC_OK = 0, SERVO_ENC_FAULT };        /* 编码器状态 */
 enum { SERVO_TORQUE_ON = 0, SERVO_RELEASE_LOW, SERVO_RELEASE_HIGH };   /* 扭矩状态 */
 
 typedef struct {
@@ -52,47 +46,65 @@ typedef struct {
     uint8_t  torque;            /* SERVO_TORQUE_ON/RELEASE_* */
     uint8_t  enc_state;         /* SERVO_ENC_* */
     uint8_t  enc_fail;          /* 连续读编码器失败次数 */
-    uint8_t  paused;            /* 已暂停：刹车但保留目标 */
+    uint8_t  paused;            /* 位置模式保持暂停点，保留原目标 */
+    uint8_t  arrived;           /* 1=本条指令已首次到位；外力推动不改变，下一条指令清零 */
+    uint8_t  move_pending;      /* 有一条被合并、等最小间隔到了再下发的普通目标 */
+    uint16_t hold_kp;           /* 当前生效的保持 P(‰/°)，缓慢跟随运行参数 */
+    uint8_t  stiff_slew_ms;
     uint8_t  resume_valid;      /* 有可继续的指令 */
     uint8_t  timed_position;    /* 当前是带时间参数的位置指令 */
-    uint8_t  boot_pending;      /* 有指令(或上电动作)在等首个有效反馈 */
-    uint8_t  retarget_pending;  /* 运动中收到的普通目标，等控制拍合并重规划 */
-    uint8_t  retarget_age;      /* 距上次规划的拍数，饱和到 SERVO_RETARGET_MIN_MS */
-    uint8_t  traj_done_prev;    /* 上一拍轨迹已走完：运动结束那一拍结算自适应 */
+    uint8_t  boot_pending;      /* 有指令(或上电动作)在等首个有效编码器读数 */
     uint8_t  pulse_ready;       /* PWM输入滤波器已有历史 */
     uint8_t  turn_sample_valid; /* raw_angle 是有效的定圈累计基准 */
     uint8_t  damping_acc;       /* 自定义阻尼的脉冲密度累加器 */
     uint8_t  motion_valid;      /* 上次堵转采样时正在跑轨迹 */
-    uint8_t  vbus_n, mt_active, mt_final;
+    uint8_t  vbus_n;
+    uint8_t  circular_valid, mt_active, mt_final;
     uint16_t mt_turn_ms;
-    int32_t  mt_target, mt_fold;
+    int32_t  mt_target; /* 连续坐标，多圈参考与反馈共用，算法层不处理回绕 */
     uint16_t span_cdeg;         /* 有效行程，厘度；0=电机模式 */
     uint16_t angle;             /* 行程坐标[0,span]，只给目标和上报用 */
     uint16_t target_angle;      /* 当前目标 */
     uint16_t traj_lo, traj_hi;  /* 与规划器一致的目标范围 */
     uint16_t pulse_prev[2], pulse_filt;   /* PWM输入：三帧中值 + 一阶跟随，Q3 */
-    uint16_t boot_pwm, boot_value;        /* 等反馈恢复再执行的指令(Q3)，0=按上电动作 */
-    uint16_t traj_hold;         /* 轨迹时钟被饱和冻结的拍数，堵转采样后清零 */
-    uint16_t pwm_bus_cv;        /* 电压补偿用的母线电压(8样本均值)，0=还没有样本 */
-    int16_t  motor_pwm;         /* 电机模式输出，含方向 */
+    uint16_t boot_pwm, boot_value;        /* 等首个有效编码器读数再执行的指令(Q3)，0=按上电动作 */
+    uint16_t saturation_ticks; /* 输出饱和且跟踪落后、轨迹时钟被冻结的拍数，供堵转采样 */
+    uint16_t move_age;          /* 距上一条已下发普通目标的毫秒数，合并过密目标用；饱和在0xFFFF */
+    uint16_t pwm_bus_cv;        /* 母线电压(驱动期间8样本均值)，厘伏 */
+    int32_t  to_duty_q16;       /* 占空比/mV，Q16：电压与占空比的唯一换算处 */
+    int32_t  to_mv_q16;         /* mV/占空比，Q16 */
+    int32_t  motor_mv;          /* 电机模式输出电压，含方向；满量程为标定电压 */
     int16_t  out_limit;         /* 保护模块给的PWM上限 */
-    int16_t  vbus_limit;        /* 当前电压下补偿后还能给出的等效PWM上限 */
-    int16_t  ctrl_limit;        /* 已下发给控制器的上限 = min(out_limit, vbus_limit) */
-    int16_t  last_pwm;          /* 上一拍实际输出(标称电压等效)，观测器要用 */
+    int16_t  applied_pwm;       /* 诊断：D_Motor_Set返回的实际PWM */
+    uint8_t  debug_control_valid; /* 诊断：最近一次输出来自本拍闭环 */
+    uint8_t  debug_position_valid; /* 诊断：最近一次位置读取是否成功 */
+    int32_t  ctrl_limit_mv;     /* 保护上限对应的可用电压，控制器硬限幅 */
+    int32_t  applied_mv;        /* 上一拍实际施加电压(角度增大为正)，供观测器 */
     int32_t  offset_cdeg;       /* 行程坐标0对应的编码器原始角度 */
     int32_t  angle_circ;        /* 未截断的反馈坐标，闭环只用它 */
     int32_t  raw_angle;         /* 编码器原始角度，定圈累计用 */
     int32_t  motion_ref, motion_act;
     uint32_t remaining;         /* 定圈=厘度，定时/带时间位置=拍，UINT32_MAX=无限 */
-    uint32_t vbus_sum, comp_gain_q16, comp_back_q16;
+    uint32_t vbus_sum;
     TrajRef_t     ref;
+    SpeedObserver_t observer;
     SpeedObsOut_t obs;
     PosCtrlDbg_t  dbg;
 } Servo_t;
 
 static Servo_t s_servo;
 
-static void Servo_SubmitQ3(uint16_t q3, uint16_t value);
+static uint8_t Servo_SubmitQ3(uint16_t q3, uint16_t value);
+static void Servo_MultiTurnAbort(void);
+static void Servo_PlanMultiTurn(void);
+
+static int32_t Servo_Unwrap(int32_t wrapped, int32_t near)
+{
+    /* 每拍位移须小于半圈；9圈指令的连续坐标远小于int32/Q8上限。 */
+    while (wrapped - near > CDEG_RANGE / 2) wrapped -= CDEG_RANGE;
+    while (near - wrapped > CDEG_RANGE / 2) wrapped += CDEG_RANGE;
+    return wrapped;
+}
 
 /* ============================== 模式与坐标 ============================== */
 
@@ -106,7 +118,7 @@ static uint8_t Servo_IsTurns(void)
     return (uint8_t)(s_servo.mode == SERVO_MODE_TURNS_CW || s_servo.mode == SERVO_MODE_TURNS_CCW);
 }
 
-#define Servo_Offset() (s_servo.offset_cdeg)   /* 测试用 */
+#define Servo_Offset() (s_servo.offset_cdeg)   /* 当前行程零点 */
 
 static uint16_t Servo_WrapAngle(int32_t a)
 {
@@ -123,11 +135,11 @@ static uint16_t Servo_NominalSpan(ServoMode_t mode)
 }
 
 /* 由校准锚点推有效行程与零点：MID 锚点是行程中点，ZERO 是500us端(反向时在高端)。
- * 可转入区只有 [TRAVEL_LO, TRAVEL_HI]，放不下标称行程就围绕锚点收缩；每次从标称行程重算，不叠加 */
+ * 整圈可测，锚点只决定零点；每次从标称行程重算，不叠加 */
 static void Servo_DeriveCal(uint8_t kind, int32_t anchor, uint16_t nominal,
                             uint16_t *span_out, int32_t *offset_out)
 {
-    *span_out = nominal;
+    *span_out = nominal; /* 整圈可测，无须按电位器两端收缩行程 */
     *offset_out = Servo_WrapAngle(anchor - ((kind == SERVO_CAL_MID) ? nominal / 2 : (s_servo.reverse ? nominal : 0)));
 }
 
@@ -144,6 +156,7 @@ static void Servo_SetModeFields(ServoMode_t mode)
                                 ^ CFG_DIR_INVERT);
     nominal = Servo_NominalSpan(mode);
     offset  = (mode == SERVO_MODE_CUSTOM) ? g_config.custom_offset_cdeg : g_config.position_offset_cdeg;
+    s_servo.circular_valid = 0U;
     s_servo.span_cdeg   = nominal;
     s_servo.offset_cdeg = offset;
     if (nominal == 0U) return;
@@ -152,7 +165,7 @@ static void Servo_SetModeFields(ServoMode_t mode)
         if (mode == SERVO_MODE_CUSTOM) return;   /* 自定义行程由 AMI/AMX 直接标出 */
         /* 旧版 SCK 的零点加半个行程还原成中点锚点；0=从未校准，取可转入区中点 */
         kind   = SERVO_CAL_MID;
-        anchor = Servo_WrapAngle(offset + nominal / 2);
+        anchor = offset ? offset + nominal / 2 : (ENCODER_TRAVEL_LO + ENCODER_TRAVEL_HI) / 2;
     }
     Servo_DeriveCal(kind, anchor, nominal, &span, &offset);
     if (span < SERVO_CUSTOM_SPAN_MIN) return;    /* 推不出可用行程就保留标称值 */
@@ -165,12 +178,18 @@ static uint8_t Servo_ReadPosition(void)
 {
     int32_t raw = A_Encoder_Read();
 
+    s_servo.debug_position_valid = (uint8_t)(raw != ENCODER_ANGLE_ERROR);
     if (raw == ENCODER_ANGLE_ERROR) return 0U;
     s_servo.raw_angle  = raw;
-    s_servo.angle_circ = Servo_WrapAngle(raw - s_servo.offset_cdeg);   /* 闭环用，不截断：截断会在顶住端点时把误差抹成0 */
-    s_servo.angle = (uint16_t)s_servo.angle_circ;
-    if (s_servo.span_cdeg && s_servo.angle > s_servo.span_cdeg)
-        s_servo.angle = (s_servo.angle - s_servo.span_cdeg <= CDEG_RANGE - s_servo.angle) ? s_servo.span_cdeg : 0U;
+    {
+        int32_t wrapped = Servo_WrapAngle(raw - s_servo.offset_cdeg);
+        int32_t near = (s_servo.mt_active || s_servo.span_cdeg == CDEG_RANGE) && s_servo.circular_valid
+                     ? s_servo.angle_circ : s_servo.span_cdeg / 2;
+        s_servo.angle_circ = Servo_Unwrap(wrapped, near);
+        s_servo.circular_valid = 1U;
+    }
+    s_servo.angle = (uint16_t)Fx_ClampRange(s_servo.mt_active
+                     ? Servo_WrapAngle(s_servo.angle_circ) : s_servo.angle_circ, 0, s_servo.span_cdeg);
     s_servo.enc_fail   = 0U;
     return 1U;
 }
@@ -194,137 +213,141 @@ static uint16_t Servo_AngleToPwm(uint16_t angle)
 /* 轨迹可用范围 = 行程 ∩ 可转入区；端点外扩的可读余量就是兜超调的安全带 */
 static void Servo_SetTrajRange(void)
 {
-    s_servo.range_valid = 1U;
+    s_servo.range_valid = (uint8_t)(s_servo.span_cdeg >= SERVO_CUSTOM_SPAN_MIN);
     s_servo.traj_lo = 0U;
     s_servo.traj_hi = s_servo.span_cdeg;
-    C_Traj_Set_Range(0, s_servo.span_cdeg);
+    if (s_servo.range_valid) C_Traj_SetRange(0, s_servo.span_cdeg);
 }
 
 /* ============================== 输出 ============================== */
 
+/* 电压 <-> 占空比：全链路以 mV 计，只在这里按实测母线电压换算 */
+static int16_t Servo_MvToDuty(int32_t mv) { return (int16_t)Fx_Clamp32(Fx_MulShift(mv, s_servo.to_duty_q16, 16), CFG_PWM_FULL); }
+static int32_t Servo_DutyToMv(int16_t duty) { return Fx_MulShift(duty, s_servo.to_mv_q16, 16); }
+
+/* 保护给的占空比上限在当前母线电压下对应的电压 */
 static void Servo_ApplyCtrlLimit(void)
 {
-    int16_t lim = (s_servo.vbus_limit < s_servo.out_limit) ? s_servo.vbus_limit : s_servo.out_limit;
-
-    if (lim != s_servo.ctrl_limit) { s_servo.ctrl_limit = lim; C_PosCtrl_Set_Output_Limit(lim); }
+    s_servo.ctrl_limit_mv = Servo_DutyToMv(s_servo.out_limit);
 }
 
-/* 按新母线电压更新补偿系数；电压低到补偿后顶满时，等效上限一起告诉控制器(否则积分会在饱和里继续攒) */
 static void Servo_VbusUpdate(uint16_t cv)
 {
-    uint32_t lim = (cv * VBUS_LIM_Q16) >> 16;
+    uint32_t mv = (uint32_t)cv * 10U;
 
-    s_servo.pwm_bus_cv    = cv;
-    s_servo.comp_gain_q16 = ((SERVO_PWM_NOMINAL_CV << 16) + cv / 2U) / cv;
-    s_servo.comp_back_q16 = ((uint32_t)cv << 16) / SERVO_PWM_NOMINAL_CV;
-    s_servo.vbus_limit    = (int16_t)((lim > CFG_PWM_FULL) ? CFG_PWM_FULL : lim);
+    if (mv == 0U) return;
+    s_servo.pwm_bus_cv  = cv;
+    s_servo.to_duty_q16 = (int32_t)(((uint32_t)CFG_PWM_FULL << 16) / mv);
+    s_servo.to_mv_q16   = (int32_t)((mv << 16) / CFG_PWM_FULL);
     Servo_ApplyCtrlLimit();
 }
 
-/* 带符号PWM乘Q16系数(四舍五入)，夹到满量程 */
-static int16_t Servo_ScalePwm(int16_t pwm, uint32_t k_q16)
+/* 驱动H桥(物理方向占空比)并记下实际施加电压；驱动期间母线电压8拍平均后更新换算(不跟随单拍压降) */
+static void Servo_Drive(int16_t duty)
 {
-    uint32_t m = ((uint32_t)((pwm < 0) ? -pwm : pwm) * k_q16 + 0x8000U) >> 16;
+    uint16_t cv = A_Voltage_Read();
 
-    if (m > CFG_PWM_FULL) m = CFG_PWM_FULL;
-    return (int16_t)((pwm < 0) ? -(int32_t)m : (int32_t)m);
+    if (duty != 0 && cv >= PROT_VOLTAGE_ABS_MIN_DV * 10U && cv <= PROT_VOLTAGE_ABS_MAX_DV * 10U) {
+        s_servo.vbus_sum += cv;
+        if (++s_servo.vbus_n >= 8U) {
+            cv = (uint16_t)((s_servo.vbus_sum + 4U) >> 3);
+            if (cv != s_servo.pwm_bus_cv) Servo_VbusUpdate(cv);
+            s_servo.vbus_sum = 0U; s_servo.vbus_n = 0U;
+        }
+    }
+    s_servo.applied_pwm = D_Motor_Set(duty);
+    s_servo.applied_mv = Servo_DutyToMv(s_servo.applied_pwm) * MOTOR_SIGN;
+    s_servo.debug_control_valid = 0U;
 }
 
-/* 控制器给的是标称电压等效PWM：实际占空比 = 指令 x 标称电压 / 母线电压(8样本均值)，返回值折回标称等效给观测器。
- * 电压读数越过硬件安全边界时不补偿也不进均值，交给电压保护停机 */
-static int16_t Servo_MotorSetCompensated(int16_t pwm)
+/* 上电时的母线电压：取8次平均，作为电压换算的初值 */
+static uint16_t Servo_BootBusCv(void)
 {
-    uint16_t cv;
+    uint32_t sum = 0U;
+    uint8_t  i;
 
-    if (pwm == 0) return D_Motor_Set(0);
-    cv = A_Voltage_Read();
-    if (cv < PROT_VOLTAGE_ABS_MIN_DV * 10U || cv > PROT_VOLTAGE_ABS_MAX_DV * 10U) return D_Motor_Set(pwm);
-    if (s_servo.pwm_bus_cv == 0U)
-    {
-        s_servo.vbus_sum = 0U; s_servo.vbus_n = 0U;
-        Servo_VbusUpdate(cv);
-    }
-    else if ((s_servo.vbus_sum += cv, ++s_servo.vbus_n >= 8U))
-    {
-        Servo_VbusUpdate((uint16_t)((s_servo.vbus_sum + 4U) >> 3));
-        s_servo.vbus_sum = 0U; s_servo.vbus_n = 0U;
-    }
-    return Servo_ScalePwm(D_Motor_Set(Servo_ScalePwm(pwm, s_servo.comp_gain_q16)), s_servo.comp_back_q16);
+    for (i = 0U; i < 8U; i++) { sum += A_Voltage_Read(); Delay_Ms(1U); }
+    return (uint16_t)((sum + 4U) >> 3);
 }
 
 /* 按扭矩状态把H桥摆到静止态：有扭矩刹车，卸力按阻力档释放 */
 static void Servo_ApplyTorqueOutput(void)
 {
-    if (s_servo.torque == SERVO_TORQUE_ON) s_servo.last_pwm = D_Motor_Set(0);
-    else { D_Motor_Release((uint8_t)(s_servo.torque == SERVO_RELEASE_HIGH)); s_servo.last_pwm = 0; }
+    if (s_servo.torque == SERVO_TORQUE_ON) Servo_Drive(0);
+    else {
+        D_Motor_Release((uint8_t)(s_servo.torque == SERVO_RELEASE_HIGH));
+        s_servo.applied_mv = 0;
+        s_servo.applied_pwm = 0;
+        s_servo.debug_control_valid = 0U;
+    }
 }
 
-/* 学到的对象参数比同步给观测器、控制器、规划器：加速度增益比 = 惯量比 / 速度增益比 */
-static void Servo_ApplyPlant(void)
+/* 观测器从当前实测位置重新起步，输出也同步过去(起步重锚在下一个控制拍之前就可能读它) */
+static void Servo_ObsInit(void)
 {
-    int32_t kv = C_PlantAdapt_Kv();
-    int32_t ka = (int32_t)(((int64_t)C_PlantAdapt_Rho() << 12) / kv);
-
-    C_SpeedObs_SetPlant(C_PlantAdapt_Rho(), kv);
-    C_PosCtrl_SetPlant(ka, kv);
-    C_Traj_SetPlant(ka);
+    C_SpeedObs_Init(&s_servo.observer, s_servo.angle_circ);
+    memset(&s_servo.obs, 0, sizeof(s_servo.obs));
+    s_servo.obs.pos = s_servo.angle_circ;
 }
 
-/* 以当前行程坐标为起点重建轨迹与控制器；reinit_obs=1 连观测器一起重置(坐标跳变或卸力恢复后)。
- * 目标基准一起重锚，否则紧接着"回到旧目标"的指令会被目标死区吃掉 */
-static void Servo_ResyncAt(int32_t pos, uint8_t reinit_obs)
+/* 以当前实测位置为起点重建参考；reinit=1 连观测器、控制器状态一起重置(坐标跳变或卸力恢复后)。
+ * 目标基准一起重锚，否则紧接着"回到旧目标"的指令会被当成重复目标忽略 */
+static void Servo_Resync(uint8_t reinit)
 {
-    if (reinit_obs) C_SpeedObs_Init(s_servo.angle_circ);
-    C_Traj_Hold(pos);
-    C_PosCtrl_Reset();
+    if (reinit) {
+        Servo_ObsInit();
+        C_PosCtrl_Reset();
+    }
+    C_Traj_Hold(s_servo.angle);
     C_Traj_Step(&s_servo.ref, 0U);
+    s_servo.arrived      = 1U;
+    s_servo.move_pending = 0U;
+    s_servo.move_age     = 0xFFFFU;
     memset(&s_servo.dbg, 0, sizeof(s_servo.dbg));
-    C_PlantAdapt_Abort();      /* 被打断的运动不参与自学习 */
-    s_servo.traj_done_prev   = 1U;
-    s_servo.retarget_pending = 0U;
-    s_servo.retarget_age     = SERVO_RETARGET_MIN_MS;
-    s_servo.target_angle     = s_servo.angle;
+    s_servo.debug_control_valid = 0U;
+    s_servo.target_angle = s_servo.angle;
 }
 
-static void Servo_Resync(uint8_t reinit_obs) { Servo_ResyncAt(s_servo.angle, reinit_obs); }
-
-/* 按 target_angle 重新规划；带时间的指令用剩余拍数 */
-static void Servo_Replan(void)
+/* 按 target_angle 下发运动：所有目标都按单条规划，带时间的按剩余时间拉伸(规划器另套最短运动时间)。
+ * 参考还在动时从当前参考状态接着规划，连续发来的目标不会先停下 */
+static void Servo_Move(void)
 {
-    s_servo.retarget_pending = 0U;
-    s_servo.retarget_age     = 0U;
-    C_Traj_Plan(s_servo.target_angle,
-                s_servo.timed_position ? (uint16_t)((s_servo.remaining > 0xFFFFU) ? 0xFFFFU : s_servo.remaining) : 0U);
+    uint16_t time_ms = s_servo.timed_position ? (uint16_t)((s_servo.remaining > 0xFFFFU) ? 0xFFFFU : s_servo.remaining) : 0U;
+
+    s_servo.arrived      = 0U;
+    s_servo.move_pending = 0U;
+    s_servo.move_age     = 0U;
+    /* 参考已停：从实测位置起步。轴可停在捕获窗内任意处，从旧目标起步会让第一拍误差反向、起转补偿朝反方向顶 */
+    if (C_Traj_Is_Done()) C_Traj_Hold(Fx_ClampRange(s_servo.obs.pos, s_servo.traj_lo, s_servo.traj_hi));
+    C_Traj_Plan(s_servo.target_angle, time_ms);
 }
 
-/* 丢掉当前指令的全部记账(停止/改配置共用) */
+/* 丢掉当前指令的全部记账(停止/改配置共用)，恢复普通行程坐标 */
 static void Servo_ClearCommand(void)
 {
+    Servo_MultiTurnAbort();
+    s_servo.arrived      = 1U;
+    s_servo.move_pending = 0U;
+    s_servo.move_age     = 0xFFFFU;
     s_servo.paused       = 0U;
-    s_servo.resume_valid = s_servo.boot_pending = s_servo.timed_position = s_servo.retarget_pending = 0U;
+    s_servo.resume_valid = s_servo.boot_pending = s_servo.timed_position = 0U;
     s_servo.remaining    = 0U;
-    s_servo.motor_pwm    = 0;
+    s_servo.motor_mv     = 0;
     s_servo.boot_pwm     = s_servo.boot_value = 0U;
-    s_servo.retarget_age = SERVO_RETARGET_MIN_MS;
 }
 
-/* ============================== 上电输入 ============================== */
+/* ============================== 上电与输入检测 ============================== */
 
 /* 上电动作：外部PWM指令优先，其次按配置的上电模式 */
 static void Servo_ApplyBootAction(void)
 {
-    if (s_servo.boot_pwm != 0U) Servo_SubmitQ3(s_servo.boot_pwm, s_servo.boot_value);
+    if (s_servo.boot_pwm != 0U) (void)Servo_SubmitQ3(s_servo.boot_pwm, s_servo.boot_value);
     else if (g_config.boot_mode == SERVO_BOOT_GOTO_START)   /* 上电目标夹进脉冲边界照常执行 */
-        A_Servo_Submit((uint16_t)Fx_ClampRange(g_config.startup_pwm, g_config.pulse_lo, g_config.pulse_hi), 0U);
+        (void)A_Servo_Submit((uint16_t)Fx_ClampRange(g_config.startup_pwm, g_config.pulse_lo, g_config.pulse_hi),
+                             Servo_IsPosition() ? SERVO_BOOT_MOVE_MS : 0U);
     else if (g_config.boot_mode == SERVO_BOOT_RELEASE) A_Servo_Release(0U);
     else if (Servo_IsPosition()) C_Traj_Hold(s_servo.angle);
 }
-
-
-
-
-
-
 
 /* 上电嗅探信号线上有没有PWM，有就以PWM为输入并返回脉宽(Q3)，否则交给串口返回0 */
 static uint16_t Servo_DetectInput(void)
@@ -350,11 +373,10 @@ static uint16_t Servo_DetectInput(void)
     return pulse;
 }
 
-/* PWM输入两级滤波(Q3)：三帧中值去孤立毛刺，再1/8一阶跟随压抖动 */
+/* PWM输入两级滤波(Q3)：三帧中值去孤立毛刺，再回差死区——静止吸收抖动，移动时每帧连续跟随(输出=输入∓回差) */
 static uint16_t Servo_FilterPulse(uint16_t us)
 {
     uint16_t c = Q3(Fx_ClampRange(us, SERVO_PWM_MIN, SERVO_PWM_MAX)), a, b, m;
-    int32_t  err;
 
     if (!s_servo.pulse_ready)
     {
@@ -365,29 +387,65 @@ static uint16_t Servo_FilterPulse(uint16_t us)
     s_servo.pulse_prev[0] = b; s_servo.pulse_prev[1] = c;
     if (a > b) { m = a; a = b; b = m; }
     if (b > c) b = c;
-    m   = (a > b) ? a : b;
-    err = (int32_t)m - s_servo.pulse_filt;
-    s_servo.pulse_filt = (uint16_t)((err >= PWM_SNAP_Q3 || err <= -(int32_t)PWM_SNAP_Q3) ? m : s_servo.pulse_filt + err / 8);
+    m = (a > b) ? a : b;
+    if (m > s_servo.pulse_filt + PWM_DB_Q3) s_servo.pulse_filt = (uint16_t)(m - PWM_DB_Q3);
+    else if (m + PWM_DB_Q3 < s_servo.pulse_filt) s_servo.pulse_filt = (uint16_t)(m + PWM_DB_Q3);
     return s_servo.pulse_filt;
 }
 
 /* ============================== 生命周期 ============================== */
 
+/* 设定值为0或超过额定能力时取额定(额定已含余量) */
+static int32_t Servo_LimitOf(uint32_t user, uint32_t rated)
+{
+    return (int32_t)((user > 0U && user < rated) ? user : rated);
+}
+
+/* 生效限值 = min(设定值, 额定)；加加速度 = max(A,D)/平滑时间，平滑时间为0时取 τ；另设最短运动时间。下一次规划生效，不打断当前轨迹 */
 void A_Servo_ApplyTrajConfig(void)
 {
-    C_Traj_Set_Limits((int32_t)g_runtime_config.traj_vmax_dps * 100, (int32_t)g_runtime_config.traj_amax_dps2 * 100,
-                      (int32_t)g_runtime_config.traj_dmax_dps2 * 100, (int32_t)g_runtime_config.traj_jmax_dps3 * 100);
-    C_Traj_Set_MoveMinMs(g_runtime_config.traj_move_min_ms);
+    const MotorCal_t *cal = C_MotorModel_Cal();
+    int32_t acc = Servo_LimitOf(g_runtime_config.traj_amax_dps2 * 100U, cal->rated_acc_dps2 * 100U);
+    int32_t dec = Servo_LimitOf(g_runtime_config.traj_dmax_dps2 * 100U, cal->rated_dec_dps2 * 100U);
+    int64_t peak = (acc > dec) ? acc : dec;
+    int64_t jerk = g_runtime_config.traj_smooth_ms
+                 ? peak * 1000 / g_runtime_config.traj_smooth_ms
+                 : peak * 1000000 / C_MotorModel_TauUs();
+
+    C_Traj_SetLimits(Servo_LimitOf((uint32_t)g_runtime_config.traj_vmax_dps * 100U, (uint32_t)cal->rated_vel_dps * 100U),
+                     acc, dec, (int32_t)((jerk > 2000000000LL) ? 2000000000LL : jerk));
+    C_Traj_SetMoveMinMs(g_runtime_config.traj_move_min_ms);
+}
+
+/* 控制带宽是固件整定常量(A_Config.h 第3节)，不对外开放 */
+static void Servo_ApplyGains(void)
+{
+    PosCtrlGains_t g = { TUNE_POS_BW_RADS, TUNE_VEL_BW_RADS, TUNE_INT_BW_RADS };
+
+    (void)C_PosCtrl_SetGains(&g);
+}
+
+/* 保持参数：精度、齿隙、积分时间立即生效(改积分时间不阶跃输出)；保持位置环增益每10ms最多变 1/s */
+static void Servo_HoldParams(void)
+{
+    uint16_t target = g_runtime_config.hold_kp;
+
+    if (target != s_servo.hold_kp && ++s_servo.stiff_slew_ms >= SERVO_HOLD_KP_SLEW_MS)
+    {
+        s_servo.stiff_slew_ms = 0U;
+        s_servo.hold_kp = (uint16_t)((target > s_servo.hold_kp) ? s_servo.hold_kp + 1U : s_servo.hold_kp - 1U);
+    }
+    C_PosCtrl_SetHold(g_runtime_config.position_resolution_cdeg, s_servo.hold_kp, g_runtime_config.hold_ki);
 }
 
 /* 让新的模式/校准立即生效，所有环路对齐到当前实测位置 */
 void A_Servo_ApplyConfig(void)
 {
     A_Servo_ApplyTrajConfig();
+    Servo_ApplyGains();
     Servo_SetModeFields((ServoMode_t)g_config.servo_mode);
     (void)Servo_ReadPosition();
     Servo_ClearCommand();
-    s_servo.mt_active = 0U; s_servo.mt_fold = 0;
     if (Servo_IsPosition()) { Servo_SetTrajRange(); Servo_Resync(1U); }
     else { s_servo.enc_state = SERVO_ENC_OK; s_servo.paused = 0U; C_PosCtrl_Reset(); }
     Servo_ApplyTorqueOutput();
@@ -398,141 +456,139 @@ void A_Servo_Init(void)
     uint8_t enc_ok;
 
     memset(&s_servo, 0, sizeof(s_servo));
-    s_servo.out_limit = s_servo.vbus_limit = s_servo.ctrl_limit = CFG_PWM_FULL;
+    s_servo.arrived   = 1U;
+    s_servo.out_limit = CFG_PWM_FULL;
     s_servo.boot_pwm  = Servo_DetectInput();
     Servo_SetModeFields((ServoMode_t)g_config.servo_mode);
+    s_servo.boot_value = Servo_IsPosition() ? SERVO_BOOT_MOVE_MS : 0U; /* 首帧PWM上电目标同样按1.5s请求 */
     enc_ok = Servo_ReadPosition();
-    s_servo.target_angle = s_servo.angle;   /* 目标基准=当前位置，否则上电第一条 P0500 可能被死区吃掉 */
-    C_SpeedObs_Init(s_servo.angle_circ);
+    s_servo.target_angle = s_servo.angle;   /* 目标基准=当前位置，否则上电第一条 P0500 可能被当成重复目标 */
+    s_servo.move_age     = 0xFFFFU;
+    Servo_VbusUpdate(Servo_BootBusCv());
+    C_SpeedObs_Configure(C_MotorModel_Cal(), TUNE_OBS_BW_HZ, CTRL_VEL_NOISE_CDPS);
+    Servo_ObsInit();
+    C_PosCtrl_Init(C_MotorModel_Cal(), CTRL_VEL_NOISE_CDPS, TUNE_OBS_BW_HZ);
+    Servo_ApplyGains();
+    s_servo.hold_kp = g_runtime_config.hold_kp;
+    Servo_HoldParams();
     C_Traj_Init(s_servo.angle);
     A_Servo_ApplyTrajConfig();
     if (Servo_IsPosition()) Servo_SetTrajRange();
-    C_PosCtrl_Init();
-    C_PlantAdapt_Reset();                   /* 上电从标定模型开始；运行中的重同步保留已学到的负载 */
-    Servo_ApplyPlant();
-    s_servo.torque   = SERVO_TORQUE_ON;
-    s_servo.last_pwm = D_Motor_Set(0);
+    C_Traj_Hold(s_servo.angle);
+    s_servo.torque = SERVO_TORQUE_ON;
+    Servo_Drive(0);
     C_Traj_Step(&s_servo.ref, 0U);
     if (enc_ok) Servo_ApplyBootAction();
-    else { s_servo.boot_pending = 1U; s_servo.enc_fail = SERVO_ENC_FAIL_MAX; }   /* 上电读失败：等反馈恢复再执行上电动作 */
+    else { s_servo.boot_pending = 1U; s_servo.enc_state = SERVO_ENC_FAULT; D_Motor_Release(0U); }
 }
 
-static int32_t Servo_Unwrap(int32_t wrapped, int32_t near)
-{
-    uint8_t n;
-
-    for (n = 0U; n < 16U && wrapped - near > CDEG_RANGE / 2; n++)
-        wrapped -= CDEG_RANGE;
-    for (n = 0U; n < 16U && near - wrapped > CDEG_RANGE / 2; n++)
-        wrapped += CDEG_RANGE;
-    return wrapped;
-}
-
+/* 磁编码器专用：多圈只扩展坐标/范围，仍走同一个普通Plan、观测器和电压控制器。 */
 static void Servo_PlanMultiTurn(void)
 {
-    /* 起点问规划器本人：s_servo.ref 是上一拍快照，刚Hold完时是陈的 */
-    int32_t  here  = C_Traj_Get_Pos();
-    int32_t  dist  = s_servo.mt_target - here;   /* 扩展坐标下的剩余位移 */
-    int32_t  adist = (dist >= 0) ? dist : -dist;
-    int32_t  waypoint = s_servo.mt_target;
-    uint32_t ms;      /* 本段请求时间(ms)，0=最快 */
-
+    int32_t here = C_Traj_GetPos(), delta = s_servo.mt_target - here;
+    uint32_t distance = (uint32_t)Fx_Abs32(delta), ms;
+    int32_t waypoint = s_servo.mt_target;
     s_servo.mt_final = 1U;
-    if (s_servo.mt_turn_ms == 0U) { C_Traj_Plan(waypoint, 0U); return; }
-
-    ms = (uint32_t)(((int64_t)s_servo.mt_turn_ms * adist) / SERVO_MT_TURN_CDEG);
-    if (ms == 0U) ms = 1U;
-    if (ms > SERVO_MT_SEG_MAX_MS)
-    {
-        int32_t seg = (int32_t)(((int64_t)adist * (int32_t)SERVO_MT_SEG_MAX_MS)
-                                / (int32_t)ms);
-        waypoint = here + ((dist >= 0) ? seg : -seg);
-        ms = SERVO_MT_SEG_MAX_MS;
+    ms = (uint32_t)((int64_t)s_servo.mt_turn_ms * distance / CDEG_RANGE);
+    if (ms > 60000U) {
+        int32_t segment = (int32_t)((int64_t)distance * 60000 / ms);
+        waypoint = here + (delta < 0 ? -segment : segment);
+        ms = 60000U;
         s_servo.mt_final = 0U;
     }
+    s_servo.arrived = 0U;
     C_Traj_Plan(waypoint, (uint16_t)ms);
-}
-
-static int32_t Servo_RefForCtrl(void)
-{
-    int32_t pos = s_servo.ref.pos - s_servo.mt_fold;
-    int32_t err = pos - s_servo.obs.pos; /* 位置环真正要相减的就是这两个量 */
-
-    if (err > CDEG_RANGE / 2)
-    {
-        s_servo.mt_fold += CDEG_RANGE;
-        pos -= CDEG_RANGE;
-    }
-    else if (err < -CDEG_RANGE / 2)
-    {
-        s_servo.mt_fold -= CDEG_RANGE;
-        pos += CDEG_RANGE;
-    }
-    return pos;
 }
 
 static void Servo_MultiTurnFinish(void)
 {
     uint16_t target = s_servo.target_angle;
-
     s_servo.mt_active = 0U;
-    s_servo.mt_fold   = 0;
+    s_servo.circular_valid = 0U;
     (void)Servo_ReadPosition();
-    C_Traj_Hold((int32_t)target); /* 先折回行程坐标，再恢复范围才不会被夹错 */
+    /* 360度两端同一物理角度：折回时取目标所在分支，防止一整圈的假误差。 */
+    s_servo.angle_circ = Servo_Unwrap(Servo_WrapAngle(s_servo.angle_circ), target);
+    s_servo.angle = (uint16_t)Fx_ClampRange(s_servo.angle_circ, 0, s_servo.span_cdeg);
+    Servo_ObsInit();
+    /* 多圈坐标折回单圈后，旧保持锚点仍在展开坐标，须按坐标变化重置后重新捕获。 */
+    C_PosCtrl_Reset();
     Servo_SetTrajRange();
+    C_Traj_Hold(target);
     C_Traj_Step(&s_servo.ref, 0U);
-    s_servo.target_angle = target;
+    s_servo.arrived = 1U;
 }
 
 static void Servo_MultiTurnAbort(void)
 {
     if (!s_servo.mt_active) return;
     s_servo.mt_active = 0U;
-    s_servo.mt_fold   = 0;
+    s_servo.circular_valid = 0U;
     (void)Servo_ReadPosition();
-    C_Traj_Hold((int32_t)s_servo.angle);
+    Servo_ObsInit();
+    C_PosCtrl_Reset(); /* 中止多圈并改变保持目标，按当前控制器接口清除旧坐标状态 */
     Servo_SetTrajRange();
+    C_Traj_Hold(s_servo.angle);
     C_Traj_Step(&s_servo.ref, 0U);
-    /* 目标死区基准一起重锚，否则打断后再发同一目标会被吃掉 */
     s_servo.target_angle = s_servo.angle;
+}
+
+uint8_t A_Servo_SubmitTurns(uint16_t pwm, uint8_t turns, uint16_t turn_ms)
+{
+    uint16_t target;
+    int32_t here, delta, total, lo, hi;
+    if (pwm < SERVO_PWM_MIN || pwm > SERVO_PWM_MAX || pwm < g_config.pulse_lo
+        || pwm > g_config.pulse_hi || turns > 9U) return SERVO_SUBMIT_VALUE;
+    if (!A_Protect_CanDrive() || !Servo_IsPosition()
+        || !s_servo.range_valid || s_servo.enc_state != SERVO_ENC_OK
+        || A_Protect_Fault() != PROT_FAULT_NONE) return SERVO_SUBMIT_STATE;
+    if (!Servo_ReadPosition()) return SERVO_SUBMIT_STATE;
+    if (s_servo.torque != SERVO_TORQUE_ON) A_Servo_RestoreTorque();
+    if (s_servo.mt_active || s_servo.paused) { Servo_MultiTurnAbort(); Servo_Resync(0U); }
+    if (C_Traj_Is_Done()) C_Traj_Hold(s_servo.obs.pos);
+    target = Servo_PulseToAngle(Q3(pwm));
+    here = C_Traj_GetPos();
+    delta = (int32_t)target - here;
+    total = (int32_t)turns * CDEG_RANGE + Fx_Abs32(delta);
+    if (delta < 0) total = -total;
+    if (!total) return Servo_SubmitQ3(Q3(pwm), 0U);
+    s_servo.mt_target = here + total;
+    s_servo.mt_turn_ms = turn_ms;
+    s_servo.mt_active = 1U;
+    s_servo.target_angle = target;
+    s_servo.paused = s_servo.timed_position = s_servo.move_pending = 0U;
+    s_servo.resume_valid = 1U;
+    s_servo.move_age = 0xFFFFU;
+    s_servo.remaining = 0U;
+    lo = (total < 0) ? s_servo.mt_target : here;
+    hi = (total < 0) ? here : s_servo.mt_target;
+    C_Traj_SetRangeOpen(lo, hi);
+    Servo_PlanMultiTurn();
+    return SERVO_SUBMIT_OK;
 }
 
 /* ============================== 运动指令 ============================== */
 
-/* 运动指令内核(脉宽Q3)，总线与PWM输入共用。越界或故障整条不响应 */
-static void Servo_SubmitQ3(uint16_t q3, uint16_t value)
+/* 运动指令内核(脉宽Q3)，总线与PWM输入共用。越界或故障整条不响应，返回 ServoSubmit_t */
+static uint8_t Servo_SubmitQ3(uint16_t q3, uint16_t value)
 {
     uint8_t  was_paused = s_servo.paused;
     uint16_t lo = Q3(g_config.pulse_lo), hi = Q3(g_config.pulse_hi), target;
-    int32_t  delta, db;
 
     if (lo < Q3_MIN) lo = Q3_MIN;
     if (hi > Q3_MAX) hi = Q3_MAX;
-    if (lo > hi || q3 < lo || q3 > hi || s_servo.enc_state == SERVO_ENC_FAULT
-        || A_Protect_Fault() != PROT_FAULT_NONE || (Servo_IsPosition() && !s_servo.range_valid)) return;
+    if (s_servo.enc_state == SERVO_ENC_FAULT || A_Protect_Fault() != PROT_FAULT_NONE
+        || (Servo_IsPosition() && !s_servo.range_valid)) return SERVO_SUBMIT_STATE;
+    if (lo > hi || q3 < lo || q3 > hi) return SERVO_SUBMIT_VALUE;
     if (s_servo.torque != SERVO_TORQUE_ON) A_Servo_RestoreTorque();
     Servo_MultiTurnAbort();
-    if (s_servo.boot_pending)
-    {   /* 等磁编码首个有效读数，只留最新一条 */
-        s_servo.boot_pwm = q3;
-        s_servo.boot_value = value;
-        s_servo.boot_pending = s_servo.resume_valid = 1U;
-        s_servo.paused = 0U;
-        return;
-    }
-    if (was_paused && Servo_IsPosition())
-    {   /* 暂停后的新目标从停稳位置起步 */
-        if (!Servo_ReadPosition()) return;
-        Servo_Resync(1U);
-    }
     s_servo.paused = 0U;
     s_servo.resume_valid = 1U;
 
     if (!Servo_IsPosition())
     {   /* 电机模式：中位为零速，两侧线性映射到正负满PWM；value 定圈=圈数、定时=秒，0=无限 */
-        s_servo.motor_pwm = (int16_t)((q3 >= Q3_MID) ? (int32_t)((uint32_t)(q3 - Q3_MID) * MOTOR_PWM_MAX / (Q3_MAX - Q3_MID))
-                                                     : -(int32_t)((uint32_t)(Q3_MID - q3) * MOTOR_PWM_MAX / (Q3_MID - Q3_MIN)));
-        if (s_servo.reverse != (CAL_MOTOR_SIGN < 0)) s_servo.motor_pwm = (int16_t)-s_servo.motor_pwm;
+        s_servo.motor_mv = (q3 >= Q3_MID) ? (int32_t)((uint32_t)(q3 - Q3_MID) * MOTOR_CAL_MV / (Q3_MAX - Q3_MID))
+                                          : -(int32_t)((uint32_t)(Q3_MID - q3) * MOTOR_CAL_MV / (Q3_MID - Q3_MIN));
+        if (s_servo.reverse != (MOTOR_SIGN < 0)) s_servo.motor_mv = -s_servo.motor_mv;
         s_servo.remaining = value ? (uint32_t)value * (Servo_IsTurns() ? CDEG_RANGE : CFG_TICK_HZ) : UINT32_MAX;
         s_servo.enc_fail  = 0U;
         if (value && Servo_IsTurns())
@@ -541,94 +597,32 @@ static void Servo_SubmitQ3(uint16_t q3, uint16_t value)
             s_servo.turn_sample_valid = (uint8_t)(raw != ENCODER_ANGLE_ERROR);
             if (s_servo.turn_sample_valid) s_servo.raw_angle = raw;
         }
-        return;
+        return SERVO_SUBMIT_OK;
     }
 
-    /* 位置模式。总线目标逐条接收；PWM输入只滤掉入口抖动(2us)；带时间参数的指令一律放行 */
+    /* 位置模式：重复的普通目标忽略(PWM输入的抖动已由回差滤波吸收)；带时间参数的指令一律放行 */
     target = (uint16_t)Fx_ClampRange(Servo_PulseToAngle(q3), s_servo.traj_lo, s_servo.traj_hi);
-    delta  = (int32_t)target - s_servo.target_angle;
-    db     = (s_servo.input_source == SERVO_INPUT_PWM)
-           ? (int32_t)(((uint32_t)s_servo.span_cdeg * PWM_DB_US + (SERVO_PWM_MAX - SERVO_PWM_MIN) - 1U)
-                       / (SERVO_PWM_MAX - SERVO_PWM_MIN)) : 0;
-    if (!was_paused && value == 0U && delta <= db && delta >= -db) return;
+    if (!was_paused && value == 0U && target == s_servo.target_angle) return SERVO_SUBMIT_OK;
     s_servo.target_angle   = target;
     s_servo.timed_position = (uint8_t)(value != 0U);
-    s_servo.remaining      = 0U;
-    if (value != 0U || C_Traj_Is_Done())
-    {   /* 带时间的指令自己定义整段时间、不合并；空闲时普通指令立即起步 */
-        s_servo.retarget_pending = 0U;
-        s_servo.retarget_age = 0U;
-        C_Traj_Plan(target, value);
-        if (value != 0U) s_servo.remaining = C_Traj_Get_Ticks();
+    s_servo.remaining      = value;
+    if (was_paused) s_servo.move_age = 0xFFFFU;   /* 暂停后立即下发 */
+    else if (s_servo.move_age < SERVO_MERGE_MS)
+    {   /* 太密：先记下最新目标，到最小间隔再下发 */
+        s_servo.move_pending = 1U;
+        s_servo.arrived      = 0U;
+        return SERVO_SUBMIT_OK;
     }
-    else s_servo.retarget_pending = 1U;   /* 运动中只覆盖邮箱，由控制拍合并重规划 */
+    Servo_Move();
+    return SERVO_SUBMIT_OK;
 }
 
 /* 协议入口：pwm=目标脉宽(电机模式为速度与方向)，value=时间(ms；定圈为圈数；0=最快/无限) */
-void A_Servo_Submit(uint16_t pwm, uint16_t value)
+uint8_t A_Servo_Submit(uint16_t pwm, uint16_t value)
 {
-    if (pwm < SERVO_PWM_MIN || pwm > SERVO_PWM_MAX || !A_Protect_CanDrive()) return;   /* 先拦再升Q3，防溢出 */
-    Servo_SubmitQ3(Q3(pwm), value);
-}
-
-void A_Servo_SubmitTurns(uint16_t pwm, uint8_t turns, uint16_t turn_ms)
-{
-    uint16_t target;     /* 目标的行程坐标           */
-    int32_t  here;       /* 规划器当前的参考位置     */
-    int32_t  delta;      /* 到目标的行程位移，定方向 */
-    int32_t  total;      /* 整条指令的总位移(带符号) */
-    int32_t  lo, hi;     /* 放开后的轨迹范围         */
-    uint8_t  was_paused = s_servo.paused;
-
-    if (turns > SERVO_MT_MAX_TURNS || !A_Protect_CanDrive()) return;
-    if (!(pwm >= g_config.pulse_lo && pwm <= g_config.pulse_hi)) return;
-    if (pwm < SERVO_PWM_MIN || pwm > SERVO_PWM_MAX) return;
-    if (!Servo_IsPosition() || !s_servo.range_valid) return;
-    if (s_servo.enc_state != SERVO_ENC_OK
-        || A_Protect_Fault() != PROT_FAULT_NONE) return;
-
-    if (s_servo.torque != SERVO_TORQUE_ON) A_Servo_RestoreTorque();
-
-    /* 打断未走完的多圈或暂停后重发：换回行程坐标并以实测位置重建起点(等同DST打断) */
-    if (s_servo.mt_active || was_paused)
-    {
-        Servo_MultiTurnAbort();
-        if (!Servo_ReadPosition()) return;
-        Servo_Resync(1U);
-    }
-    s_servo.paused       = 0U;
-    s_servo.resume_valid = 1U;
-
-    target = Servo_PulseToAngle(Q3(pwm));
-    if (target < s_servo.traj_lo) target = s_servo.traj_lo;
-    if (target > s_servo.traj_hi) target = s_servo.traj_hi;
-
-    /* 方向与总位移以规划器当前参考为准 */
-    here  = C_Traj_Get_Pos();
-    delta = (int32_t)target - here;
-    total = (int32_t)turns * SERVO_MT_TURN_CDEG + ((delta >= 0) ? delta : -delta);
-    if (delta < 0) total = -total;
-    /* 已在目标上且0圈：按普通指令处理 */
-    if (total == 0)
-    {
-        Servo_SubmitQ3(Q3(pwm), 0U);
-        return;
-    }
-
-    s_servo.retarget_pending = 0U; s_servo.retarget_age = 0U;
-    s_servo.mt_target      = here + total;
-    s_servo.mt_turn_ms     = turn_ms;
-    s_servo.mt_active      = 1U;
-    s_servo.mt_fold        = 0;
-    s_servo.target_angle   = target;
-    s_servo.timed_position = 0U;
-    s_servo.remaining      = 0U;
-
-    /* 行程范围放开到整段扩展坐标，否则目标会被夹回行程里 */
-    lo = (total < 0) ? s_servo.mt_target : here;
-    hi = (total < 0) ? here               : s_servo.mt_target;
-    C_Traj_Set_Range_Open(lo, hi); /* 放开范围但不打断已有轨迹，见规划器同名函数 */
-    Servo_PlanMultiTurn();
+    if (pwm < SERVO_PWM_MIN || pwm > SERVO_PWM_MAX) return SERVO_SUBMIT_VALUE;   /* 先拦再升Q3，防溢出 */
+    if (!A_Protect_CanDrive()) return SERVO_SUBMIT_STATE;
+    return Servo_SubmitQ3(Q3(pwm), value);
 }
 
 void A_Servo_Pause(void)
@@ -637,44 +631,37 @@ void A_Servo_Pause(void)
 
     if (s_servo.torque != SERVO_TORQUE_ON || s_servo.paused || (!s_servo.resume_valid && !s_servo.boot_pending)) return;
     s_servo.paused = s_servo.resume_valid = 1U;
-    if (Servo_IsPosition()) {
-        (void)Servo_ReadPosition();
-        if (s_servo.mt_active) Servo_ResyncAt(Servo_Unwrap(s_servo.angle_circ, s_servo.ref.pos), 0U);
-        else Servo_Resync(0U);
+    if (Servo_IsPosition() && s_servo.enc_state == SERVO_ENC_OK) {
+        C_Traj_Stop();                      /* 沿当前方向平滑刹停，保留原目标供继续 */
         s_servo.target_angle = target;
+        s_servo.arrived      = 1U;
+        s_servo.move_pending = 0U;
     }
-    s_servo.last_pwm = D_Motor_Set(0);
+    else Servo_Drive(0);
 }
 
-/* 继续：从当前位置按剩余时间重新规划到原目标 */
+/* 继续：从暂停点按剩余时间重新下发到原目标 */
 void A_Servo_Resume(void)
 {
-    uint16_t target = s_servo.target_angle;
-
     if (!s_servo.paused || !s_servo.resume_valid) return;
-    if (Servo_IsPosition() && s_servo.enc_state != SERVO_ENC_ESCAPING)
-    {   /* 暂停期间可能滑过，以最新反馈重建起点；读不到就保持暂停，允许重发 */
-        if (!Servo_ReadPosition()) return;
-        if (s_servo.mt_active) {
-            Servo_ResyncAt(Servo_Unwrap(s_servo.angle_circ, s_servo.ref.pos), 1U);
-            s_servo.target_angle = target;
-            s_servo.paused = 0U;
-            Servo_PlanMultiTurn();
-            return;
-        }
-        Servo_Resync(1U);
-        s_servo.target_angle = target;
-    }
     s_servo.paused = 0U;
-    if (s_servo.enc_state != SERVO_ENC_ESCAPING && Servo_IsPosition()) Servo_Replan();
+    if (Servo_IsPosition()) {
+        if (s_servo.mt_active) Servo_PlanMultiTurn();
+        else { s_servo.move_age = 0xFFFFU; Servo_Move(); }
+    }
 }
 
-/* 停止：丢弃目标(不可继续)，按扭矩状态收尾 */
+/* 停止：丢弃目标，就地保持；卸力/电机模式立即按扭矩状态收尾。已在保持中就停在原保持点、不重锚：
+ * 重锚会让窗外托着负载的 P 一拍消失，负载再掉一截 */
 void A_Servo_Stop(void)
 {
-    Servo_MultiTurnAbort();
+    uint8_t measured;
     Servo_ClearCommand();
-    if (Servo_IsPosition()) { (void)Servo_ReadPosition(); Servo_Resync(0U); }
+    if (Servo_IsPosition() && s_servo.enc_state == SERVO_ENC_OK) {
+        measured = Servo_ReadPosition();
+        if (!(C_Traj_Is_Done() && C_PosCtrl_Reached())) Servo_Resync(0U);
+        if (measured && s_servo.torque == SERVO_TORQUE_ON && A_Protect_CanDrive()) return;
+    }
     Servo_ApplyTorqueOutput();
 }
 
@@ -694,7 +681,7 @@ void A_Servo_RestoreTorque(void)
     s_servo.torque = SERVO_TORQUE_ON;
     (void)Servo_ReadPosition();
     if (Servo_IsPosition()) Servo_Resync(1U);
-    s_servo.last_pwm = D_Motor_Set(0);
+    Servo_Drive(0);
 }
 
 uint8_t A_Servo_SetTorqueMode(uint8_t mode)
@@ -758,7 +745,7 @@ uint8_t A_Servo_SetTravelEnd(uint8_t is_min)
     uint8_t  raise_low = (uint8_t)(is_min != s_servo.reverse);   /* 1=抬低端(零点跟着挪)，0=压高端 */
 
     if (!Servo_IsPosition() || (raw = A_Encoder_Read()) == ENCODER_ANGLE_ERROR) return 0U;
-    pos  = Fx_ClampRange(Servo_WrapAngle(raw - s_servo.offset_cdeg), 0, s_servo.span_cdeg);
+    pos  = Fx_ClampRange(Servo_Unwrap(Servo_WrapAngle(raw - s_servo.offset_cdeg), s_servo.span_cdeg / 2), 0, s_servo.span_cdeg);
     span = (uint16_t)(raise_low ? s_servo.span_cdeg - pos : pos);
     if (span < SERVO_CUSTOM_SPAN_MIN) return 0U;   /* 先验证再动手：被拒的不停舵机、不写Flash */
     A_Servo_Stop();
@@ -801,11 +788,10 @@ uint8_t A_Servo_TorqueOn(void) { return (uint8_t)(s_servo.torque == SERVO_TORQUE
 uint8_t A_Servo_GetWorkState(void)
 {
     if (s_servo.enc_state == SERVO_ENC_FAULT || A_Protect_Fault() != PROT_FAULT_NONE) return SERVO_WORK_FAULT;
-    if (s_servo.enc_state == SERVO_ENC_ESCAPING) return SERVO_WORK_RECOVERING;
     if (s_servo.torque == SERVO_RELEASE_LOW)     return SERVO_WORK_RELEASE_LOW;
     if (s_servo.torque == SERVO_RELEASE_HIGH)    return SERVO_WORK_RELEASE_HIGH;
     if (s_servo.paused)                          return SERVO_WORK_PAUSED;
-    if (Servo_IsPosition() ? !C_Traj_Is_Done() : s_servo.remaining != 0U) return SERVO_WORK_MOVING;
+    if (Servo_IsPosition() ? !s_servo.arrived : s_servo.remaining != 0U) return SERVO_WORK_MOVING;
     return SERVO_WORK_IDLE;
 }
 
@@ -814,10 +800,38 @@ void A_Servo_GetTelemetry(ServoTelemetry_t *out)
 {
     out->target_pwm   = Servo_AngleToPwm(s_servo.target_angle);
     out->position_pwm = Servo_AngleToPwm(s_servo.angle);
-    out->speed_cdps   = (Servo_IsPosition() && s_servo.range_valid && !s_servo.paused
+    out->speed_cdps   = (Servo_IsPosition() && s_servo.range_valid
                          && s_servo.torque == SERVO_TORQUE_ON && s_servo.enc_state == SERVO_ENC_OK
                          && s_servo.enc_fail == 0U && s_servo.obs.vel != INT32_MIN)
                       ? (s_servo.reverse ? -s_servo.obs.vel : s_servo.obs.vel) : INT32_MIN;
+}
+
+/* 控制与打印都是协作式任务；ISR不改s_servo，无需关中断或重读传感器。 */
+void A_Servo_GetDebugTelemetry(ServoDebugTelemetry_t *out)
+{
+    uint8_t active = s_servo.debug_control_valid;
+    int32_t cur_ma = 0;
+    uint8_t cur_ok;
+    if (out == 0) return;
+    cur_ok = A_Current_ReadSigned(&cur_ma);
+    out->target_cdeg = s_servo.target_angle;
+    out->ref_cdeg = s_servo.ref.pos;
+    out->actual_cdeg = s_servo.angle_circ; /* 不截断，保留端点超调 */
+    out->ref_cdps = active ? s_servo.ref.vel : 0;
+    out->actual_cdps = active ? s_servo.obs.vel : 0;
+    out->pwm = s_servo.applied_pwm;
+    out->ff_mv = active ? s_servo.dbg.u_ff : 0;
+    out->fb_mv = active ? s_servo.dbg.u_fb : 0;
+    out->i_mv = active ? s_servo.dbg.u_i : 0;
+    out->stick_mv = active ? s_servo.dbg.u_stick : 0;
+    out->out_mv = active ? s_servo.dbg.u_out : 0;
+    out->dist_mv = active ? s_servo.obs.dist : 0;
+    out->saturated = active ? s_servo.dbg.sat : 0U;
+    out->state = A_Servo_GetWorkState();
+    out->cur_ma = (int16_t)Fx_Clamp32(cur_ma, 32767);
+    out->flags = (uint8_t)((active ? 1U : 0U) | (s_servo.debug_position_valid ? 2U : 0U)
+                         | ((active && s_servo.obs.stuck) ? 4U : 0U) | (cur_ok ? 8U : 0U));
+    out->input_source = s_servo.input_source;
 }
 
 /* 重读一次位置再换算成协议脉宽(RAD 查询) */
@@ -842,13 +856,13 @@ void A_Servo_SampleMotion(ServoMotion_t *out)
                                 && s_servo.range_valid && s_servo.enc_state == SERVO_ENC_OK && !C_Traj_Is_Done());
 
     out->ref_delta  = s_servo.ref.pos - s_servo.motion_ref;
-    out->act_delta  = Fx_WrapDiff(s_servo.angle_circ - s_servo.motion_act, CDEG_RANGE);
-    out->hold_ticks = s_servo.traj_hold;
+    out->act_delta  = s_servo.angle_circ - s_servo.motion_act;
+    out->saturation_ticks = s_servo.saturation_ticks;
     out->valid      = (uint8_t)(driving && s_servo.motion_valid);
     s_servo.motion_ref   = s_servo.ref.pos;
     s_servo.motion_act   = s_servo.angle_circ;
     s_servo.motion_valid = driving;
-    s_servo.traj_hold    = 0U;
+    s_servo.saturation_ticks    = 0U;
 }
 
 /* 堵转处理：放弃当前动作就地保持，不卸力 */
@@ -864,8 +878,8 @@ static void Servo_MotorControl(void)
 {
     int32_t raw = ENCODER_ANGLE_ERROR, delta;
 
-    if (s_servo.remaining == 0U || s_servo.motor_pwm == 0) { s_servo.last_pwm = D_Motor_Set(0); return; }
-    /* 定圈：按编码器累计沿指令方向的位移倒计时；I2C连续读失败时停机，恢复后重新建立累计基准 */
+    if (s_servo.remaining == 0U || s_servo.motor_mv == 0) { Servo_Drive(0); return; }
+    /* 定圈：按编码器累计沿指令方向的位移倒计时；磁编码器跨零点按最短采样差累计；连续读失败停机 */
     if (Servo_IsTurns() && s_servo.remaining != UINT32_MAX && (raw = A_Encoder_Read()) != ENCODER_ANGLE_ERROR)
     {
         if (s_servo.turn_sample_valid)
@@ -873,7 +887,7 @@ static void Servo_MotorControl(void)
             delta = raw - s_servo.raw_angle;
             if (delta > CDEG_RANGE / 2) delta -= CDEG_RANGE;
             else if (delta < -CDEG_RANGE / 2) delta += CDEG_RANGE;
-            if (s_servo.motor_pwm * CAL_MOTOR_SIGN < 0) delta = -delta;
+            if (s_servo.motor_mv * MOTOR_SIGN < 0) delta = -delta;
             if (delta > 0) s_servo.remaining = ((uint32_t)delta < s_servo.remaining) ? s_servo.remaining - delta : 0U;
         }
         s_servo.raw_angle = raw;
@@ -882,78 +896,93 @@ static void Servo_MotorControl(void)
     }
     if (Servo_IsTurns() && s_servo.remaining != UINT32_MAX && raw == ENCODER_ANGLE_ERROR) {
         s_servo.turn_sample_valid = 0U;
-        if (s_servo.enc_fail < SERVO_ENC_FAIL_MAX) s_servo.enc_fail++;
-        if (s_servo.enc_fail >= SERVO_ENC_FAIL_MAX) { s_servo.last_pwm = D_Motor_Set(0); return; }
+        if (++s_servo.enc_fail >= SERVO_ENC_FAIL_MAX) {
+            s_servo.enc_state = SERVO_ENC_FAULT;
+            Servo_Drive(0);
+            A_Servo_Release(0U);
+            return;
+        }
     }
-    if (s_servo.remaining == 0U) { s_servo.last_pwm = D_Motor_Set(0); return; }
-    s_servo.last_pwm = Servo_MotorSetCompensated((int16_t)Fx_Clamp32(s_servo.motor_pwm, s_servo.out_limit));
+    if (s_servo.remaining == 0U) { Servo_Drive(0); return; }
+    Servo_Drive((int16_t)Fx_Clamp32(Servo_MvToDuty(s_servo.motor_mv), s_servo.out_limit));
     if (!Servo_IsTurns() && s_servo.remaining != UINT32_MAX) s_servo.remaining--;
 }
 
-/* 1ms控制拍 */
+/* 位置控制固定顺序：反馈 -> 观测 -> 轨迹 -> 控制 -> 驱动 */
+static void Servo_PositionControl(void)
+{
+    uint8_t measured = Servo_ReadPosition();
+    uint8_t hold;
+    PosCtrlFeedback_t feedback;
+    int32_t u_mv;
+
+    if (!measured && ++s_servo.enc_fail >= SERVO_ENC_FAIL_MAX)
+    {   /* 编码器连续失效：停机卸力，禁止开环脱困 */
+        Servo_Drive(0);
+        C_PosCtrl_Reset();
+        s_servo.enc_state = SERVO_ENC_FAULT;
+        A_Servo_Release(0U);
+        return;
+    }
+    C_SpeedObs_Update(&s_servo.observer, s_servo.angle_circ, measured, s_servo.applied_mv, &s_servo.obs);
+
+    /* 被合并的目标到最小间隔就下发；上一拍输出饱和且跟踪落后时冻结轨迹时钟(参考不再领先)，冻结拍数交给堵转检测 */
+    if (s_servo.move_age < 0xFFFFU) s_servo.move_age++;
+    if (s_servo.move_pending && s_servo.move_age >= SERVO_MERGE_MS) Servo_Move();
+    hold = (uint8_t)(s_servo.dbg.sat && (int64_t)s_servo.dbg.e_pos * s_servo.ref.vel > 0);
+    if (hold && s_servo.saturation_ticks < 0xFFFFU) s_servo.saturation_ticks++;
+    C_Traj_Step(&s_servo.ref, hold);
+    if (s_servo.mt_active && s_servo.ref.done && !s_servo.mt_final && !s_servo.paused) {
+        Servo_PlanMultiTurn();
+        C_Traj_Step(&s_servo.ref, 0U);
+    }
+
+    Servo_HoldParams();
+    feedback.pos   = s_servo.obs.pos;
+    feedback.vel   = s_servo.obs.vel;
+    feedback.valid = measured;
+    u_mv = C_PosCtrl_Update(&s_servo.ref, &feedback, s_servo.ctrl_limit_mv, &s_servo.dbg);
+    Servo_Drive(Servo_MvToDuty(u_mv * MOTOR_SIGN));
+    s_servo.debug_control_valid = 1U;
+    /* 首次到位：参考已停且控制器按到位精度判定到位；锁存到下一条指令，外力推动不改变上报状态 */
+    if (!s_servo.arrived && !s_servo.move_pending && s_servo.ref.done && C_PosCtrl_Reached()) {
+        if (s_servo.mt_active && !s_servo.paused && s_servo.mt_final) Servo_MultiTurnFinish();
+        if (!s_servo.mt_active) s_servo.arrived = 1U;
+    }
+    if (!s_servo.paused && s_servo.timed_position && s_servo.remaining != 0U) s_servo.remaining--;
+}
+
+/* 1ms控制拍：异常/失能先处理，正常模式各自计算。暂停位置仍闭环保持暂停点。 */
 void A_Servo_Control(void)
 {
     uint16_t pulse;
-    uint8_t  hold;
-
+    s_servo.debug_control_valid = 0U;
     if (s_servo.input_source == SERVO_INPUT_PWM && (pulse = D_PWM_Read()) != 0U)
-        Servo_SubmitQ3(Servo_FilterPulse(pulse), 0U);   /* PWM输入：每帧当一条新指令 */
-
-    if (s_servo.enc_state == SERVO_ENC_FAULT)
-    {   /* 脱困失败后不再自己动，轴被拨回可测范围即解除，扭矩保持卸力 */
-        if (Servo_ReadPosition()) { s_servo.enc_state = SERVO_ENC_OK; Servo_Resync(1U); }
-        return;
-    }
-    if (s_servo.torque != SERVO_TORQUE_ON)
-    {   /* 自定义阻尼：在全短路制动和全自由之间按百分比交替，不产生方向电压 */
-        if (s_servo.torque == SERVO_RELEASE_HIGH)
-        {
-            uint16_t sum = (uint16_t)s_servo.damping_acc + g_runtime_config.damping_percent;
-            s_servo.damping_acc = (uint8_t)((sum >= 100U) ? sum - 100U : sum);
-            D_Motor_Release((uint8_t)(sum >= 100U));
-            s_servo.last_pwm = 0;
+        (void)Servo_SubmitQ3(Servo_FilterPulse(pulse), 0U);
+    if (s_servo.enc_state == SERVO_ENC_FAULT) {
+        if (Servo_ReadPosition()) {
+            s_servo.enc_state = SERVO_ENC_OK;
+            Servo_Resync(1U);
+            if (s_servo.boot_pending) { s_servo.boot_pending = 0U; Servo_ApplyBootAction(); }
         }
         return;
     }
-    if (s_servo.paused || (Servo_IsPosition() && !s_servo.range_valid)) { s_servo.last_pwm = D_Motor_Set(0); return; }
-    if (!Servo_IsPosition()) { Servo_MotorControl(); return; }
-
-    uint8_t enc_ok = Servo_ReadPosition();
-    if (!enc_ok && s_servo.enc_fail < SERVO_ENC_FAIL_MAX) s_servo.enc_fail++;
-    if (!enc_ok && s_servo.enc_fail >= SERVO_ENC_FAIL_MAX)
-    {   /* 磁编码连续读失败：停机等待有效反馈 */
-        s_servo.last_pwm = D_Motor_Set(0);
-        C_PosCtrl_Reset();
+    if (s_servo.torque != SERVO_TORQUE_ON) {
+        /* 自定义阻尼：在短路制动和自由释放间按百分比交替，不产生方向电压。 */
+        if (s_servo.torque == SERVO_RELEASE_HIGH) {
+            uint16_t sum = (uint16_t)s_servo.damping_acc + g_runtime_config.damping_percent;
+            s_servo.damping_acc = (uint8_t)((sum >= 100U) ? sum - 100U : sum);
+            D_Motor_Release((uint8_t)(sum >= 100U));
+            s_servo.applied_mv = 0;
+            s_servo.applied_pwm = 0;
+        }
         return;
     }
-    if (enc_ok && s_servo.boot_pending) {
-        Servo_Resync(1U);
-        s_servo.boot_pending = 0U;
-        Servo_ApplyBootAction();
+    if ((Servo_IsPosition() && !s_servo.range_valid)
+        || (s_servo.paused && !Servo_IsPosition())) {
+        Servo_Drive(0);
+        return;
     }
-    C_SpeedObs_Update(s_servo.angle_circ, s_servo.last_pwm, &s_servo.obs);
-    C_PlantAdapt_Sample(&s_servo.obs, (uint8_t)!C_Traj_Is_Done());
-
-    /* 运动中的普通目标只在控制拍重规划，最快每5ms一次；旧轨迹已走完就不再等 */
-    if (s_servo.retarget_age < SERVO_RETARGET_MIN_MS) s_servo.retarget_age++;
-    if (s_servo.retarget_pending && !s_servo.timed_position
-        && (s_servo.retarget_age >= SERVO_RETARGET_MIN_MS || C_Traj_Is_Done())) Servo_Replan();
-
-    /* 输出饱和且确实跟不上(误差与参考速度同号)时冻结轨迹时钟，冻结拍数留给堵转检测 */
-    hold = (uint8_t)(s_servo.dbg.sat && (int64_t)s_servo.dbg.e_pos * s_servo.ref.vel > 0);
-    if (hold && s_servo.traj_hold < 0xFFFFU) s_servo.traj_hold++;
-    C_Traj_Step(&s_servo.ref, hold);
-    if (s_servo.mt_active && C_Traj_Is_Done()) {
-        if (s_servo.mt_final) Servo_MultiTurnFinish();
-        else Servo_PlanMultiTurn();
-        C_Traj_Step(&s_servo.ref, 0U);
-    }
-    TrajRef_t ref_ctrl = s_servo.ref;
-    if (s_servo.mt_active) ref_ctrl.pos = Servo_RefForCtrl();
-    s_servo.last_pwm = Servo_MotorSetCompensated(C_PosCtrl_Update(&ref_ctrl, &s_servo.obs, C_Traj_Is_Done(), &s_servo.dbg));
-
-    /* 一段运动刚走完：结算自适应，学到的比值下一段运动起生效 */
-    if (C_Traj_Is_Done() && !s_servo.traj_done_prev && C_PlantAdapt_MoveEnd()) Servo_ApplyPlant();
-    s_servo.traj_done_prev = C_Traj_Is_Done();
-    if (s_servo.timed_position && s_servo.remaining != 0U) s_servo.remaining--;
+    if (Servo_IsPosition()) Servo_PositionControl();
+    else                    Servo_MotorControl();
 }

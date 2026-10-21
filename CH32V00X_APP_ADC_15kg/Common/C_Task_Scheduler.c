@@ -18,7 +18,6 @@ void C_Task_Init(Task_t *tasks, uint8_t task_count)
     {
         s_tasks[i].run = 0;
         s_tasks[i].active = 0;
-        s_tasks[i].overrun = 0;
         s_tasks[i].timer = s_tasks[i].period;
     }
 }
@@ -35,12 +34,7 @@ void C_Task_Tick_Update(void)
         if (--s_tasks[i].timer == 0)
         {
             s_tasks[i].timer = s_tasks[i].period;
-            if (s_tasks[i].run || s_tasks[i].active)
-            {
-                if (s_tasks[i].overrun < 0xFFFFU)
-                    s_tasks[i].overrun++;
-            }
-            else
+            if (!s_tasks[i].run && !s_tasks[i].active)
             {
                 s_tasks[i].run = 1;
             }
@@ -74,7 +68,7 @@ void C_Task_Run(void)
     }
     __set_MSTATUS(irq_state);
 
-    /* 执行期间到期只累计overrun不重复排队，避免超时的高优先级任务饿死其余任务 */
+    /* 执行期间到期不重复排队，避免超时的高优先级任务饿死其余任务 */
     if (best != 0xFF && s_tasks[best].task_hook != NULL)
         s_tasks[best].task_hook();
 

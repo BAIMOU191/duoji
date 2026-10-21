@@ -1,4 +1,4 @@
-/* A_Protect.c —— 保护与功率限制，工程里唯一会越过用户指令关电机的地方，只调公开API不碰寄存器；详见 docs/ALGORITHM_NOTES.md。 */
+/* A_Protect.c —— 保护与功率限制，工程里唯一会越过用户指令关电机的地方，只调公开API不碰寄存器。 */
 
 #include "A_Protect.h"
 #include "A_Config.h"
@@ -6,6 +6,9 @@
 #include "A_Servo.h"
 #include "C_Fixed.h"
 #include <string.h>
+
+/* 电流降额开关；过流故障保护独立生效。 */
+#define PROT_CURRENT_DERATING_ENABLE 1
 
 #define PROT_TICK_MS        10U                     /** 任务基拍(ms) */
 #define PROT_TEMP_DIV       (PROT_TEMP_SAMPLE_MS / PROT_TICK_MS)      /** 过温检测分频 */
@@ -25,13 +28,11 @@
     X(current_time_ms, prot_current_time_ms) \
     X(temp_limit_dC, prot_temp_limit_dC) \
     X(temp_time_ms, prot_temp_time_ms) \
-    X(stall_ref_cdeg, prot_stall_ref_cdeg) \
     X(stall_act_cdeg, prot_stall_act_cdeg) \
     X(stall_trip, prot_stall_trip)
 
 typedef struct {
     uint16_t fault;      /** PROT_FAULT_* 位掩码 */
-    uint8_t  released;   /** 1=当前的卸力由本模块发出，只有它该由本模块解除 */
     uint16_t torque_ckgcm; /** 已生效的扭矩上限，与g_config不一致时重算 */
     uint16_t cur_cnt;    /** 连续过流拍数 */
     uint16_t temp_cnt;   /** 连续过温采样数 */
@@ -48,7 +49,7 @@ typedef struct {
     uint16_t temp_limit_dC;    /** 已生效的过温阈值，0.1摄氏度 */
     uint16_t temp_time_ms;     /** 已生效的过温持续时间 */
     uint16_t temp_trip_samples;/** 换算后的连续过温采样数 */
-    uint16_t stall_ref_cdeg;  /** 已生效的参考位移阈值 */
+    uint16_t stall_ref_cdeg;  /** 参考位移阈值 = 实际位移阈值 × PROT_STALL_REF_RATIO */
     uint16_t stall_act_cdeg;  /** 已生效的实际位移阈值 */
     uint16_t stall_trip;      /** 已生效的连续判定次数 */
     uint16_t i_limit_ma; /** 物理扭矩反算的限流值 */
@@ -75,47 +76,58 @@ _Static_assert((PROT_CURRENT_LIMIT_DEFAULT_MA >= PROT_CURRENT_LIMIT_MIN_MA)
                && (PROT_TEMP_TIME_DEFAULT_MS <= PROT_TEMP_TIME_MAX_MS), "guard_prot_defaults_invalid");
 _Static_assert(((PROT_TEMP_SAMPLE_MS % PROT_TICK_MS) == 0U)
                && ((PROT_STALL_PERIOD_MS % PROT_TICK_MS) == 0U), "guard_prot_period_not_multiple_of_tick");
-/* 两个位移阈值必须拉开，避免含糊带 */
-_Static_assert((PROT_STALL_REF_DEFAULT_CDEG > PROT_STALL_ACT_DEFAULT_CDEG)
-               && (PROT_STALL_REF_DEFAULT_CDEG >= PROT_STALL_REF_MIN_CDEG)
-               && (PROT_STALL_REF_DEFAULT_CDEG <= PROT_STALL_REF_MAX_CDEG)
-               && (PROT_STALL_ACT_DEFAULT_CDEG >= PROT_STALL_ACT_MIN_CDEG)
-               && (PROT_STALL_ACT_DEFAULT_CDEG <= PROT_STALL_ACT_MAX_CDEG), "guard_prot_stall_thresholds_overlap");
+/* 两个位移阈值必须拉开避免含糊带；出厂阈值在对外范围内 */
+_Static_assert((PROT_STALL_REF_RATIO > 1U) && (PROT_STALL_THRESHOLD_MIN_CDEG >= 1U)
+               && (PROT_STALL_ACT_DEFAULT_CDEG >= PROT_STALL_THRESHOLD_MIN_CDEG)
+               && (PROT_STALL_ACT_DEFAULT_CDEG <= PROT_STALL_THRESHOLD_MAX_CDEG), "guard_prot_stall_thresholds_invalid");
+_Static_assert((PROT_ENABLE_DEFAULT & (uint8_t)~PROT_ENABLE_IMPLEMENTED) == 0U, "guard_prot_enable_default_unimplemented");
 _Static_assert((PROT_STALL_TRIP_DEFAULT >= PROT_STALL_TRIP_MIN) && (PROT_STALL_TRIP_DEFAULT <= PROT_STALL_TRIP_MAX), "guard_prot_stall_trip_invalid");
 /* 冻结判据要求的拍数不能超过一个检测周期的控制拍数 */
 _Static_assert((PROT_STALL_HOLD_TICKS >= 1) && (PROT_STALL_HOLD_TICKS <= PROT_STALL_PERIOD_MS), "guard_prot_stall_hold_ticks_unreachable");
 
 /* ============================ 扭矩上限设置 ============================ */
 
-/* 物理扭矩反算电流上限，PWM初始上限按参考堵转电流归一化；后续仍由实测电流调节。 */
+/* 限流启用时按扭矩反算电流/PWM上限；关闭时使用满量程，仍保留零扭矩语义。 */
 static void Protect_ApplyTorqueSetting(void)
 {
     uint16_t rated = A_Config_TorqueMax();
     uint16_t torque = g_runtime_config.torque_limit_ckgcm;
 
     if (torque > rated) torque = rated;
+    if (s_prot.pwm_limit != 0 && s_prot.torque_ckgcm == torque) return;
     s_prot.torque_ckgcm = torque;
     s_prot.i_limit_ma = A_Torque_CurrentLimit(torque, rated);
+#if PROT_CURRENT_DERATING_ENABLE
+    /* 同值写不重置降额；真正改扭矩重建初始上限，避免零扭矩恢复后无有效采样而无法起转。 */
     s_prot.pwm_limit = (int16_t)((uint32_t)s_prot.i_limit_ma * CFG_PWM_FULL
                                / TORQUE_STALL_CURRENT_MA);
     if (s_prot.pwm_limit < PROT_LIMIT_MIN) s_prot.pwm_limit = PROT_LIMIT_MIN;
+#else
+    s_prot.pwm_limit = torque == 0U ? PROT_LIMIT_MIN : CFG_PWM_FULL;
+#endif
     A_Servo_SetOutputLimit(s_prot.pwm_limit);
 }
 
 /* 同步可配置保护参数。时间向上取整到实际任务/采样周期，保证不会早于用户设定值触发。 */
 static void Protect_ApplyConfig(void)
 {
+    /* 提高阈值后旧历史不足以证明仍超限；改严保留已成立的证据。
+     * 时间参数只改触发门槛；扭矩和其它检测器的改动不清本检测器历史。 */
+    if (g_runtime_config.prot_current_limit_ma > s_prot.current_limit_ma) s_prot.cur_cnt = 0U;
+    if (g_runtime_config.prot_temp_limit_dC > s_prot.temp_limit_dC) s_prot.temp_cnt = 0U;
+    if (g_runtime_config.prot_stall_act_cdeg != s_prot.stall_act_cdeg) s_prot.stall_cnt = 0U;
+    if (g_runtime_config.torque_limit_ckgcm != s_prot.torque_ckgcm || s_prot.pwm_limit == 0)
+        Protect_ApplyTorqueSetting();
 #define APPLY(cache, config) s_prot.cache = g_runtime_config.config;
     PROTECT_SETTINGS(APPLY)
 #undef APPLY
+    /* APPLY写的是配置原样值，扭矩缓存必须保持钳位后的生效值 */
+    if (s_prot.torque_ckgcm > A_Config_TorqueMax()) s_prot.torque_ckgcm = A_Config_TorqueMax();
+    s_prot.stall_ref_cdeg = (uint16_t)(s_prot.stall_act_cdeg * PROT_STALL_REF_RATIO);
     s_prot.current_trip_ticks = (uint16_t)((s_prot.current_time_ms + PROT_TICK_MS - 1U)
                                            / PROT_TICK_MS);
     s_prot.temp_trip_samples = (uint16_t)((s_prot.temp_time_ms + PROT_TEMP_SAMPLE_MS - 1U)
                                           / PROT_TEMP_SAMPLE_MS);
-    s_prot.cur_cnt = 0U;
-    s_prot.temp_cnt = 0U;
-    s_prot.stall_cnt = 0U;
-    Protect_ApplyTorqueSetting();
 }
 
 /* 设置物理扭矩上限并落盘，返回0=超过硬件上限 */
@@ -168,6 +180,7 @@ void A_Protect_GetTelemetry(ProtectTelemetry_t *out)
 /* ============================== 功率限制 ============================== */
 
 /* 限流回路：快降慢升，瞬时过流立刻按住，恢复平滑 */
+#if PROT_CURRENT_DERATING_ENABLE
 static void Protect_PowerLimit(uint8_t valid, uint16_t ma)
 {
     int32_t limit = s_prot.pwm_limit; /* 本拍算出的新上限 */
@@ -207,6 +220,7 @@ static void Protect_PowerLimit(uint8_t valid, uint16_t ma)
         A_Servo_SetOutputLimit(s_prot.pwm_limit);
     }
 }
+#endif
 
 /* ============================= 检测链 ============================= */
 
@@ -270,7 +284,7 @@ static void Protect_Stall(void)
     d_act = Fx_Abs32(m.act_delta);
 
     /* 参考在走，或参考被饱和冻结按在原地(顶死时正是这样) */
-    if ((d_ref >= s_prot.stall_ref_cdeg || m.hold_ticks >= PROT_STALL_HOLD_TICKS)
+    if ((d_ref >= s_prot.stall_ref_cdeg || m.saturation_ticks >= PROT_STALL_HOLD_TICKS)
         && d_act <= s_prot.stall_act_cdeg)
     {
         if (++s_prot.stall_cnt >= s_prot.stall_trip)
@@ -287,6 +301,7 @@ static void Protect_Stall(void)
     if (d_act > s_prot.stall_act_cdeg)
     { s_prot.stalled = 0U; }
 }
+
 
 /* 过温检测，250ms一次：持续超阈值达到设定时间才置故障位；回落到阈值-回差才清除。 */
 static void Protect_OverTemp(void)
@@ -364,25 +379,6 @@ static void Protect_Voltage(void)
 
 /* ============================== 故障落实 ============================== */
 
-/* 把故障状态落实到舵机：逐拍复检(故障期间上位机可能发ULR或运动指令)；
- * 恢复只解除本模块发出的卸力，不撤销用户自己的ULK。 */
-static void Protect_Enforce(void)
-{
-    if (!A_Protect_CanDrive())
-    {
-        if (A_Servo_TorqueOn())
-        {
-            A_Servo_Release(0U); /* 低阻力：自由转，功耗最低，降温最快 */
-            s_prot.released = 1U;
-        }
-    }
-    else if (s_prot.released)
-    {
-        s_prot.released = 0U;
-        A_Servo_RestoreTorque(); /* 目标已在卸力时丢弃，恢复后原地保持 */
-    }
-}
-
 /* =========================== 生命周期与任务 =========================== */
 
 /* 初始化保护模块，须在 A_Servo_Init 之后调用 */
@@ -411,7 +407,9 @@ void A_Protect_Task(void)
     s_prot.last_current_valid = valid;
 
     Protect_OverCurrent(valid, ma);
+#if PROT_CURRENT_DERATING_ENABLE
     Protect_PowerLimit(valid, ma);
+#endif
     Protect_Voltage();
 
     if (++s_prot.stall_div >= PROT_STALL_DIV)
@@ -426,5 +424,5 @@ void A_Protect_Task(void)
         Protect_OverTemp();
     }
 
-    Protect_Enforce();
+    A_Servo_SyncTorque(); /* 只同步实际输出，不改写用户扭矩请求。 */
 }

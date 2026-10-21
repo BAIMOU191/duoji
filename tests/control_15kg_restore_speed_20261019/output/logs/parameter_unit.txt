@@ -1,0 +1,4 @@
+PASS actual_defaults_and_readback V=234 A=5600 D=5600
+PASS flash_and_sram_writes_use_actual_values_without_hidden_scaling
+PASS rated_limits_unchanged_and_factory_restore_applies_new_defaults
+PASS changed_image_uses_new_defaults_preserving_id_and_baud

@@ -1,68 +1,77 @@
-/*
- * A_Tasks.c —— 应用任务注册表(协作式，耗时操作放最低优先级)
+/* A_Tasks.c —— 应用任务注册表：只决定"谁、多久、多优先"，业务逻辑全部在各自模块。
  *   优先级  周期   任务          内容
- *     0     1ms   ServoControl  编码器 -> 观测器 -> 轨迹 -> 控制器 -> H桥
- *     1     1ms   Uart          收帧 -> 执行 -> 回复
- *     2     10ms  Protect       过流/过温/堵转 + 功率限制
- *     3     1s    State         LED心跳 + 喂狗
- *     4     事件  ConfigSave    参数变脏时写Flash
- * 加任务：写好入口函数，在 s_tasks 里加一行 TASK_DEF 即可。
+ *     0     1ms   ServoControl  实测位置 -> 观测器/轨迹 -> 控制器 -> H桥      (A_Servo)
+ *     1     1ms   Uart          收帧、执行、回复、升级服务                 (A_UartCmd, iap)
+ *     2     10ms  Protect       电流/电压/温度/堵转保护与功率限制          (A_Protect)
+ *     3     20ms  State         LED状态/故障指示与喂狗                     (A_StatusLed)
+ *     4     20ms  ConfigSave    参数变脏时写Flash，运动中顺延              (A_Config)
+ *     5     20ms  Print         FireWater运行诊断(非阻塞串口入队)          (A_Debug，默认关)
  */
-
 #include "A_Tasks.h"
 #include "A_Servo.h"
 #include "A_UartCmd.h"
 #include "A_Protect.h"
+#include "A_StatusLed.h"
+#include "A_Debug.h"
 #include "A_Config.h"
 #include "C_Task_Scheduler.h"
 #include "D_iwdg.h"
-#include "D_ws2812.h"
 #include "iap.h"
-
-
-/* ---- 任务入口：只转发给所属模块 ---- */
 
 static void Task_ServoControl(void)
 {
-    A_Servo_Control(); /* 1ms 控制拍 */
+    A_Servo_Control(); /* 1ms控制拍 */
 }
 
 static void Task_Uart(void)
 {
-    A_Uart_Process();  /* 收帧->执行->回复->延迟波特率切换 */
-    IAP_Service();     /* 进入升级的应答发完后复位进 Boot */
+    A_Uart_Process();
+    IAP_Service();
 }
 
 static void Task_Protect(void)
 {
-    A_Protect_Task(); /* 10ms 基拍，内部再分频 */
+    A_Protect_Task(); /* 10ms基拍，内部再分频 */
 }
 
-/* 状态：LED心跳 + 喂狗 */
 static void Task_State(void)
 {
-    static uint8_t led_on;  /** 当前亮灭状态 */
-    if (led_on) D_WS2812_Send(255U, 255U, 255U);
-    else        D_WS2812_Off();
-    led_on = (uint8_t)!led_on;
-    D_IWDG_Feed();          /* 喂狗放最低优先级：高优先级任务卡死时能触发复位 */
+    A_StatusLed_Task();
+    D_IWDG_Feed(); /* 主循环卡住时让看门狗复位。 */
 }
+
+#define CONFIG_SAVE_PERIOD_MS     20U  /* 落盘顺延后的重试周期，事件先到照常立即存 */
+#define CONFIG_SAVE_HOLD_MAX_MS  500U  /* 运动中最多顺延这么久，防止连续流指令饿死落盘 */
+
+static uint16_t s_save_hold_ms;
 
 static void Task_ConfigSave(void)
 {
-    A_Config_SaveTask(); /* 参数变脏时异步写 Flash */
+    /* 写Flash的擦除/编程会冻结CPU数ms：运动中顺延落盘(参数仍即时生效)，到上限强写 */
+    if (!A_Servo_CanSave() && (s_save_hold_ms += CONFIG_SAVE_PERIOD_MS) < CONFIG_SAVE_HOLD_MAX_MS) return;
+    s_save_hold_ms = 0U;
+    (void)A_Config_SaveTask(); /* 参数变脏时异步写Flash */
 }
 
-/*                   入口函数            周期ms 优先级(0最高) */
+#if TASK_FIREWATER_ENABLE
+static void Task_Print(void)
+{
+    A_Debug_Task();
+}
+#endif
+
+/*                           入口函数        周期ms                  优先级(0最高) */
 static Task_t s_tasks[] = {
-    TASK_DEF(Task_ServoControl, 1,    0),
-    TASK_DEF(Task_Uart,         1,    1),
-    TASK_DEF(Task_Protect,      10,   2),
-    TASK_DEF(Task_State,        1000, 3),
-    TASK_DEF(Task_ConfigSave,   0,    4), /* 周期0：只在参数变脏时被事件触发 */
+    TASK_DEF(Task_ServoControl, 1,                        0),
+    TASK_DEF(Task_Uart,         1,                        1),
+    TASK_DEF(Task_Protect,      10,                       2),
+    TASK_DEF(Task_State,        STATUS_LED_PERIOD_MS,     3),
+    TASK_DEF(Task_ConfigSave,   CONFIG_SAVE_PERIOD_MS,    4), /* 参数变脏时触发，运动中顺延。 */
+#if TASK_FIREWATER_ENABLE
+    TASK_DEF(Task_Print,        TASK_FIREWATER_PERIOD_MS, 5),
+#endif
 };
 
-/* 注册任务表，并把保存任务的就绪标志交给配置模块(事件触发，不占1ms控制拍) */
 void A_Tasks_Init(void)
 {
     C_TASK_INIT(s_tasks);

@@ -22,7 +22,7 @@
 #define IAP_ST_MISMATCH  2U           /** 硬件信息不符 */
 
 #define HWINFO_MAGIC     0x46495748UL /** "HWIF" 按小端读出 */
-#define HWINFO_FORMAT    2U           /** 格式2增加开环标定得到的速度/加减速度/jerk/最小位移 */
+#define HWINFO_FORMAT    3U           /** 格式3：身份4项 + 额定速度/加速度/减速度/平滑时间τ/最小可靠位移 */
 #define IAP_FLAG_STARTED 0x44475055UL
 #define IAP_FLAG_DONE    0x4B4F5041UL
 #define IAP_FLAG_CRC_OFFSET  20U
@@ -119,17 +119,17 @@ static void Iap_Reply(uint8_t status, const uint8_t *data, uint8_t n)
     (void)D_UART1_Tx_Write(frame, (uint8_t)(12U + n));
 }
 
-/* 由当前机型的开环标定常量计算硬件能力。旧格式页没有能力字段时也用它补齐。 */
+/* 本固件标定常量给出的运动规格：标定电压下的额定能力，平滑时间 τ = ka/kv(nV/µV 即 ms，四舍五入) */
 static void Iap_HwCapsFill(IAP_HwInfo_t *info)
 {
-    info->max_speed_dps = (uint16_t)(PLANT_VMAX_HW_CDPS / 100);
-    info->max_accel_dps2 = PLANT_AMAX_HW_DPS2;
-    info->max_decel_dps2 = PLANT_DMAX_HW_DPS2;
-    info->max_jerk_dps3 = PLANT_JMAX_HW_DPS3;
-    info->min_move_cdeg = CAL_MIN_STEP_CDEG;
+    info->max_speed_dps = MOTOR_RATED_VEL_DPS;
+    info->max_accel_dps2 = MOTOR_RATED_ACC_DPS2;
+    info->max_decel_dps2 = MOTOR_RATED_DEC_DPS2;
+    info->smooth_ms = (uint16_t)((MOTOR_KA_NV + MOTOR_KV_UV / 2) / MOTOR_KV_UV);
+    info->min_step_cdeg = MOTOR_MIN_STEP_CDEG;
 }
 
-/* 读硬件信息页；格式1兼容原4项，能力取当前固件对应机型的开环标定常量。 */
+/* 读硬件信息页；格式1兼容原4项，缺少的运动规格取当前固件固定出厂值。 */
 uint8_t IAP_HwInfoRead(IAP_HwInfo_t *info)
 {
     const uint8_t *page = IAP_HWINFO_PAGE;
@@ -144,17 +144,17 @@ uint8_t IAP_HwInfoRead(IAP_HwInfo_t *info)
     info->hw_version = page[6];
     info->voltage    = page[7];
     info->torque     = page[8];
-    if (info->format >= 2U)
+    if (info->format >= HWINFO_FORMAT)
     {
         info->max_speed_dps   = Iap_Get16(page + 9U);
         info->max_accel_dps2  = Iap_Get32(page + 11U);
         info->max_decel_dps2  = Iap_Get32(page + 15U);
-        info->max_jerk_dps3   = Iap_Get32(page + 19U);
-        info->min_move_cdeg   = Iap_Get16(page + 23U);
+        info->smooth_ms       = Iap_Get16(page + 19U);
+        info->min_step_cdeg   = Iap_Get16(page + 23U);
     }
     else
     {
-        Iap_HwCapsFill(info);
+        Iap_HwCapsFill(info);   /* 旧格式页：能力项按本固件(上电时 IAP_Init 会重写成新格式) */
     }
     return 1U;
 }
@@ -184,15 +184,13 @@ static uint8_t Iap_HwInfoKnown(const uint8_t *info)
     return 1U;
 }
 
-/* 根据当前固件常量建立硬件信息页，并在写入后读回确认。 */
-static uint8_t Iap_HwInfoCreate(const uint8_t *info)
+/* 由身份4项和当前固件常量拼出整页内容 */
+static void Iap_HwInfoBuild(uint8_t *bytes, const uint8_t *info)
 {
-    uint32_t page[FLASH_PAGE_SIZE / sizeof(uint32_t)];
-    uint8_t *bytes = (uint8_t *)page;
     IAP_HwInfo_t hw;
-    uint8_t  i;
+    uint8_t i;
 
-    memset(page, 0xFF, sizeof(page));
+    memset(bytes, 0xFF, FLASH_PAGE_SIZE);
     Iap_Put32(bytes, HWINFO_MAGIC);
     bytes[4] = HWINFO_FORMAT;
     for (i = 0U; i < 4U; i++) bytes[5U + i] = info[i];
@@ -200,10 +198,19 @@ static uint8_t Iap_HwInfoCreate(const uint8_t *info)
     Iap_Put16(bytes + 9U,  hw.max_speed_dps);
     Iap_Put32(bytes + 11U, hw.max_accel_dps2);
     Iap_Put32(bytes + 15U, hw.max_decel_dps2);
-    Iap_Put32(bytes + 19U, hw.max_jerk_dps3);
-    Iap_Put16(bytes + 23U, hw.min_move_cdeg);
+    Iap_Put32(bytes + 19U, hw.smooth_ms);
+    Iap_Put16(bytes + 23U, hw.min_step_cdeg);
     Iap_Put32(bytes + 28U, Iap_Crc32(bytes, 28U));
+}
 
+/* 按身份4项和当前固件常量写硬件信息页，写后读回确认。页内容已一致时不擦写 */
+static uint8_t Iap_HwInfoCreate(const uint8_t *info)
+{
+    uint32_t page[FLASH_PAGE_SIZE / sizeof(uint32_t)];
+    uint8_t *bytes = (uint8_t *)page;
+
+    Iap_HwInfoBuild(bytes, info);
+    if (memcmp(IAP_HWINFO_PAGE, bytes, FLASH_PAGE_SIZE) == 0) return 1U;
     if (FLASH_ROM_ERASE(HW_INFO_ADDR, FLASH_PAGE_SIZE) != FLASH_COMPLETE) return 0U;
     if (FLASH_ROM_WRITE(HW_INFO_ADDR, page, FLASH_PAGE_SIZE) != FLASH_COMPLETE) return 0U;
     return (uint8_t)(memcmp(IAP_HWINFO_PAGE, bytes, FLASH_PAGE_SIZE) == 0);
@@ -295,13 +302,18 @@ void IAP_Rx_Reset(void)
 }
 
 /* 硬件信息页出厂空白时，把 fw_hw 写进去 */
+/* 升级规则：除总线ID和波特率外一律采用新固件。硬件信息页同样按本固件重写(身份4项取本固件适用硬件，
+ * 本固件不限型号时保留页里已有的身份)；内容一致不擦写。Boot 升级时会先擦除此页，WCH-Link 直接烧录则不会 */
 static void Iap_Provision(const uint8_t *fw_hw)
 {
     uint8_t info[4];
 
-    if (!Iap_HwInfoKnown(fw_hw)) return; /* 本固件不限型号，写不出确定的硬件身份 */
-    if (Iap_HwIdentityRead(info)) return;/* 已经写过，写一次就固定，要改只能 WCH-Link 擦除 */
-    (void)Iap_HwInfoCreate(fw_hw);       /* 建立失败时下次上电重试，不影响舵机运行 */
+    if (!Iap_HwInfoKnown(fw_hw))
+    {
+        if (!Iap_HwIdentityRead(info)) return;   /* 不限型号又没有已知身份：写不出确定的硬件信息 */
+        fw_hw = info;
+    }
+    (void)Iap_HwInfoCreate(fw_hw);               /* 失败时下次上电重试，不影响舵机运行 */
 }
 
 void IAP_Init(void)
@@ -320,6 +332,9 @@ void IAP_Service(void)
 {
     if (s_reset_pending && D_UART_Tx_Idle())
     {
+        /* Boot从Flash快照ID/波特率；刚改过身份就升级也必须保留最新值。
+         * 写入失败留在APP重试，不能带着旧身份进入Boot。 */
+        if (!A_Config_SaveTask()) return;
         RCC_ClearFlag();                                /* Boot 靠"只有软件复位标志"认出这是升级请求 */
         SystemReset_StartMode(Start_Mode_BOOT);
         NVIC_SystemReset();

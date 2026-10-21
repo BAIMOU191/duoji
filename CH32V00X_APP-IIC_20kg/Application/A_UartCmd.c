@@ -17,6 +17,8 @@
 #define TEXT_FRAME_MAX 32U
 #define TEXT_REPLY_MAX 48U
 
+static uint8_t s_debug_rx_quiet_ms;
+
 #define BIN_HEAD1     0xAAU
 #define BIN_HEAD2     0x66U
 #define BIN_TAIL1     0x66U
@@ -55,8 +57,8 @@
 #define PARAM_HW_VMAX 0x04U
 #define PARAM_HW_AMAX 0x05U
 #define PARAM_HW_DMAX 0x06U
-#define PARAM_HW_JMAX 0x07U
-#define PARAM_HW_MOVE_MIN 0x08U
+#define PARAM_HW_SMOOTH 0x07U     /* 自动平滑时间 τ，ms */
+#define PARAM_HW_MIN_STEP 0x08U   /* 最小可靠位移，厘度 */
 #define PARAM_FW_VERSION 0x10U
 #define PARAM_SERVO_ID 0x20U
 #define PARAM_BAUD_CODE 0x21U
@@ -67,9 +69,11 @@
 #define PARAM_TRAJ_VMAX 0x30U
 #define PARAM_TRAJ_AMAX 0x31U
 #define PARAM_TRAJ_DMAX 0x32U
-#define PARAM_TRAJ_JMAX 0x33U
-#define PARAM_MOVE_MIN 0x34U
-#define PARAM_HOLD_STIFF 0x35U
+#define PARAM_TRAJ_SMOOTH 0x33U   /* S曲线平滑时间，ms */
+#define PARAM_MOVE_MIN 0x34U      /* 最短运动时间，ms */
+#define PARAM_HOLD_KP 0x35U       /* 保持 P，‰/° */
+#define PARAM_RESOLUTION 0x37U
+#define PARAM_HOLD_KI 0x38U       /* 保持 I，‰/(°·s)，0=积分不动 */
 #define PARAM_PROT_CURRENT_LIMIT 0x40U
 #define PARAM_PROT_CURRENT_TIME 0x41U
 #define PARAM_PROT_TEMP_LIMIT 0x42U
@@ -88,9 +92,11 @@
 #define PARAM_RT_TRAJ_VMAX 0x85U
 #define PARAM_RT_TRAJ_AMAX 0x86U
 #define PARAM_RT_TRAJ_DMAX 0x87U
-#define PARAM_RT_TRAJ_JMAX 0x88U
+#define PARAM_RT_TRAJ_SMOOTH 0x88U
 #define PARAM_RT_MOVE_MIN 0x89U
-#define PARAM_RT_HOLD_STIFF 0x8AU
+#define PARAM_RT_HOLD_KP 0x8AU
+#define PARAM_RT_RESOLUTION 0x8EU
+#define PARAM_RT_HOLD_KI 0x8FU
 #define PARAM_CAL_ACTION 0x8BU
 #define PARAM_SYSTEM_ACTION 0x8CU
 #define PARAM_WORK_STATE 0xC0U
@@ -231,10 +237,11 @@ static void Text_Execute(uint8_t code, uint16_t arg)
     case T_CSD: ok = A_Servo_SaveStartup(); break;
     case T_CSM_SET: g_config.boot_mode = (uint8_t)arg; A_Config_MarkDirty(); break;
     case T_BD_SET:  g_config.baud_code = (uint8_t)arg; A_Config_MarkDirty(); break;
-    default:   /* T_CLE0 / T_CLE：恢复默认，只差保不保留ID */
+    case T_CLE0: case T_CLE: /* CLE0仅保留ID；CLE全部恢复；二者波特率均恢复默认 */
         A_Config_Default((uint8_t)(code == T_CLE0));
         A_Servo_ApplyConfig();
         break;
+    default: return;
     }
     if (!ok) return;
     Reply_Begin(); Reply_Text("OK"); Reply_Send();
@@ -255,12 +262,12 @@ static void Text_Frame(const uint8_t *f, uint8_t len)
     if (n == 11U && body[4] == 'N' && body[6] == 'T'
         && Text_Digits(body, 4U, &pwm) && Text_Digits(body + 5, 1U, &turns)
         && Text_Digits(body + 7, 4U, &arg)) {
-        if (pwm >= SERVO_PWM_MIN && pwm <= SERVO_PWM_MAX) A_Servo_SubmitTurns(pwm, (uint8_t)turns, arg);
+        (void)A_Servo_SubmitTurns(pwm, (uint8_t)turns, arg);
         return;
     }
     if (n == 9U && body[4] == 'T' && Text_Digits(body, 4U, &pwm) && Text_Digits(body + 5, 4U, &arg))
     {   /* nnnnTnnnn：目标脉宽 + 时间(ms) */
-        if (pwm >= SERVO_PWM_MIN && pwm <= SERVO_PWM_MAX) A_Servo_Submit(pwm, arg);
+        (void)A_Servo_Submit(pwm, arg);   /* 明文运动指令按协议不回复 */
         return;
     }
     for (i = 0U; i < sizeof(k_text) / sizeof(k_text[0]); i++)
@@ -341,6 +348,7 @@ static void Bin_Telemetry(uint8_t *out)
 #define PF_TRAJ 0x01U     /* 写后让轨迹参数生效 */
 #define PF_BAUD 0x02U     /* 写后切波特率 */
 #define PF_TMAX 0x04U     /* 上限取本机硬件扭矩 */
+#define PF_ZMIN 0x08U     /* 0 另外允许(表示关闭)，其余须在 [min,max] */
 #define PCFG(f) ((uint16_t)offsetof(Config_t, f))
 #define PRT(f)  ((uint16_t)offsetof(RuntimeConfig_t, f))
 
@@ -355,12 +363,15 @@ static const struct {
     { PARAM_BOOT_MODE,    1, 0,       PCFG(boot_mode),          PF_NONE, SERVO_BOOT_GOTO_START, SERVO_BOOT_RELEASE },
     { PARAM_TORQUE_LIMIT, 2, 0,       PCFG(torque_limit_ckgcm), PF_NONE, 0U, 0U },
     { PARAM_STARTUP_PWM,  2, 0,       PCFG(startup_pwm),        PF_NONE, SERVO_PWM_MIN, SERVO_PWM_MAX },
-    { PARAM_TRAJ_VMAX,    2, PF_TRAJ, PCFG(traj_vmax_dps),      PRT(traj_vmax_dps),    0U, PLANT_VMAX_HW_CDPS / 100 },
-    { PARAM_TRAJ_AMAX,    4, PF_TRAJ, PCFG(traj_amax_dps2),     PRT(traj_amax_dps2),   0U, PLANT_AMAX_HW_DPS2 },
-    { PARAM_TRAJ_DMAX,    4, PF_TRAJ, PCFG(traj_dmax_dps2),     PRT(traj_dmax_dps2),   0U, PLANT_DMAX_HW_DPS2 },
-    { PARAM_TRAJ_JMAX,    4, PF_TRAJ, PCFG(traj_jmax_dps3),     PRT(traj_jmax_dps3),   0U, PLANT_JMAX_HW_DPS3 },
-    { PARAM_MOVE_MIN,     2, PF_TRAJ, PCFG(traj_move_min_ms),   PRT(traj_move_min_ms), 0U, 200U },
-    { PARAM_HOLD_STIFF,   1, 0,       PCFG(hold_stiff),         PRT(hold_stiff),       0U, CFG_HOLD_STIFF_MAX },
+    { PARAM_TRAJ_VMAX,    2, PF_TRAJ, PCFG(traj_vmax_dps),      PRT(traj_vmax_dps),    0U, CFG_TRAJ_VMAX_MAX_DPS },
+    { PARAM_TRAJ_AMAX,    4, PF_TRAJ, PCFG(traj_amax_dps2),     PRT(traj_amax_dps2),   0U, CFG_TRAJ_AMAX_MAX_DPS2 },
+    { PARAM_TRAJ_DMAX,    4, PF_TRAJ, PCFG(traj_dmax_dps2),     PRT(traj_dmax_dps2),   0U, CFG_TRAJ_DMAX_MAX_DPS2 },
+    { PARAM_TRAJ_SMOOTH,  2, PF_TRAJ | PF_ZMIN, PCFG(traj_smooth_ms), PRT(traj_smooth_ms), CFG_SMOOTH_MIN_MS, CFG_SMOOTH_MAX_MS },
+    { PARAM_MOVE_MIN,     2, PF_TRAJ, PCFG(traj_move_min_ms),   PRT(traj_move_min_ms),  0U, CFG_MOVE_MIN_MAX_MS },
+    { PARAM_HOLD_KP,      2, 0,       PCFG(hold_kp),            PRT(hold_kp),          0U, CFG_HOLD_KP_MAX },
+    { PARAM_RESOLUTION, 2, 0, PCFG(position_resolution_cdeg), PRT(position_resolution_cdeg),
+      CFG_RESOLUTION_MIN_CDEG, CFG_RESOLUTION_MAX_CDEG },
+    { PARAM_HOLD_KI,      2, 0,       PCFG(hold_ki),            PRT(hold_ki),          0U, CFG_HOLD_KI_MAX },
     { PARAM_PROT_CURRENT_LIMIT, 2, 0, PCFG(prot_current_limit_ma), PRT(prot_current_limit_ma),
       PROT_CURRENT_LIMIT_MIN_MA, PROT_CURRENT_LIMIT_MAX_MA },
     { PARAM_PROT_CURRENT_TIME,  2, 0, PCFG(prot_current_time_ms),  PRT(prot_current_time_ms),
@@ -372,19 +383,21 @@ static const struct {
     { PARAM_PROT_STALL_THRESHOLD, 2, 0, PCFG(prot_stall_act_cdeg), PF_NONE, 0U, 0U },
     { PARAM_PROT_STALL_TRIP,    2, 0, PCFG(prot_stall_trip),       PRT(prot_stall_trip),
       PROT_STALL_TRIP_MIN, PROT_STALL_TRIP_MAX },
-    { PARAM_PROT_ENABLE,        1, 0, PCFG(protect_enable),        PRT(protect_enable), 0U, 255U },
+    { PARAM_PROT_ENABLE,        1, 0, PCFG(protect_enable),        PRT(protect_enable), 0U, PROT_ENABLE_IMPLEMENTED },
     { PARAM_VOLTAGE_MIN,        1, 0, PCFG(voltage_min_dv),        PF_NONE, 0U, 0U },
     { PARAM_VOLTAGE_MAX,        1, 0, PCFG(voltage_max_dv),        PF_NONE, 0U, 0U },
     { PARAM_MIN_START_TORQUE,   2, PF_TMAX, PCFG(min_start_torque_ckgcm), PRT(min_start_torque_ckgcm), 0U, 0U },
     { PARAM_TORQUE_MODE,    1, 0,       PF_NONE, PRT(torque_mode),        0U, 0U },
     { PARAM_DAMPING,        1, 0,       PF_NONE, PRT(damping_percent),    0U, 0U },
     { PARAM_RT_TORQUE_LIMIT, 2, PF_TMAX, PF_NONE, PRT(torque_limit_ckgcm), 0U, 0U },
-    { PARAM_RT_TRAJ_VMAX,   2, PF_TRAJ, PF_NONE, PRT(traj_vmax_dps),      0U, PLANT_VMAX_HW_CDPS / 100 },
-    { PARAM_RT_TRAJ_AMAX,   4, PF_TRAJ, PF_NONE, PRT(traj_amax_dps2),     0U, PLANT_AMAX_HW_DPS2 },
-    { PARAM_RT_TRAJ_DMAX,   4, PF_TRAJ, PF_NONE, PRT(traj_dmax_dps2),     0U, PLANT_DMAX_HW_DPS2 },
-    { PARAM_RT_TRAJ_JMAX,   4, PF_TRAJ, PF_NONE, PRT(traj_jmax_dps3),     0U, PLANT_JMAX_HW_DPS3 },
-    { PARAM_RT_MOVE_MIN,    2, PF_TRAJ, PF_NONE, PRT(traj_move_min_ms),   0U, 200U },
-    { PARAM_RT_HOLD_STIFF,  1, 0,       PF_NONE, PRT(hold_stiff),         0U, CFG_HOLD_STIFF_MAX },
+    { PARAM_RT_TRAJ_VMAX,   2, PF_TRAJ, PF_NONE, PRT(traj_vmax_dps),      0U, CFG_TRAJ_VMAX_MAX_DPS },
+    { PARAM_RT_TRAJ_AMAX,   4, PF_TRAJ, PF_NONE, PRT(traj_amax_dps2),     0U, CFG_TRAJ_AMAX_MAX_DPS2 },
+    { PARAM_RT_TRAJ_DMAX,   4, PF_TRAJ, PF_NONE, PRT(traj_dmax_dps2),     0U, CFG_TRAJ_DMAX_MAX_DPS2 },
+    { PARAM_RT_TRAJ_SMOOTH, 2, PF_TRAJ | PF_ZMIN, PF_NONE, PRT(traj_smooth_ms), CFG_SMOOTH_MIN_MS, CFG_SMOOTH_MAX_MS },
+    { PARAM_RT_MOVE_MIN,    2, PF_TRAJ, PF_NONE, PRT(traj_move_min_ms),   0U, CFG_MOVE_MIN_MAX_MS },
+    { PARAM_RT_HOLD_KP,     2, 0,       PF_NONE, PRT(hold_kp),            0U, CFG_HOLD_KP_MAX },
+    { PARAM_RT_RESOLUTION, 2, 0, PF_NONE, PRT(position_resolution_cdeg), CFG_RESOLUTION_MIN_CDEG, CFG_RESOLUTION_MAX_CDEG },
+    { PARAM_RT_HOLD_KI,     2, 0,       PF_NONE, PRT(hold_ki),            0U, CFG_HOLD_KI_MAX },
 };
 
 /* 在表里找参数，返回下标，-1=不在表里 */
@@ -424,7 +437,7 @@ static uint8_t Bin_ParamRead(uint8_t id, uint8_t *out, uint8_t *out_len)
     out[0] = id;
     if (t >= 0)
         n = Bin_PutN(out + 1, Param_Load(Param_Addr(k_params[t].cfg, k_params[t].rt), k_params[t].size), k_params[t].size);
-    else if (id <= PARAM_HW_MOVE_MIN)
+    else if (id <= PARAM_HW_MIN_STEP)
     {
         if (!IAP_HwInfoRead(&hw)) return BIN_ST_FAILED;
         switch (id)
@@ -436,8 +449,8 @@ static uint8_t Bin_ParamRead(uint8_t id, uint8_t *out, uint8_t *out_len)
         case PARAM_HW_VMAX:    n = Bin_PutN(out + 1, hw.max_speed_dps, 2U);  break;
         case PARAM_HW_AMAX:    n = Bin_PutN(out + 1, hw.max_accel_dps2, 4U); break;
         case PARAM_HW_DMAX:    n = Bin_PutN(out + 1, hw.max_decel_dps2, 4U); break;
-        case PARAM_HW_JMAX:    n = Bin_PutN(out + 1, hw.max_jerk_dps3, 4U);  break;
-        default:               n = Bin_PutN(out + 1, hw.min_move_cdeg, 2U);  break;
+        case PARAM_HW_SMOOTH:  n = Bin_PutN(out + 1, hw.smooth_ms, 2U);      break;
+        default:               n = Bin_PutN(out + 1, hw.min_step_cdeg, 2U);  break;
         }
     }
     else switch (id)
@@ -484,11 +497,10 @@ static uint8_t Bin_ParamWrite(uint8_t id, const uint8_t *data, uint8_t len, uint
     case PARAM_TORQUE_LIMIT: if (len != 2U) return BIN_ST_LENGTH; return A_Protect_SetTorque((uint16_t)value) ? BIN_ST_OK : BIN_ST_VALUE;
     case PARAM_TORQUE_MODE:  if (len != 1U) return BIN_ST_LENGTH; return A_Servo_SetTorqueMode(data[0]) ? BIN_ST_OK : BIN_ST_STATE;
     case PARAM_DAMPING:      if (len != 1U) return BIN_ST_LENGTH; return A_Servo_SetDamping(data[0]) ? BIN_ST_OK : BIN_ST_VALUE;
-    case PARAM_PROT_STALL_THRESHOLD:   /* 对外单一阈值，参考位移阈值固定为它的4倍 */
+    case PARAM_PROT_STALL_THRESHOLD:   /* 对外单一阈值(实际位移)，参考位移阈值由保护模块按固定倍数推出 */
         if (len != 2U) return BIN_ST_LENGTH;
         if (value < PROT_STALL_THRESHOLD_MIN_CDEG || value > PROT_STALL_THRESHOLD_MAX_CDEG) return BIN_ST_VALUE;
         g_config.prot_stall_act_cdeg = g_runtime_config.prot_stall_act_cdeg = (uint16_t)value;
-        g_config.prot_stall_ref_cdeg = g_runtime_config.prot_stall_ref_cdeg = (uint16_t)(value * 4U);
         A_Config_MarkDirty(); return BIN_ST_OK;
     case PARAM_VOLTAGE_MIN:
     case PARAM_VOLTAGE_MAX:   /* 上下限之间至少留回差 */
@@ -506,27 +518,26 @@ static uint8_t Bin_ParamWrite(uint8_t id, const uint8_t *data, uint8_t len, uint
         else if (data[0] == 3U) A_Servo_Stop();
         else return BIN_ST_VALUE;
         return BIN_ST_OK;
-    case PARAM_MOTION_REQUEST: /* 脉宽2字节 + 时间2字节 */
+    case PARAM_MOTION_REQUEST: /* 脉宽2字节 + 时间2字节；脉宽越界(含 SMI/SMX 边界)=值非法，故障/编码器失效/行程无效=状态不允许 */
         if (len != 4U) return BIN_ST_LENGTH;
-        value = Bin_Get16(data);
-        if (value < SERVO_PWM_MIN || value > SERVO_PWM_MAX) return BIN_ST_VALUE;
-        if (!A_Protect_CanDrive()) return BIN_ST_STATE;
-        A_Servo_Submit((uint16_t)value, Bin_Get16(data + 2)); return BIN_ST_OK;
+        value = A_Servo_Submit(Bin_Get16(data), Bin_Get16(data + 2));
+        return (value == SERVO_SUBMIT_OK) ? BIN_ST_OK : (value == SERVO_SUBMIT_VALUE) ? BIN_ST_VALUE : BIN_ST_STATE;
     case PARAM_CAL_ACTION:     /* 1=SCK 2=SCZ 3=AMI 4=AMX 5=SMI 6=SMX 7=CSD */
         if (len != 1U) return BIN_ST_LENGTH;
         return Bin_Action(k_cal, (uint8_t)(sizeof(k_cal) / sizeof(k_cal[0])), data[0]);
-    case PARAM_SYSTEM_ACTION:  /* 1=SRAM参数重载 2=恢复默认保留ID 3=恢复出厂 */
+    case PARAM_SYSTEM_ACTION:  /* 1=SRAM参数重载，2=仅保留ID恢复默认，3=全部恢复默认 */
         if (len != 1U) return BIN_ST_LENGTH;
         if (data[0] == 1U) { A_Config_ReloadRuntime(0U); A_Servo_ApplyTrajConfig(); return BIN_ST_OK; }
         if (data[0] != 2U && data[0] != 3U) return BIN_ST_VALUE;
-        A_Config_Default((uint8_t)(data[0] == 2U)); A_Servo_ApplyConfig(); *baud_changed = 1U;
+        A_Config_Default((uint8_t)(data[0] == 2U)); A_Servo_ApplyConfig();
+        *baud_changed = 1U; /* 默认波特率在应答发完后生效 */
         return BIN_ST_OK;
     default: break;
     }
     if ((t = Param_Find(id)) < 0) return (id < 0x20U || id >= 0x80U) ? BIN_ST_READONLY : BIN_ST_VALUE;
     if (len != k_params[t].size) return BIN_ST_LENGTH;
     max = (k_params[t].flags & PF_TMAX) ? A_Config_TorqueMax() : k_params[t].max;
-    if (value < k_params[t].min || value > max) return BIN_ST_VALUE;
+    if ((value < k_params[t].min && !((k_params[t].flags & PF_ZMIN) && value == 0U)) || value > max) return BIN_ST_VALUE;
     if (k_params[t].cfg != PF_NONE) Param_Store((uint8_t *)&g_config + k_params[t].cfg, k_params[t].size, value);
     if (k_params[t].rt != PF_NONE)  Param_Store((uint8_t *)&g_runtime_config + k_params[t].rt, k_params[t].size, value);
     if (k_params[t].flags & PF_TRAJ) A_Servo_ApplyTrajConfig();
@@ -560,11 +571,9 @@ static void Bin_Frame(const uint8_t *f, uint8_t len)
                  && data[0] != PARAM_TORQUE_MODE && data[0] != PARAM_DAMPING) st = BIN_ST_STATE;
         else st = Bin_ParamWrite(data[0], data + 1, (uint8_t)(n - 1U), &baud);
         break;
-    case BIN_CMD_RESET_KEEP:
+    case BIN_CMD_RESET_KEEP:   /* 07仅保留ID；08全部恢复；二者均恢复默认波特率 */
     case BIN_CMD_RESET_ALL:
         if (n != 0U) { st = BIN_ST_LENGTH; break; }
-        /* 恢复出厂会改ID：先用旧ID把应答放进发送队列 */
-        if (cmd == BIN_CMD_RESET_ALL && id != BIN_BROADCAST) { Bin_Reply(cmd, BIN_ST_OK, out, 0U); id = BIN_BROADCAST; }
         A_Config_Default((uint8_t)(cmd == BIN_CMD_RESET_KEEP));
         A_Servo_ApplyConfig();
         baud = 1U;
@@ -630,5 +639,12 @@ void A_Uart_Process(void)
         s_wire = WIRE_IDLE;
         s_wire_idle_ms = 0U;
     }
+    if (received) s_debug_rx_quiet_ms = 0U;
+    else if (s_debug_rx_quiet_ms < 10U) s_debug_rx_quiet_ms++;
     D_UART_Service();
+}
+
+uint8_t A_Uart_DebugReady(void)
+{
+    return (uint8_t)(s_wire == WIRE_IDLE && s_debug_rx_quiet_ms >= 10U);
 }

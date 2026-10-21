@@ -1,0 +1,57 @@
+In file included from C:/Users/Admin/Desktop/duoji/tests/full_audit_20261019/audit.c:24,
+                 from C:\Users\Admin\Desktop\duoji\tests\noncontrol_15kg_20261019\regression.c:3:
+C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\System/flash.c: In function 'Flash_PageWrite':
+C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\System/flash.c:59:29: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+   59 |     return (uint8_t)(memcmp((const void *)address, bytes, FLASH_PAGE_SIZE) == 0);
+      |                             ^
+C:/Users/Admin/Desktop/duoji/tests/full_audit_20261019/audit.c: In function 'command':
+C:/Users/Admin/Desktop/duoji/tests/full_audit_20261019/audit.c:119:2: warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+  119 |  for(unsigned i=0;i<sizeof(f);i++)assert(C_Ring_Buf_Put(&rx,f[i]));A_Uart_Process();return;}
+      |  ^~~
+C:/Users/Admin/Desktop/duoji/tests/full_audit_20261019/audit.c:119:68: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'for'
+  119 |  for(unsigned i=0;i<sizeof(f);i++)assert(C_Ring_Buf_Put(&rx,f[i]));A_Uart_Process();return;}
+      |                                                                    ^~~~~~~~~~~~~~
+C:/Users/Admin/Desktop/duoji/tests/full_audit_20261019/audit.c: In function 'probes':
+C:/Users/Admin/Desktop/duoji/tests/full_audit_20261019/audit.c:166:5: warning: missing initializer for field 'load_ratio_x10' of 'PosCtrlGains_t' [-Wmissing-field-initializers]
+  166 |     reset();C_PosCtrl_Reset();PosCtrlGains_t gains={20,TUNE_VEL_BW_RADS,5};C_PosCtrl_SetGains(&gains);C_PosCtrl_SetHold(50,80,0);
+      |     ^~~~~
+In file included from C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Common/C_Pos_Ctrl.c:3,
+                 from C:/Users/Admin/Desktop/duoji/tests/full_audit_20261019/audit.c:27:
+C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Common/C_Pos_Ctrl.h:40:14: note: 'load_ratio_x10' declared here
+   40 |     uint16_t load_ratio_x10; /* 固定负载惯量比×10；应与速度观测器的模型一致 */
+      |              ^~~~~~~~~~~~~~
+C:/Users/Admin/Desktop/duoji/tests/full_audit_20261019/audit.c:187:5: warning: this 'for' clause does not guard... [-Wmisleading-indentation]
+  187 |     for(unsigned i=0;i<sizeof(partial);i++)C_Ring_Buf_Put(&rx,partial[i]);A_Uart_Process();command(1800,0);
+      |     ^~~
+C:/Users/Admin/Desktop/duoji/tests/full_audit_20261019/audit.c:187:75: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'for'
+  187 |     for(unsigned i=0;i<sizeof(partial);i++)C_Ring_Buf_Put(&rx,partial[i]);A_Uart_Process();command(1800,0);
+      |                                                                           ^~~~~~~~~~~~~~
+C:\Users\Admin\Desktop\duoji\tests\noncontrol_15kg_20261019\regression.c: In function 'bus_and_window_tests':
+C:\Users\Admin\Desktop\duoji\tests\noncontrol_15kg_20261019\regression.c:88:51: warning: comparison of integer expressions of different signedness: 'unsigned int' and 'int' [-Wsign-compare]
+   88 |         accepted++;bad+=(lo+2*PROT_VOLTAGE_HYST_DV>=hi);
+      |                                                   ^~
+In file included from C:/Users/Admin/Desktop/duoji/tests/full_audit_20261019/audit.c:2:
+C:\Users\Admin\Desktop\duoji\tests\noncontrol_15kg_20261019\regression.c: In function 'combined_tests':
+C:\Users\Admin\Desktop\duoji\tests\noncontrol_15kg_20261019\regression.c:146:28: warning: comparison of integer expressions of different signedness: 'int16_t' {aka 'short int'} and 'unsigned int' [-Wsign-compare]
+  146 |     assert(s_prot.pwm_limit>D_ADC_CUR_MIN_TICKS);
+      |                            ^
+In function 'Bin_Reply',
+    inlined from 'Bin_Frame' at C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Application/A_UartCmd.c:573:30,
+    inlined from 'Wire_Byte' at C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Application/A_UartCmd.c:593:67:
+C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Application/A_UartCmd.c:313:17: warning: writing 2 bytes into a region of size 0 [-Wstringop-overflow=]
+  313 |     f[6U + len] = Bin_Crc8(f + 2, (uint8_t)(4U + len));
+      |                 ^
+C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Application/A_UartCmd.c: In function 'Wire_Byte':
+C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Application/A_UartCmd.c:308:13: note: at offset 258 into destination object 'f' of size 40
+  308 |     uint8_t f[BIN_FRAME_MAX];
+      |             ^
+In function 'Bin_Reply',
+    inlined from 'Bin_Frame' at C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Application/A_UartCmd.c:573:30,
+    inlined from 'Wire_Byte' at C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Application/A_UartCmd.c:593:67:
+C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Application/A_UartCmd.c:314:42: warning: writing 1 byte into a region of size 0 [-Wstringop-overflow=]
+  314 |     f[7U + len] = BIN_TAIL1; f[8U + len] = BIN_TAIL2;
+      |                                          ^
+C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Application/A_UartCmd.c: In function 'Wire_Byte':
+C:\Users\Admin\Desktop\duoji\tests\size_cpu_20kg_20261019\candidate\Application/A_UartCmd.c:308:13: note: at offset 260 into destination object 'f' of size 40
+  308 |     uint8_t f[BIN_FRAME_MAX];
+      |             ^

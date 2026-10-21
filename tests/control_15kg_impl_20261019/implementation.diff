@@ -1,0 +1,413 @@
+--- before/Application/A_Config.h
++++ after/Application/A_Config.h
+@@ -40,16 +40,20 @@
+ #define TUNE_VEL_BW_RADS       ((CTRL_VEL_BW_DELAY_MAX < 120U) ? CTRL_VEL_BW_DELAY_MAX : 120U)  /** 速度环带宽 ω_v，rad/s */
+ #define TUNE_POS_BW_RADS        20U  /** 位置环带宽 ω_p，rad/s，≤ ω_v/4 */
+ #define TUNE_INT_BW_RADS         5U  /** 速度积分零点 ω_i，rad/s，≤ ω_p */
++/* 实测版新增唯一负载整定量：J_load/J_motor×10，10=负载惯量等于电机自身，总惯量2倍。
++ * 仅供观测器/闭环带宽适配，不修改轨迹限值或加速度前馈；改后重新编译，不占Flash/SRAM协议地址。 */
++#define TUNE_LOAD_RATIO_X10     10U
+ 
+ /* ==================== 4. 运行参数出厂值 ====================
+  * 精度、齿隙、刚度、V/A/D、平滑时间、最短运动时间是运行参数(Flash/SRAM 两份，可由协议修改)，这里只是出厂值。 */
+ #define CFG_DEF_RESOLUTION_CDEG 50U  /** 到位精度：误差在它以内且静止才算到位，厘度 */
+ #define CFG_DEF_HOLD_KP         80  /** 保持 P，‰/°：超出到位窗 1° 输出标定电压的多少‰(相对扭矩)；*/
+ #define CFG_DEF_HOLD_KI           0  /** 保持 I，‰/(°·s)：超出 1° 持续 1s，输出再加标定电压的多少‰；0=积分不动，只用到位时继承的托举力 */
+-/* V/A/D 默认取额定能力的 80%/70%/70%；0 表示按额定 */
+-#define CFG_DEF_VMAX_DPS       (MOTOR_RATED_VEL_DPS * 9U / 10U)
+-#define CFG_DEF_AMAX_DPS2      (MOTOR_RATED_ACC_DPS2 * 7U / 10U)
+-#define CFG_DEF_DMAX_DPS2      (MOTOR_RATED_DEC_DPS2 * 7U / 10U)
++/* 15kg带载实测出厂值：163°/s、1400°/s²、1400°/s²。
++ * 约为原V默认值的70%、原A/D默认值的25%；这里只改默认值，额定上限和运行参数语义不变。 */
++#define CFG_DEF_VMAX_DPS       (MOTOR_RATED_VEL_DPS * 63U / 100U)
++#define CFG_DEF_AMAX_DPS2      (MOTOR_RATED_ACC_DPS2 * 7U / 40U)
++#define CFG_DEF_DMAX_DPS2      (MOTOR_RATED_DEC_DPS2 * 7U / 40U)
+ #define CFG_DEF_SMOOTH_MS        50  /** S曲线平滑时间(加速度从0升到A的时间)，ms；0=自动取机械时间常数τ */
+ #define CFG_DEF_MOVE_MIN_MS    150U  /** 最短运动时间，ms；0=关闭：每段运动至少走这么久(带时间的取较大者)，小动作按比例降低 V/A/J */
+ 
+--- before/Application/A_Servo.c
++++ after/Application/A_Servo.c
+@@ -280,6 +280,45 @@
+     }
+ }
+ 
++/* 连续普通目标的接收时钟独立于规划合并时钟；显式T不改变时间语义。 */
++#define SERVO_STREAM_MIN_MS       10U
++#define SERVO_STREAM_MAX_MS       300U
++#define SERVO_STREAM_CONFIRM      2U
++
++_Static_assert(TUNE_LOAD_RATIO_X10 <= POS_CTRL_LOAD_RATIO_MAX_X10, "Invalid fixed load inertia ratio");
++
++static struct {
++    uint16_t age, interval;
++    uint8_t consistent;
++    int8_t direction;
++} s_stream;
++
++static void Servo_StreamReset(void)
++{
++    s_stream.age = 0xFFFFU;
++    s_stream.interval = 0U;
++    s_stream.consistent = 0U;
++    s_stream.direction = 0;
++}
++
++static void Servo_StreamObserve(uint16_t requested_ms, uint8_t was_paused, int32_t target)
++{
++    uint16_t interval = s_stream.age;
++    int8_t direction = (int8_t)Fx_Sign32(target - s_servo.target_angle);
++
++    if (requested_ms != 0U || was_paused) { Servo_StreamReset(); return; }
++    if (interval >= SERVO_STREAM_MIN_MS && interval <= SERVO_STREAM_MAX_MS
++        && s_stream.interval != 0U && direction == s_stream.direction
++        && (uint32_t)interval * 2U >= s_stream.interval && interval <= 2U * s_stream.interval)
++    {
++        if (s_stream.consistent < SERVO_STREAM_CONFIRM) s_stream.consistent++;
++    }
++    else s_stream.consistent = 0U;
++    s_stream.interval = interval;
++    s_stream.direction = direction;
++    s_stream.age = 0U;
++}
++
+ /* 观测器从当前实测位置重新起步，输出也同步过去(起步重锚在下一个控制拍之前就可能读它) */
+ static void Servo_ObsInit(void)
+ {
+@@ -292,6 +331,7 @@
+  * 目标基准一起重锚，否则紧接着"回到旧目标"的指令会被当成重复目标忽略 */
+ static void Servo_Resync(uint8_t reinit)
+ {
++    Servo_StreamReset();
+     if (reinit) {
+         Servo_ObsInit();
+         C_PosCtrl_Reset();
+@@ -312,17 +352,24 @@
+ {
+     uint16_t time_ms = s_servo.timed_position ? (uint16_t)((s_servo.remaining > 0xFFFFU) ? 0xFFFFU : s_servo.remaining) : 0U;
+ 
++    C_PosCtrl_BeginMotion();
+     s_servo.arrived      = 0U;
+     s_servo.move_pending = 0U;
+     s_servo.move_age     = 0U;
+     /* 参考已停：从实测位置起步。轴可停在捕获窗内任意处，从旧目标起步会让第一拍误差反向、起转补偿朝反方向顶 */
+     if (C_Traj_Is_Done()) C_Traj_Hold(Fx_ClampRange(s_servo.obs.pos, s_servo.traj_lo, s_servo.traj_hi));
++    if (!s_servo.timed_position && s_stream.consistent >= SERVO_STREAM_CONFIRM)
++    {
++        uint16_t horizon_ms = (uint16_t)(2U * s_stream.interval);
++        if (time_ms < horizon_ms) time_ms = horizon_ms;
++    }
+     C_Traj_Plan(s_servo.target_angle, time_ms);
+ }
+ 
+ /* 丢掉当前指令的全部记账(停止/改配置共用)；脱困中时置暂停，等新指令 */
+ static void Servo_ClearCommand(void)
+ {
++    Servo_StreamReset();
+     s_servo.arrived      = 1U;
+     s_servo.move_pending = 0U;
+     s_servo.move_age     = 0xFFFFU;
+@@ -469,7 +516,10 @@
+ /* 控制带宽是固件整定常量(A_Config.h 第3节)，不对外开放 */
+ static void Servo_ApplyGains(void)
+ {
+-    PosCtrlGains_t g = { TUNE_POS_BW_RADS, TUNE_VEL_BW_RADS, TUNE_INT_BW_RADS };
++    PosCtrlGains_t g = {
++        .pos_bw = TUNE_POS_BW_RADS, .vel_bw = TUNE_VEL_BW_RADS,
++        .int_bw = TUNE_INT_BW_RADS, .load_ratio_x10 = TUNE_LOAD_RATIO_X10
++    };
+ 
+     (void)C_PosCtrl_SetGains(&g);
+ }
+@@ -504,6 +554,7 @@
+ {
+     uint8_t enc_ok;
+ 
++    Servo_StreamReset();
+     memset(&s_servo, 0, sizeof(s_servo));
+     s_servo.arrived   = 1U;
+     s_servo.out_limit = CFG_PWM_FULL;
+@@ -514,7 +565,11 @@
+     s_servo.target_angle = s_servo.angle;   /* 目标基准=当前位置，否则上电第一条 P0500 可能被当成重复目标 */
+     s_servo.move_age     = 0xFFFFU;
+     Servo_VbusUpdate(Servo_BootBusCv());
+-    C_SpeedObs_Configure(C_MotorModel_Cal(), TUNE_OBS_BW_HZ, CTRL_VEL_NOISE_CDPS);
++    {
++        MotorCal_t observer_cal = *C_MotorModel_Cal();
++        observer_cal.ka_nv = (int32_t)((int64_t)observer_cal.ka_nv * (10U + TUNE_LOAD_RATIO_X10) / 10);
++        C_SpeedObs_Configure(&observer_cal, TUNE_OBS_BW_HZ, CTRL_VEL_NOISE_CDPS);
++    }
+     Servo_ObsInit();
+     C_PosCtrl_Init(C_MotorModel_Cal(), CTRL_VEL_NOISE_CDPS, TUNE_OBS_BW_HZ);
+     Servo_ApplyGains();
+@@ -575,6 +630,7 @@
+     /* 位置模式：重复的普通目标忽略(PWM输入的抖动已由回差滤波吸收)；带时间参数的指令一律放行 */
+     target = (uint16_t)Fx_ClampRange(Servo_PulseToAngle(q3), s_servo.traj_lo, s_servo.traj_hi);
+     if (!was_paused && value == 0U && target == s_servo.target_angle) return SERVO_SUBMIT_OK;
++    Servo_StreamObserve(value, was_paused, target);
+     s_servo.target_angle   = target;
+     s_servo.timed_position = (uint8_t)(value != 0U);
+     s_servo.remaining      = value;
+@@ -602,6 +658,7 @@
+     uint16_t target = s_servo.target_angle;
+ 
+     if (s_servo.torque != SERVO_TORQUE_ON || s_servo.paused || (!s_servo.resume_valid && !s_servo.boot_pending)) return;
++    Servo_StreamReset();
+     s_servo.paused = s_servo.resume_valid = 1U;
+     if (Servo_IsPosition() && s_servo.enc_state == SERVO_ENC_OK) {
+         C_Traj_Stop();                      /* 沿当前方向平滑刹停，保留原目标供继续 */
+@@ -902,7 +959,7 @@
+     Servo_Drive(Servo_MvToDuty(u_mv * MOTOR_SIGN));
+     s_servo.debug_control_valid = 1U;
+     /* 首次到位：参考已停且控制器按到位精度判定到位；锁存到下一条指令，外力推动不改变上报状态 */
+-    if (!s_servo.arrived && !s_servo.move_pending && s_servo.ref.done && C_PosCtrl_Reached()) s_servo.arrived = 1U;
++    if (!s_servo.arrived && !s_servo.move_pending && s_servo.ref.done && C_PosCtrl_ArrivalQualified()) s_servo.arrived = 1U;
+     if (!s_servo.paused && s_servo.timed_position && s_servo.remaining != 0U) s_servo.remaining--;
+ }
+ 
+@@ -910,6 +967,8 @@
+ void A_Servo_Control(void)
+ {
+     uint16_t pulse;
++    if (s_stream.age < 0xFFFFU) s_stream.age++;
++    if (s_stream.age > SERVO_STREAM_MAX_MS) s_stream.consistent = 0U;
+     s_servo.debug_control_valid = 0U;
+     if (s_servo.input_source == SERVO_INPUT_PWM && (pulse = D_PWM_Read()) != 0U)
+         (void)Servo_SubmitQ3(Servo_FilterPulse(pulse), 0U);
+--- before/Common/C_Pos_Ctrl.c
++++ after/Common/C_Pos_Ctrl.c
+@@ -1,16 +1,19 @@
+ /* C_Pos_Ctrl.c 位置控制器：状态 -> 律参数 -> 前馈与反馈 -> 起转补偿(只在运动中) -> 限幅与积分
+- * 增益在 SetGains/SetHold 中换算一次(含除法和开方)，每拍只有乘加移位。 */
++ * 增益在初始化/SetGains/SetHold中换算；控制拍使用定点运算，交接期间混合已有两种控制律。 */
+ #include "C_Pos_Ctrl.h"
+ #include "C_Fixed.h"
+ #include <string.h>
+ 
+ #define CAPTURE_MS     20U    /* 捕获条件连续满足这么久才算到位 */
++#define HOLD_STILL_MS  200U   /* 位置锚点稳定后才开始切换到保持律 */
++#define HOLD_BLEND_MS  50U    /* 收尾/保持律渐进交接，共用一个积分器 */
+ #define STICK_MOVE_MS  5U     /* 运动中这么久没挪过最小可靠位移且估计速度低于噪声底，才算卡住 */
+ #define STICK_ESC_MS   25U    /* 顶到起转电压后仍卡这么久，开始逐拍加码 */
+ #define STICK_ESC_DIV  50     /* 加码每拍 fs/50，最多再加一个 fs */
+ 
+ static struct {
+     int32_t kv_q16;          /* 速度反馈 Kv，mV/(厘度/s)，Q16 */
++    int32_t kv_pos_q16;      /* 模型kv：位置修正速度对应的电压，Q16 */
+     int32_t kp_q8;           /* 位置增益 ω_p，1/s，Q8 */
+     int32_t ki_q20;          /* 积分每拍增益，mV/(厘度/s)，Q20 */
+     int32_t kh_q16;          /* 保持刚度 mV/厘度，Q16 */
+@@ -32,6 +35,8 @@
+     int32_t  boost;          /* 起转加码，mV */
+     uint16_t still_ms;       /* 自上次挪动起的拍数 */
+     uint16_t cap_ms;
++    uint16_t hold_blend_ms;
++    uint8_t  qualified;      /* 本条运动的到位资格，与当前使用的控制律分开 */
+     uint8_t  state;
+     int32_t  hold_p;         /* 保持中 P 项的输出，mV：转入运动时并入积分 */
+ } s_ctrl;
+@@ -41,6 +46,7 @@
+     memset(&s_gain, 0, sizeof(s_gain));
+     s_gain.ka_nv     = cal->ka_nv;
+     s_gain.kv_uv     = cal->kv_uv;
++    s_gain.kv_pos_q16 = (int32_t)(((int64_t)cal->kv_uv << 16) / 1000);
+     s_gain.fc_mv     = cal->fc_mv;
+     s_gain.fs_mv     = cal->fs_mv;
+     s_gain.cal_mv    = cal->cal_mv;
+@@ -72,11 +78,23 @@
+     g->vel_bw = (uint16_t)Fx_ClampRange(g->vel_bw, 10, s_gain.vel_bw_max);
+     g->pos_bw = (uint16_t)Fx_ClampRange(g->pos_bw, 1, g->vel_bw / 4);
+     g->int_bw = (uint16_t)Fx_ClampRange(g->int_bw, 0, g->pos_bw);
++    if (g->load_ratio_x10 > POS_CTRL_LOAD_RATIO_MAX_X10) g->load_ratio_x10 = POS_CTRL_LOAD_RATIO_MAX_X10;
+ 
+     /* 速度环：对象 1/(ka·s + kv)，闭环极点落在 ω_v：ka·ω_v = kv + Kv。电机自身带宽 kv/ka 已够时 Kv 取 ka·ω_v/4 */
+     kv_tot   = ((int64_t)s_gain.ka_nv * g->vel_bw * 65536) / 1000000;      /* ka·ω_v，Q16 */
+     kv_place = kv_tot - ((int64_t)s_gain.kv_uv * 65536) / 1000;
+     s_gain.kv_q16 = (int32_t)((kv_place > kv_tot / 4) ? kv_place : kv_tot / 4);
++    if (g->load_ratio_x10 != 0U)
++    {
++        /* 固定惯量只收敛外环带宽；电压前馈仍使用原始标定模型。 */
++        int64_t damping = s_gain.kv_q16 + s_gain.kv_pos_q16;
++        int64_t inertia = (int64_t)s_gain.ka_nv * (10U + g->load_ratio_x10) * 65536;
++        int32_t max_pos_bw = (int32_t)(damping * 10000000 / inertia) / 4;
++
++        if (max_pos_bw < 1) max_pos_bw = 1;
++        if (g->pos_bw > max_pos_bw) g->pos_bw = (uint16_t)max_pos_bw;
++        if (g->int_bw > g->pos_bw) g->int_bw = g->pos_bw;
++    }
+     s_gain.kp_q8  = g->pos_bw * 256;
+     /* 积分零点按 ka·ω_v 放：Kv 取下限时积分不跟着变弱 */
+     s_gain.ki_q20 = (int32_t)((kv_tot * g->int_bw * 16) / 1000);
+@@ -102,6 +120,13 @@
+ }
+ 
+ uint8_t C_PosCtrl_Reached(void) { return (uint8_t)(s_ctrl.state == PC_HOLD); }
++uint8_t C_PosCtrl_ArrivalQualified(void) { return s_ctrl.qualified; }
++
++void C_PosCtrl_BeginMotion(void)
++{
++    s_ctrl.cap_ms = 0U;
++    s_ctrl.qualified = 0U;
++}
+ 
+ /* 起转补偿(只在运动中)：参考要求动却卡住时把输出补到 积分±fs，仍不动再逐拍加码；挪动够最小步长后立即撤掉。
+  * 以积分为基准：带载时积分托着负载，以0为基准会把向下的顶起变成整段卸载(力臂掉落)，向上的顶起则不起作用。
+@@ -124,16 +149,28 @@
+     return (((demand > 0) ? (u < need) : (u > need)) ? need - u : 0) + demand * s_ctrl.boost;
+ }
+ 
+-/* 状态转移：参考在动一律 MOVE；参考停下进 SETTLE；误差在到位精度内且静止约20ms进 HOLD(到位)。
+- * SETTLE 没有时间限制，进不了到位精度就一直按 PI 尝试；HOLD 一直保持到下一段运动 */
++/* 参考在动用MOVE，参考结束进SETTLE；到位资格和进入保持律分别判断。
++ * 条件撤销时交接权重逐拍退回，不搬运/清零积分。HOLD保持到下一段运动。 */
+ static void PosCtrl_State(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int32_t e)
+ {
+-    if (!ref->done) { s_ctrl.state = PC_MOVE; return; }
++    if (!ref->done)
++    {
++        s_ctrl.qualified = 0U;
++        s_ctrl.cap_ms = s_ctrl.hold_blend_ms = 0U;
++        s_ctrl.state = PC_MOVE;
++        return;
++    }
+     if (!fb->valid) return;
+     if (s_ctrl.state == PC_MOVE)
+     {
+         s_ctrl.state = PC_SETTLE;
+         s_ctrl.cap_ms = 0U;
++        return;
++    }
++    if (s_ctrl.state == PC_HOLD)
++    {
++        /* 新提交的零位移目标可能已经在保持，不能因清到位资格而永远不完成。 */
++        if (Fx_Abs32(e) <= s_gain.w_in && Fx_Abs32(fb->vel) <= s_gain.vel_noise) s_ctrl.qualified = 1U;
+         return;
+     }
+     if (s_ctrl.state != PC_SETTLE) return;
+@@ -141,9 +178,23 @@
+      * 会让它长期进不了保持 */
+     if (Fx_Abs32(fb->vel) <= s_gain.vel_noise && Fx_Abs32(e) <= s_gain.w_in)
+     {
+-        if (++s_ctrl.cap_ms >= CAPTURE_MS) s_ctrl.state = PC_HOLD;   /* 积分原样带进保持 */
+-    }
+-    else s_ctrl.cap_ms = (s_ctrl.cap_ms > 2U) ? (uint16_t)(s_ctrl.cap_ms - 2U) : 0U;
++        if (s_ctrl.cap_ms < CAPTURE_MS) s_ctrl.cap_ms++;
++        if (s_ctrl.cap_ms >= CAPTURE_MS)
++        {
++            s_ctrl.qualified = 1U;
++            if (s_ctrl.still_ms >= HOLD_STILL_MS)
++            {
++                if (s_ctrl.hold_blend_ms < HOLD_BLEND_MS) s_ctrl.hold_blend_ms++;
++                else s_ctrl.state = PC_HOLD;
++            }
++            else if (s_ctrl.hold_blend_ms != 0U) s_ctrl.hold_blend_ms--;
++        }
++    }
++    else
++    {
++        s_ctrl.cap_ms = (s_ctrl.cap_ms > 2U) ? (uint16_t)(s_ctrl.cap_ms - 2U) : 0U;
++        if (s_ctrl.hold_blend_ms != 0U) s_ctrl.hold_blend_ms--;
++    }
+ }
+ 
+ /* 积分加 di(mV Q16)，幅值不超过半个可用电压 */
+@@ -169,13 +220,15 @@
+     {
+     case PC_MOVE:
+     {
+-        int32_t v_cmd = ref->vel + Fx_MulShift(s_gain.kp_q8, Fx_Deadband(e, s_gain.noise), 8);
++        int32_t v_pos = Fx_MulShift(s_gain.kp_q8, Fx_Deadband(e, s_gain.noise), 8);
++        int32_t v_cmd = ref->vel + v_pos;
+         int32_t frac = Fx_Clamp32(ref->vel * s_gain.fric_inv_q16, 65536);   /* 平滑符号，Q16 */
+ 
+         u_ff = C_MotorModel_Feedforward(ref->vel + Fx_MulShift(ref->acc, s_gain.delay_q16, 16), ref->acc)
+              + Fx_MulShift(s_gain.fc_mv, frac, 16);
+         i_in = v_cmd - fb->vel;
+-        u_fb = Fx_MulShift(s_gain.kv_q16, i_in, 16);
++        u_fb = Fx_MulShift(s_gain.kv_q16, i_in, 16)
++             + (int32_t)(((int64_t)s_gain.kv_pos_q16 * v_pos) / 65536);
+         di = ((int64_t)s_gain.ki_q20 * i_in) >> 4;
+         /* 参考在起步/匀速时按速度指令方向要求动；参考减速段(含反转前的过零)轴本来就该慢下来，
+          * 低速不是卡住，顶起会和减速前馈对着干；已超前参考一个到位窗以上也不顶 */
+@@ -184,12 +237,29 @@
+         break;
+     }
+     case PC_SETTLE:
++    {
+         /* 收尾：对最小可靠位移以外的误差做 PI，不顶起(积分自己会把轴推出静摩擦)。速度项用半个噪声底的死区：
+          * 静止时只剩噪声、不积(否则积分随机游走)；轴真在挪动时照常阻尼、回收积分 */
+-        i_in = Fx_MulShift(s_gain.kp_q8, Fx_Deadband(e, s_gain.min_step), 8) - Fx_Deadband(fb->vel, s_gain.vel_noise / 2);
+-        u_fb = Fx_MulShift(s_gain.kv_q16, i_in, 16);
++        int32_t v_pos = Fx_MulShift(s_gain.kp_q8, Fx_Deadband(e, s_gain.min_step), 8);
++
++        i_in = v_pos - Fx_Deadband(fb->vel, s_gain.vel_noise / 2);
++        u_fb = Fx_MulShift(s_gain.kv_q16, i_in, 16)
++             + (int32_t)(((int64_t)s_gain.kv_pos_q16 * v_pos) / 65536);
+         di = ((int64_t)s_gain.ki_q20 * i_in) >> 4;
++        if (s_ctrl.hold_blend_ms != 0U)
++        {
++            int32_t ex = Fx_Deadband(e, s_gain.w_in);
++            int32_t hold_fb = Fx_MulShift(s_gain.kh_q16, ex, 16);
++            int32_t integral = Fx_MulShift(s_ctrl.integral_q16, 1, 16);
++            int64_t hold_di = ((int64_t)s_gain.kih_q20 * ex) >> 4;
++
++            /* 交接终点也包含HOLD的小电压短路制动规则，避免最后一拍再跳一次。 */
++            if (Fx_Abs32(hold_fb + integral) < s_gain.fc_mv / 2) hold_fb = -integral;
++            u_fb += (int32_t)(((int64_t)hold_fb - u_fb) * s_ctrl.hold_blend_ms / HOLD_BLEND_MS);
++            di += (hold_di - di) * s_ctrl.hold_blend_ms / HOLD_BLEND_MS;
++        }
+         break;
++    }
+     default:   /* PC_HOLD */
+     {
+         /* 保持：只对超出到位窗的量 ex 做 PI。窗内不出回正力，只输出积分(到位时继承的托举力)；
+--- before/Common/C_Pos_Ctrl.h
++++ after/Common/C_Pos_Ctrl.h
+@@ -2,10 +2,11 @@
+  *
+  * 运动律(参考在动，MOVE)：
+  *   u = kv·(v_r + a_r·延迟) + ka·a_r + fc·sat(v_r)       模型前馈
+- *     + Kv·(v_r + Kp·e − v̂) + I                           位置 P / 速度 PI
++ *     + Kv·(v_r + Kp·e − v̂) + kv·Kp·e + I              位置 P / 速度 PI
+  *     + 起转补偿(参考起步/匀速时卡住才顶)
+- * 收尾(参考 done，SETTLE)：u = Kv·(Kp·dz(e, 最小可靠位移) − v̂) + I，同一个积分器，不顶起。
+- *   误差在到位窗内且静止约20ms → HOLD 并上报到位(到位只看到位精度)；没有时间限制，进不了到位精度就一直尝试。
++ * 收尾(参考 done，SETTLE)：位置修正同时计入 Kv 和 kv，同一个积分器，不顶起。
++ *   位置/速度满足约20ms可上报到位；位置锚点稳定200ms后，用50ms渐变到保持律，再进入HOLD。
++ *   到位事件与当前使用HOLD律分开，Stop只查询后者；收尾没有强制超时。
+  * 保持(HOLD，直到下一段运动)：对超出到位窗的量 ex = dz(e, 到位窗) 做 PI，积分从收尾原样继承
+  *   窗内：u = I(只有到位时的托举力，没有回正力，积分不动)
+  *   窗外：u = I + K_h·ex，积分 I 每秒增加 K_ih·ex(I=0 时就是从窗口边沿长出来的弹簧)
+@@ -15,13 +16,16 @@
+  *     不加 D：电压驱动下反电势就是阻尼
+  *   |u| < fc/2 时短路制动；下一段运动开始时 K_h·ex 并入积分(无扰切换)。
+  * 只有一个窗口：到位窗 = 到位精度(配置层保证 ≥ 1.5×最小可靠位移)，到位和保持共用，超出就拉回。
+- * 增益由三个带宽(固件常量)经模型换算(ka·ω_v = kv + Kv)；积分以输出电压保存，改增益输出连续。单位：厘度、秒、mV。 */
++ * 固定负载惯量比用于约束位置/积分带宽；不放大加速度前馈。积分以输出电压保存。
++ * 单位：厘度、秒、mV。 */
+ #ifndef __C_POS_CTRL_H__
+ #define __C_POS_CTRL_H__
+ 
+ #include <stdint.h>
+ #include "C_Motor_Model.h"
+ #include "C_Traj_Planner.h"
++
++#define POS_CTRL_LOAD_RATIO_MAX_X10 40U /* J_load/J_motor，0~4.0，数值放大10倍 */
+ 
+ typedef struct {
+     int32_t pos;    /* 观测器位置，厘度 */
+@@ -33,6 +37,7 @@
+     uint16_t pos_bw;   /* 位置环带宽 ω_p，rad/s */
+     uint16_t vel_bw;   /* 速度环带宽 ω_v，rad/s */
+     uint16_t int_bw;   /* 速度积分零点 ω_i，rad/s */
++    uint16_t load_ratio_x10; /* 固定负载惯量比×10；应与速度观测器的模型一致 */
+ } PosCtrlGains_t;
+ 
+ typedef enum { PC_MOVE = 0, PC_SETTLE, PC_HOLD } PosCtrlState_t;
+@@ -53,5 +58,7 @@
+ /* limit_mv=本拍可用电压；返回 mV，角度增大为正 */
+ int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int32_t limit_mv, PosCtrlDbg_t *dbg);
+ uint8_t C_PosCtrl_Reached(void);                /* 1 = 本段已按到位精度到位，正在保持 */
++uint8_t C_PosCtrl_ArrivalQualified(void);       /* 本条运动满足过到位条件；不代表已进入HOLD */
++void    C_PosCtrl_BeginMotion(void);            /* 新规划清到位资格，保留积分及交接所需的状态 */
+ 
+ #endif /* __C_POS_CTRL_H__ */

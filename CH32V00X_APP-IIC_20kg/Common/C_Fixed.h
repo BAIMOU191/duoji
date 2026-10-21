@@ -5,14 +5,7 @@
 #include <stdint.h>
 
 static inline int32_t Fx_Abs32(int32_t v) { return (v < 0) ? -v : v; }
-
-/* 圆周差折到最短路径，每拍位移须小于半圈；range 可为 Q8 量程。 */
-static inline int32_t Fx_WrapDiff(int32_t d, int32_t range)
-{
-    if (d > range / 2) d -= range;
-    if (d < -range / 2) d += range;
-    return d;
-}
+static inline int32_t Fx_Sign32(int32_t v) { return (v > 0) - (v < 0); }
 
 /* 对称限幅到 ±lim */
 static inline int32_t Fx_Clamp32(int32_t v, int32_t lim)
@@ -31,19 +24,12 @@ static inline int32_t Fx_Deadband(int32_t v, int32_t db)
     return (v > db) ? v - db : ((v < -db) ? v + db : 0);
 }
 
-/* floor(num * 2^15 / den)，要求 0 <= num < den < 2^16。商只有15位，逐位试商15轮，与除法逐位相同 */
-static inline int32_t Fx_RatioQ15(uint32_t num, uint32_t den)
+/* (a*b) >> s，按幅值四舍五入，正负对称；s>=1 */
+static inline int32_t Fx_MulShift(int32_t a, int32_t b, uint8_t s)
 {
-    uint32_t q = 0U;
-    uint8_t  i;
-
-    for (i = 0U; i < 15U; i++)
-    {
-        num <<= 1;
-        q   <<= 1;
-        if (num >= den) { num -= den; q |= 1U; }
-    }
-    return (int32_t)q;
+    int64_t p = (int64_t)a * b;
+    int64_t m = ((p < 0 ? -p : p) + (1LL << (s - 1U))) >> s;
+    return (int32_t)(p < 0 ? -m : m);
 }
 
 /* 整数平方根，向下取整 */
@@ -59,6 +45,15 @@ static inline uint32_t Fx_Isqrt(uint32_t x)
         bit >>= 2;
     }
     return r;
+}
+
+/* 64位整数平方根：先按4的幂缩进32位再开方，结果最多丢掉被移出的低位精度 */
+static inline uint32_t Fx_Isqrt64(uint64_t x)
+{
+    uint8_t shift = 0U;
+
+    while (x >> 32) { x >>= 2; shift++; }
+    return Fx_Isqrt((uint32_t)x) << shift;
 }
 
 #endif /* __C_FIXED_H__ */

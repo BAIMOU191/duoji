@@ -1,0 +1,132 @@
+{
+  "baseline": {},
+  "capture": {
+    "OPT_STILL_MS": 200
+  },
+  "feedback": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100
+  },
+  "inertia1": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10
+  },
+  "inertia2": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 20
+  },
+  "limits": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "OPT_EMF_PCT": 100
+  },
+  "load_profile": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "OPT_EMF_PCT": 100,
+    "OPT_ACC_PCT": 50
+  },
+  "load25": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "OPT_ACC_PCT": 25
+  },
+  "load10": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "OPT_ACC_PCT": 10
+  },
+  "load25v70": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "OPT_ACC_PCT": 25,
+    "OPT_VEL_PCT": 70
+  },
+  "hold_i10": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "RUN_HOLD_KI": 10
+  },
+  "stream": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "OPT_STREAM": 1
+  },
+  "optimized": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "OPT_ACC_PCT": 25,
+    "OPT_VEL_PCT": 70,
+    "OPT_STREAM": 1
+  },
+  "opt_j0": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 0,
+    "OPT_ACC_PCT": 25,
+    "OPT_VEL_PCT": 70,
+    "OPT_STREAM": 1
+  },
+  "opt_j2": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 20,
+    "OPT_ACC_PCT": 25,
+    "OPT_VEL_PCT": 70,
+    "OPT_STREAM": 1
+  },
+  "opt_j4": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 40,
+    "OPT_ACC_PCT": 25,
+    "OPT_VEL_PCT": 70,
+    "OPT_STREAM": 1
+  },
+  "opt_hold_i10": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "OPT_ACC_PCT": 25,
+    "OPT_VEL_PCT": 70,
+    "OPT_STREAM": 1,
+    "RUN_HOLD_KI": 10
+  },
+  "opt_hold_i30": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "OPT_ACC_PCT": 25,
+    "OPT_VEL_PCT": 70,
+    "OPT_STREAM": 1,
+    "RUN_HOLD_KI": 30
+  },
+  "opt_hold_i60": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "OPT_ACC_PCT": 25,
+    "OPT_VEL_PCT": 70,
+    "OPT_STREAM": 1,
+    "RUN_HOLD_KI": 60
+  },
+  "handoff": {
+    "OPT_STILL_MS": 200,
+    "OPT_CORR_PCT": 100,
+    "OPT_J_X10": 10,
+    "OPT_ACC_PCT": 25,
+    "OPT_VEL_PCT": 70,
+    "OPT_STREAM": 1,
+    "OPT_BLEND_MS": 50
+  }
+}

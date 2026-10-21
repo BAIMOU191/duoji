@@ -19,7 +19,7 @@ typedef struct {
     uint8_t reserved[5]; /** 0xFF */
 } IAP_FwInfo_t;
 
-/* 硬件信息页中的型号身份与开环标定能力。格式1旧页只有前4项，读取时能力由本固件标定常量补齐。 */
+/* 硬件信息页中的型号身份与开环标定能力。能力项始终等于当前固件的标定常量：上电发现不一致就重写整页 */
 typedef struct {
     uint8_t  format;
     uint8_t  servo_type;
@@ -29,11 +29,11 @@ typedef struct {
     uint16_t max_speed_dps;
     uint32_t max_accel_dps2;
     uint32_t max_decel_dps2;
-    uint32_t max_jerk_dps3;
-    uint16_t min_move_cdeg;
+    uint16_t smooth_ms;          /* 自动平滑时间 τ = ka/kv，ms */
+    uint16_t min_step_cdeg;      /* 最小可靠位移，厘度 */
 } IAP_HwInfo_t;
 
-void IAP_Init(void);            /* 上电调用一次：硬件信息页出厂空白时，写入本固件适用的硬件 */
+void IAP_Init(void);            /* 上电调用一次：硬件信息页与本固件不一致(空白、旧格式、换过标定)时重写 */
 uint8_t IAP_HwInfoRead(IAP_HwInfo_t *info); /* 读并校验硬件信息页，1=有效 */
 uint8_t IAP_PreservedIdentityRead(uint8_t *id, uint8_t *baud_code);
 #define IAP_FRAME_HEAD1 0xAAU
