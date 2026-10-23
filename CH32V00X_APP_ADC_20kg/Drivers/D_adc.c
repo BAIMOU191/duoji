@@ -15,14 +15,14 @@
 #define DIV_M(n)    ((uint32_t)(((1UL << 24) + (n) - 1U) / (n)))
 #define DIVN(x, n)  ((uint32_t)(((uint64_t)(x) * DIV_M(n)) >> 24))
 #define DIV_MAX_X   (BLOCK * 4095UL * 16UL + BLOCK)
-_Static_assert((uint64_t)(DIV_M(BLOCK) * BLOCK - (1UL << 24)) * DIV_MAX_X < (1UL << 24)
-               && (uint64_t)(DIV_M(BLOCK - 2U) * (BLOCK - 2U) - (1UL << 24)) * DIV_MAX_X < (1UL << 24),
+_Static_assert((uint64_t)(DIV_M(BLOCK - 2U) * (BLOCK - 2U) - (1UL << 24)) * DIV_MAX_X < (1UL << 24),
                "DIVN no longer matches division");
 
 static volatile uint16_t s_buf[BLOCK * RANKS];   /* DMA循环缓冲：[电流, 电位器] × 20 */
 static volatile struct {
     uint32_t cur_half, pot_half;  /* 半传输时锁存的前半块和 */
     uint16_t cur_min, cur_max;    /* 前半块电流的最小、最大采样 */
+    uint16_t pot_min, pot_max;    /* 前半块电位器的最小、最大采样 */
     int32_t  cur_q4;              /* 最新块电流：扣零点、按方向带符号，Q4 */
     int32_t  zero_q12;            /* 电流零点，Q12：上电标定，续流段持续跟踪 */
     uint16_t raw_q4;              /* 最新块电流原始均值(未扣零点)，Q4 */
@@ -34,22 +34,14 @@ static volatile struct {
     uint8_t  ready;               /* 1=至少发布过一块 */
 } s;
 
-static uint32_t Block_Sum(uint8_t from, uint8_t to, uint8_t rank)
-{
-    uint32_t sum = 0U;
-
-    while (from < to) sum += s_buf[from++ * RANKS + rank];
-    return sum;
-}
-
-/* 半块电流的和，同时更新最小、最大采样 */
-static uint32_t Current_Sum(uint8_t from, uint8_t to, uint16_t *min, uint16_t *max)
+/* 半块某一路的和，同时更新最小、最大采样 */
+static uint32_t Block_Sum(uint8_t from, uint8_t to, uint8_t rank, uint16_t *min, uint16_t *max)
 {
     uint32_t sum = 0U;
 
     while (from < to)
     {
-        uint16_t v = s_buf[from++ * RANKS];
+        uint16_t v = s_buf[from++ * RANKS + rank];
 
         sum += v;
         if (v < *min) *min = v;
@@ -186,19 +178,25 @@ uint8_t D_ADC_DMA_ISR(void)
     {
         DMA_ClearITPendingBit(DMA1_IT_HT1);
         min = 0xFFFFU; max = 0U;
-        s.cur_half = Current_Sum(0U, BLOCK / 2U, &min, &max);
+        s.cur_half = Block_Sum(0U, BLOCK / 2U, 0U, &min, &max);
         s.cur_min  = min;
         s.cur_max  = max;
-        s.pot_half = Block_Sum(0U, BLOCK / 2U, 1U);
+        min = 0xFFFFU; max = 0U;
+        s.pot_half = Block_Sum(0U, BLOCK / 2U, 1U, &min, &max);
+        s.pot_min  = min;
+        s.pot_max  = max;
         Voltage_Take();
     }
     if (DMA_GetITStatus(DMA1_IT_TC1) == RESET) return 0U;
     DMA_ClearITPendingBit(DMA1_IT_TC1);
     Voltage_Take();
 
-    s.pot_q4 = (uint16_t)DIVN((s.pot_half + Block_Sum(BLOCK / 2U, BLOCK, 1U)) * D_ADC_ENCODER_SCALE + BLOCK / 2U, BLOCK);
+    /* 电位器同样去掉最大、最小各一个采样再平均：挡掉抽头跳动的单个尖峰。块内匀速转动时两端的采样对称去掉，均值不偏 */
+    min = s.pot_min; max = s.pot_max;
+    sum = s.pot_half + Block_Sum(BLOCK / 2U, BLOCK, 1U, &min, &max);
+    s.pot_q4 = (uint16_t)DIVN((sum - min - max) * D_ADC_ENCODER_SCALE + (BLOCK - 2U) / 2U, BLOCK - 2U);
     min = s.cur_min; max = s.cur_max;
-    sum = s.cur_half + Current_Sum(BLOCK / 2U, BLOCK, &min, &max);
+    sum = s.cur_half + Block_Sum(BLOCK / 2U, BLOCK, 0U, &min, &max);
     Current_Publish(sum, min, max);
     s.ready = 1U;
     s.seq++;

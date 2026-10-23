@@ -56,7 +56,7 @@ static inline uint16_t A_Torque_CurrentLimit(uint16_t torque_ckgcm,
 #define PROT_CURRENT_TIME_DEFAULT_MS    30U /** 出厂过流持续时间(ms) */
 #define PROT_CURRENT_TIME_MIN_MS        10U /** 用户可设最短时间(ms) */
 #define PROT_CURRENT_TIME_MAX_MS      1000U /** 用户可设最长时间(ms) */
-#define PROT_CURRENT_COOLDOWN_MS 500 /** 过流后强制卸力的冷却时长(ms) */
+#define PROT_CURRENT_COOLDOWN_MS        500 /** 过流后强制卸力的冷却时长(ms) */
 
 /* 保护功能开关：每一位独立控制，出厂全部开启。 */
 #define PROT_ENABLE_TEMP     0x01U
@@ -98,6 +98,7 @@ static inline uint8_t A_Protect_VoltageRangeValid(uint16_t lo, uint16_t hi)
 #define PROT_STALL_TRIP_MIN            1U /** 用户可设连续次数下限 */
 #define PROT_STALL_TRIP_MAX          100U /** 用户可设连续次数上限 */
 #define PROT_STALL_HOLD_TICKS 15 /** 周期内轨迹被冻结这么多拍，同样算"轨迹在变" */
+#define PROT_STALL_HOLD_LIMIT_MA   100U /** 堵转进入保持后的限流目标(mA)，新指令恢复 */
 
 #define PROT_FAULT_NONE        0x0000U /** 无故障 */
 #define PROT_FAULT_OVERTEMP    0x0001U /** 过温 */
@@ -113,6 +114,8 @@ uint8_t A_Protect_SetTorque(uint16_t torque_ckgcm); /* 设扭矩上限并落盘�
 uint16_t A_Protect_GetTorque(void);          /* 读已生效扭矩上限，0.01 kgf·cm */
 uint16_t A_Protect_Fault(void);               /* 读故障位掩码，供诊断 */
 uint8_t A_Protect_Stalled(void);              /* 1=最近一次动作以堵转收场，供诊断 */
+void    A_Protect_EnterStallHold(void);       /* 堵转保持：限流到 PROT_STALL_HOLD_LIMIT_MA */
+void    A_Protect_ExitStallHold(void);        /* 新指令等：恢复扭矩限流 */
 /* 周期采样缓存供集合查询复用，查询本身不访问ADC或温度传感器。 */
 typedef struct {
     uint16_t current_ma;    /* 最近一次电流值，mA */

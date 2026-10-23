@@ -76,4 +76,4 @@ void     A_Servo_GetDebugTelemetry(ServoDebugTelemetry_t *out); /* 只读控制�
 uint16_t A_Servo_GetPositionPwm(void);                  /* 重读位置并换算为协议脉宽 */
 void     A_Servo_SetOutputLimit(int16_t limit);         /* 保护模块设PWM上限 */
 void     A_Servo_SampleMotion(ServoMotion_t *out);      /* 堵转采样，并把区间基准推到本拍 */
-void     A_Servo_HoldHere(void);                        /* 堵转：放弃当前动作就地保持 */
+void     A_Servo_HoldHere(void);                        /* 堵转：当前角度为目标，直接进保持；同普通到位，无积分托举力，限流0.1A */

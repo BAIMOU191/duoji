@@ -75,7 +75,7 @@ uint8_t A_ServoCtrl_Init(ServoMode_t mode)
     {   /* 观测器按固定负载惯量比放大加速度系数 */
         MotorCal_t observer_cal = *C_MotorModel_Cal();
         observer_cal.ka_nv = (int32_t)((int64_t)observer_cal.ka_nv * (10U + TUNE_LOAD_RATIO_X10) / 10);
-        C_SpeedObs_Configure(&observer_cal, TUNE_OBS_BW_HZ, CTRL_VEL_NOISE_CDPS);
+        C_SpeedObs_Configure(&observer_cal, TUNE_OBS_BW_HZ, TUNE_OBS_DIST_HZ, CTRL_VEL_NOISE_CDPS);
     }
     Loop_ObsInit(s_geom.angle_circ);
     C_PosCtrl_Init(C_MotorModel_Cal(), CTRL_VEL_NOISE_CDPS, TUNE_OBS_BW_HZ);
@@ -324,14 +324,13 @@ void A_ServoCtrl_Begin(void)
     if (C_Traj_Is_Done()) C_Traj_Hold(Fx_ClampRange(s_loop.obs.pos, s_geom.traj_lo, s_geom.traj_hi));
 }
 
-/* 点到点/带时间：时长取 max(T, 最短运动时间)，比最快走法长时整体放慢；运动中来的新目标从当前状态接着走 */
-void A_ServoCtrl_Plan(uint16_t target, uint16_t time_ms) { C_Traj_Plan(target, time_ms); }
+/* 堵转触发的保持：清积分托举力，保持态只靠窗外弹簧 */
+void A_ServoCtrl_StallHold(void) { C_PosCtrl_StallHold(); }
 
-/* 连续轨迹：按平均指令速度走，滞后偏离 速度·展望 的部分慢慢追平 */
-void A_ServoCtrl_Follow(uint16_t target, int32_t vel_cdps, uint16_t horizon_ms) { C_Traj_Follow(target, vel_cdps, horizon_ms); }
+/* 所有位置指令的唯一入口：从参考当前位置用 max(T, 最短运动时间) 到达；新目标从当前状态接着走 */
+void A_ServoCtrl_Command(uint16_t target, uint16_t time_ms) { C_Traj_Command(target, time_ms); }
 
 void    A_ServoCtrl_Brake(void)    { C_Traj_Stop(); }
-int32_t A_ServoCtrl_RefPos(void)   { return C_Traj_GetPos(); }
 uint8_t A_ServoCtrl_TrajDone(void) { return C_Traj_Is_Done(); }
 uint8_t A_ServoCtrl_Holding(void)  { return (uint8_t)(C_Traj_Is_Done() && C_PosCtrl_Reached()); }
 uint8_t A_ServoCtrl_Arrived(void)  { return (uint8_t)(s_loop.ref.done && C_PosCtrl_ArrivalQualified()); }

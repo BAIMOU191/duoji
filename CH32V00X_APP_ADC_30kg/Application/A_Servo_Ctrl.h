@@ -58,10 +58,9 @@ void     A_ServoCtrl_ResetLoop(void);             /* 只清控制器状态 */
 void     A_ServoCtrl_Rebase(void);                /* 参考就地静止在实测位置并刷新一拍，清诊断 */
 void     A_ServoCtrl_HoldRef(void);               /* 参考立即静止在实测位置 */
 void     A_ServoCtrl_Begin(void);                 /* 新运动：清到位资格；参考已停时从实测位置起步 */
-void     A_ServoCtrl_Plan(uint16_t target, uint16_t time_ms);     /* 点到点；time_ms=到达时间(0=最快) */
-void     A_ServoCtrl_Follow(uint16_t target, int32_t vel_cdps, uint16_t horizon_ms); /* 连续轨迹：平均指令速度 + 慢速追平滞后 */
+void     A_ServoCtrl_StallHold(void);             /* 堵转保持：去掉积分托举力，只留窗外弹簧 */
+void     A_ServoCtrl_Command(uint16_t target, uint16_t time_ms);  /* 唯一位置指令入口：time_ms=到达时间(0=最快) */
 void     A_ServoCtrl_Brake(void);                 /* 沿当前方向按减速度刹停 */
-int32_t  A_ServoCtrl_RefPos(void);                /* 当前参考位置 */
 uint8_t  A_ServoCtrl_TrajDone(void);              /* 规划器参考已停 */
 uint8_t  A_ServoCtrl_Holding(void);               /* 参考已停且控制器在保持 */
 uint8_t  A_ServoCtrl_Arrived(void);               /* 参考已停且本条运动满足过到位条件 */

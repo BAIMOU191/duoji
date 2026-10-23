@@ -1,0 +1,9 @@
+# MounRiver 编译产物：每次编译重新生成(烧录用的 obj/CH32V00X_APP.hex 也在这里)
+obj/
+
+# tests/run.py 与 full_scenarios.py 每次运行重新生成；标定结论文档和实测标定日志保留
+tests/results/*
+!tests/results/*.md
+!tests/results/*.log
+tests/review_20260927/
+__pycache__/

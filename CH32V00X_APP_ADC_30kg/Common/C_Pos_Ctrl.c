@@ -12,6 +12,17 @@
 #define STICK_MOVE_MS  5U     /* 这么久没挪过最小可靠位移且估计速度低于噪声底，才算卡住 */
 #define STICK_ESC_MS   25U    /* 顶到起转电压后仍卡这么久，开始逐拍加码 */
 #define STICK_ESC_DIV  50     /* 加码每拍 fs/50；运动/保持中最多再加一个 fs，收尾中加到推动为止(上限半个可用电压) */
+/* 运动中积分增量按参考的快慢分账：参考速度/加速度越大，这一拍积分补的越是模型误差(kv、ka、负载惯量与标定不符，
+ * 误差 ∝ 速度、加速度)，停下后这股力就不该再顶着；慢速时补的才是静载(重力、摩擦偏差)。
+ * "动态"份额 = min(1, |v_r|/ROLL_VEL + |a_r|/ROLL_ACC)，停下后按 2^ROLL_SHIFT ms 时间常数从积分里撤回 */
+#define ROLL_VEL_CDPS   10000  /* 100°/s：再低会把重力臂匀速流式运动中学到的重力也当成动态撤掉 */
+#define ROLL_ACC_CDPSS  30000  /* 300°/s² */
+#define ROLL_SHIFT          4
+#define ROLL_KV_Q8 ((int32_t)((65536UL * 256U + ROLL_VEL_CDPS / 2U) / ROLL_VEL_CDPS))
+#define ROLL_KA_Q8 ((int32_t)((65536UL * 256U + ROLL_ACC_CDPSS / 2U) / ROLL_ACC_CDPSS))
+#define HOLD_BLEED_DIV  4      /* 保持中托举力把轴推走一个最小可靠位移，积分退 fs/4 */
+#define SETTLE_LEARN_X  6      /* 收尾中学托举力的速度 = 运动积分零点 × 它(只在窗外且没朝目标走时学)；
+                                * 3 时重力臂冲过头回来后要多爬几下(停稳慢约0.5s)，6 与原来相当 */
 
 static struct {
     int32_t kv_q16;          /* 速度反馈 Kv，mV/(厘度/s)，Q16 */
@@ -42,6 +53,10 @@ static struct {
     uint8_t  qualified;      /* 本条运动的到位资格，与当前使用的控制律分开 */
     uint8_t  state;
     int32_t  hold_p;         /* 保持中 P 项的输出，mV：转入运动时并入积分 */
+    int32_t  i_dyn_q16;      /* 本段运动里按"动态"份额攒进积分的量，mV Q16：停下后撤回 */
+    int32_t  hold_anchor;    /* 保持中上次退托举力(或进保持)时的位置 */
+    uint8_t  hold_anchor_ok;
+    uint8_t  stall_hold;     /* 堵转保持：清托举力后不再使用/学习积分，直到下一段运动 */
 } s_ctrl;
 
 void C_PosCtrl_Init(const MotorCal_t *cal, int32_t vel_noise, uint16_t obs_bw_hz)
@@ -122,6 +137,21 @@ void C_PosCtrl_Reset(void)
     s_ctrl.still_ms = 0xFFFFU;
 }
 
+/* 堵转触发的保持：目标即当前位置，直接进 HOLD(跳过捕获/交接)；去掉积分托举力，
+ * 只留窗外弹簧。结束状态与普通到位保持一致，直到下一段运动才恢复正常积分。 */
+void C_PosCtrl_StallHold(void)
+{
+    s_ctrl.integral_q16 = 0;
+    s_ctrl.i_dyn_q16    = 0;
+    s_ctrl.hold_p       = 0;
+    s_ctrl.stall_hold   = 1U;
+    s_ctrl.state        = PC_HOLD;
+    s_ctrl.qualified    = 1U;
+    s_ctrl.cap_ms       = 0U;
+    s_ctrl.hold_blend_ms = 0U;
+    s_ctrl.hold_anchor_ok = 0U;
+}
+
 uint8_t C_PosCtrl_Reached(void) { return (uint8_t)(s_ctrl.state == PC_HOLD); }
 uint8_t C_PosCtrl_ArrivalQualified(void) { return s_ctrl.qualified; }
 
@@ -129,6 +159,7 @@ void C_PosCtrl_BeginMotion(void)
 {
     s_ctrl.cap_ms = 0U;
     s_ctrl.qualified = 0U;
+    s_ctrl.stall_hold = 0U;
 }
 
 /* 起转补偿：要求动却卡住时把输出补到 积分±fs，仍不动再逐拍加码(至多 boost_max)；挪动够最小步长后立即撤掉。
@@ -153,6 +184,16 @@ static int32_t PosCtrl_Stiction(const PosCtrlFeedback_t *fb, int32_t demand, int
     if (s_ctrl.still_ms >= STICK_ESC_MS && s_ctrl.boost < boost_max) s_ctrl.boost += s_gain.fs_mv / STICK_ESC_DIV;
     need = Fx_MulShift(s_ctrl.integral_q16, 1, 16) + demand * s_gain.fs_mv;
     return (((demand > 0) ? (u < need) : (u > need)) ? need - u : 0) + demand * s_ctrl.boost;
+}
+
+/* 本拍积分增量里"动态"的份额，Q16：参考越快、加减速越急越接近1 */
+static int32_t PosCtrl_DynShare(const TrajRef_t *ref)
+{
+    int32_t v = Fx_Abs32(ref->vel), a = Fx_Abs32(ref->acc), share;
+
+    if (v >= (int32_t)ROLL_VEL_CDPS || a >= (int32_t)ROLL_ACC_CDPSS) return 65536;
+    share = ((v * ROLL_KV_Q8) >> 8) + ((a * ROLL_KA_Q8) >> 8);
+    return (share > 65536) ? 65536 : share;
 }
 
 /* 参考在动用MOVE，参考结束进SETTLE；到位资格和进入保持律分别判断。
@@ -210,24 +251,49 @@ static int32_t PosCtrl_HoldLaw(int32_t e, int64_t *di)
     return Fx_MulShift(s_gain.kh_q16, ex, 16);
 }
 
-/* 积分加 di(mV Q16)，幅值不超过半个可用电压 */
-static void PosCtrl_IntegralAdd(int64_t di, int32_t limit_mv)
+/* 保持中退掉"把轴推着走"的托举力：轴朝积分推的方向挪了一个最小可靠位移，积分就退 fs/4，直到推不动为止。
+ * 保持中积分不动(保持 I 默认0)，继承的力若大于动摩擦，轴就爬出到位窗、被保持 P/起转补偿顶回、补偿一撤
+ * 再被推出去，在窗边来回摆。收尾积分已不再攒反向力，这里兜其它来源。
+ * 只在继承的力本身推着轴走时才退；重力压着轴往反方向走时不动它 */
+static void PosCtrl_HoldBleed(const PosCtrlFeedback_t *fb)
+{
+    int32_t i_mv = Fx_MulShift(s_ctrl.integral_q16, 1, 16), moved, bleed;
+
+    if (!fb->valid) return;
+    if (!s_ctrl.hold_anchor_ok) { s_ctrl.hold_anchor = fb->pos; s_ctrl.hold_anchor_ok = 1U; }
+    moved = (fb->pos - s_ctrl.hold_anchor) * Fx_Sign32(i_mv);
+    if (moved >= s_gain.min_step)
+    {
+        bleed = s_gain.fs_mv / HOLD_BLEED_DIV;
+        if (bleed > Fx_Abs32(i_mv)) bleed = Fx_Abs32(i_mv);
+        s_ctrl.integral_q16 -= Fx_Sign32(i_mv) * (bleed << 16);
+        s_ctrl.hold_anchor = fb->pos;
+    }
+    else if (moved <= -s_gain.min_step) s_ctrl.hold_anchor = fb->pos;
+}
+
+/* 积分加 di(mV Q16)，幅值不超过半个可用电压；返回实际加上的量(限幅时比 di 少) */
+static int32_t PosCtrl_IntegralAdd(int64_t di, int32_t limit_mv)
 {
     int64_t i_lim = (int64_t)limit_mv << 15, next = s_ctrl.integral_q16 + di;
+    int32_t prev = s_ctrl.integral_q16;
 
     s_ctrl.integral_q16 = (int32_t)((next > i_lim) ? i_lim : ((next < -i_lim) ? -i_lim : next));
+    return s_ctrl.integral_q16 - prev;
 }
 
 int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int32_t limit_mv, PosCtrlDbg_t *dbg)
 {
     int32_t e = ref->pos - fb->pos;
-    int32_t u_ff = 0, u_fb, u_i, u_stick, desired, output, demand = 0, i_in;
+    int32_t u_ff = 0, u_fb, u_i, u_stick, desired, output, demand = 0, i_in, dyn_share = 0;
     int64_t di;   /* 本拍积分增量，mV Q16 */
 
     /* 无扰切换：保持中窗外托着负载的 P 并入积分。新运动从实测位置起步、误差≈0，不并入的话这份力一拍消失，
      * 负载先掉再追 */
     if (!ref->done && s_ctrl.state == PC_HOLD) PosCtrl_IntegralAdd((int64_t)s_ctrl.hold_p << 16, limit_mv);
+    if (!ref->done && s_ctrl.state != PC_MOVE) s_ctrl.i_dyn_q16 = 0;   /* 新一段运动重新分账 */
     PosCtrl_State(ref, fb, e);
+    if (s_ctrl.state != PC_HOLD) s_ctrl.hold_anchor_ok = 0U;
     /* 仅运动律的比例速度反馈使用滤波残差；积分、状态判定和收尾仍使用原观测量。 */
     s_ctrl.vel_error_q8 += ((ref->vel - fb->vel) * 256 - s_ctrl.vel_error_q8) / (VEL_FILTER_MS + 1);
 
@@ -245,6 +311,7 @@ int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int3
         u_fb = Fx_MulShift(s_gain.kv_q16, v_pos + s_ctrl.vel_error_q8 / 256, 16)
              + (int32_t)(((int64_t)s_gain.kv_pos_q16 * v_pos) / 65536);
         di = ((int64_t)s_gain.ki_q20 * i_in) >> 4;
+        dyn_share = PosCtrl_DynShare(ref);
         /* 参考在起步/匀速时按速度指令方向要求动；参考减速段(含反转前的过零)轴本来就该慢下来，
          * 低速不是卡住，顶起会和减速前馈对着干；已超前参考一个到位窗以上也不顶 */
         if (Fx_Abs32(v_cmd) > s_gain.vel_noise && (int64_t)ref->acc * ref->vel >= 0
@@ -253,16 +320,24 @@ int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int3
     }
     case PC_SETTLE:
     {
-        /* 收尾：P 对最小可靠位移以外的误差往中心拉；积分只累加到位窗以外的误差——窗内不再往中心推，
-         * 卡在窗内就算到了，免得积分推破静摩擦后滑到另一侧来回找(竖直力臂的粘滑循环)。不顶起。
-         * 速度项用半个噪声底的死区：静止时只剩噪声、不积(否则积分随机游走)；轴真在挪动时照常阻尼、回收积分 */
-        int32_t v_pos = Fx_MulShift(s_gain.kp_q8, Fx_Deadband(e, s_gain.min_step), 8);
+        /* 收尾：无记忆的 P + 阻尼把轴拉到目标，积分只当静载托举力。
+         * 刚度 = 位置环 P + 弹簧 K_s·e。原来积分里带 −∫v，等于一根锚在"进入收尾时轴所在位置"(常是冲过头处)的
+         * 弹簧 K_s·(x_进入 − x)，平衡点落在目标与冲过头处之间、常在窗外，只能靠起转补偿一下下爬回(快速来回拖动
+         * 后的到位蠕动)。现在同一刚度锚在目标：带载动态不变，平衡点就是目标。K_s = 积分增益(mV/厘度)，
+         * P 与弹簧都留最小可靠位移的死区；速度项用半个噪声底的死区，静止时只剩噪声不出力。
+         * 积分(托举力)只在窗外、且轴没在朝目标走时学窗外误差：卡住或被推走说明力不够；正往回走说明力够了，
+         * 再学就会攒过头。速度项不进积分。窗内不学，卡在窗内就算到了，不会推破静摩擦滑到另一侧来回找 */
+        int32_t e_db = Fx_Deadband(e, s_gain.min_step);
+        int32_t v_pos = Fx_MulShift(s_gain.kp_q8, e_db, 8);
         int32_t v_damp = Fx_Deadband(fb->vel, s_gain.vel_noise / 2);
+        int32_t ex = Fx_Deadband(e, s_gain.w_in);
 
         i_in = v_pos - v_damp;
         u_fb = Fx_MulShift(s_gain.kv_q16, i_in, 16)
-             + (int32_t)(((int64_t)s_gain.kv_pos_q16 * v_pos) / 65536);
-        di = ((int64_t)s_gain.ki_q20 * (Fx_MulShift(s_gain.kp_q8, Fx_Deadband(e, s_gain.w_in), 8) - v_damp)) >> 4;
+             + (int32_t)(((int64_t)s_gain.kv_pos_q16 * v_pos) / 65536)
+             + Fx_MulShift(s_gain.ki_q20, e_db * 1000, 20);   /* K_s·e：积分每拍增益 × 1000拍/s = mV/厘度 */
+        di = (!s_ctrl.stall_hold && ex != 0 && (Fx_Abs32(fb->vel) < s_gain.vel_noise || (int64_t)fb->vel * e <= 0))
+           ? (((int64_t)s_gain.ki_q20 * Fx_MulShift(s_gain.kp_q8, ex, 8) * SETTLE_LEARN_X) >> 4) : 0;
         if (s_ctrl.hold_blend_ms != 0U)
         {
             int64_t hold_di;
@@ -277,15 +352,17 @@ int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int3
         break;
     }
     default:   /* PC_HOLD：保持到下一段运动，见 PosCtrl_HoldLaw */
+        PosCtrl_HoldBleed(fb);
         s_ctrl.hold_p = PosCtrl_HoldLaw(e, &di);
         u_fb = s_ctrl.hold_p;
         break;
     }
 
-    /* 收尾/保持时卡在到位窗外：P 和慢积分都推不动静摩擦，到位后要等积分攒够力才"回正"(I 小就慢、I=0 就留稳态误差)。
-     * 同样做起转补偿，直接补到破静摩擦，一挪动就撤；进了窗口不再推，不会来回找 */
+    /* 堵转保持：积分托举力清零且不再积累，出力只靠窗外弹簧/起转补偿 */
+    if (s_ctrl.stall_hold) { di = 0; u_i = 0; }
+    else                   u_i = Fx_MulShift(s_ctrl.integral_q16, 1, 16);
+    /* 收尾/保持时卡在到位窗外：P 和慢积分都推不动静摩擦，同样做起转补偿 */
     if (s_ctrl.state != PC_MOVE && fb->valid && Fx_Abs32(e) > s_gain.w_in) demand = Fx_Sign32(e);
-    u_i = Fx_MulShift(s_ctrl.integral_q16, 1, 16);
     /* 收尾时卡在窗外：重力+静摩擦可能比 积分+2fs 还大，窗外那一点误差让积分攒得极慢(实测要等几秒才自己动)，
      * 所以收尾中加码不封顶到一个 fs，加到推动为止 */
     u_stick = PosCtrl_Stiction(fb, demand, u_ff + u_fb + u_i, (s_ctrl.state == PC_SETTLE) ? limit_mv / 2 : s_gain.fs_mv);
@@ -294,7 +371,20 @@ int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int3
     output = Fx_Clamp32(desired, limit_mv);
 
     /* 积分：无效采样时冻结；输出限幅时只允许往回退 */
-    if (fb->valid && di != 0 && !((di > 0 && desired > output) || (di < 0 && desired < output))) PosCtrl_IntegralAdd(di, limit_mv);
+    if (fb->valid && di != 0 && !((di > 0 && desired > output) || (di < 0 && desired < output)))
+    {
+        /* 只记实际进了积分的那份：积分顶在限幅上时不多记，撤回时才不会把积分撤成反号 */
+        s_ctrl.i_dyn_q16 += (int32_t)(((int64_t)PosCtrl_IntegralAdd(di, limit_mv) * dyn_share) >> 16);
+    }
+    /* 停下后撤回运动中按速度/加速度攒下的那份积分(模型误差)，按 2^ROLL_SHIFT ms 渐撤，输出不跳 */
+    if (s_ctrl.state != PC_MOVE && s_ctrl.i_dyn_q16 != 0)
+    {
+        int32_t step = s_ctrl.i_dyn_q16 >> ROLL_SHIFT;
+
+        if (step == 0) step = s_ctrl.i_dyn_q16;
+        s_ctrl.i_dyn_q16 -= step;
+        PosCtrl_IntegralAdd(-(int64_t)step, limit_mv);
+    }
 
     if (dbg)
     {
