@@ -1,7 +1,7 @@
 #pragma once
 
-/* A_StatusLed.h —— 状态指示灯：按保护故障与舵机工作状态选灯效，只读其他模块的状态 */
+/* A_StatusLed.h —— 按故障与工作状态选灯效，只读其他模块状态 */
 
-#define STATUS_LED_PERIOD_MS  20U   /* A_StatusLed_Task 的调用周期，彩虹渐变速度按它设计 */
+#define STATUS_LED_PERIOD_MS  20U   /* 调用周期(ms)，彩虹速度按此设计 */
 
-void A_StatusLed_Task(void);        /* 每 STATUS_LED_PERIOD_MS 调用一次，刷新一帧 */
+void A_StatusLed_Task(void);        /* 每 STATUS_LED_PERIOD_MS 调一次，刷新一帧 */

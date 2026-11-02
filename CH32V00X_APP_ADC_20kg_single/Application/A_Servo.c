@@ -1,6 +1,6 @@
 /*
  * A_Servo.c —— 舵机编排层："做什么"。
- *   输入源(上电嗅探 PWM/串口、PWM 脉宽滤波)、连续目标节奏识别、指令受理、
+ *   输入源(上电嗅探 PWM/串口、PWM 脉宽滤波)、指令受理(所有位置指令只走规划器一个入口)、
  *   扭矩/暂停/脱困状态机、电机模式(7~10)开环输出，以及一个控制拍的固定顺序。
  * "怎么转"(坐标、观测器/规划器/控制器、电压换算与H桥)在 A_Servo_Ctrl.c。
  * 位置模式(1~4, 11)走闭环；电机模式开环给电压、只用编码器数圈。
@@ -29,16 +29,6 @@
 #define SERVO_ESCAPE_SETTLE     120U  /* 读数恢复后继续内推的拍数 */
 #define PWM_DB_Q3               Q3(2U) /* PWM输入回差死区：静止吸收±2us抖动，移动时连续跟随 */
 
-/* 连续目标的接收时钟独立于规划合并时钟；带不带时间都参与识别。 */
-#define SERVO_STREAM_MIN_MS     10U   /* 比它更近的视为同一包，不计间隔 */
-#ifndef SERVO_STREAM_MAX_MS
-#define SERVO_STREAM_MAX_MS     1000U /* 超过它没有新目标就算轨迹结束(上位机偶尔卡几百毫秒不打断) */
-#endif
-#define SERVO_STREAM_STEP_MAX   1000U /* 每条超过它(10°)的按点到点：大跳不当连续轨迹 */
-#define SERVO_STREAM_CONFIRM    2U    /* 连续这么多个有效间隔才按连续轨迹走 */
-#ifndef SERVO_STREAM_HORIZON_X
-#define SERVO_STREAM_HORIZON_X  3U    /* 跟随展望 = 平均间隔的这么多倍：越大越平滑、滞后越多 */
-#endif
 
 #define GEO g_servo_geom              /* 只读几何与位置，由 A_Servo_Ctrl 维护 */
 
@@ -74,12 +64,6 @@ typedef struct {
 
 static Servo_t s_servo;
 
-static struct {                 /* 连续目标节奏 */
-    uint16_t age, interval;     /* 距上一条的毫秒数；平均间隔(EMA 1/4) */
-    uint16_t step, pend;        /* 平均每个间隔的位移(EMA 1/4)；同一包里先到的位移 */
-    uint8_t consistent;         /* 已累计的有效间隔数 */
-    int8_t direction;
-} s_stream;
 
 static uint8_t Servo_SubmitQ3(uint16_t q3, uint16_t value);
 
@@ -129,53 +113,6 @@ static uint16_t Servo_FilterPulse(uint16_t us)
     return s_servo.pulse_filt;
 }
 
-/* ============================== 连续目标节奏 ============================== */
-/* 同向、每条不超过10°、间隔不超过1s的目标连续两个间隔即算连续轨迹。不要求间隔均匀：上位机定时器、USB串口
- * 成包、偶尔卡顿都会让间隔忽长忽短，跟随速度用平均间隔与平均步长，单个长间隔按至多2倍平均间隔计入；
- * 10ms 内到的视为同一包。停顿超过1s、反向或大跳就重新计。 */
-
-static void Servo_StreamReset(void)
-{
-    s_stream.age = 0xFFFFU;
-    s_stream.interval = s_stream.step = s_stream.pend = 0U;
-    s_stream.consistent = 0U;
-    s_stream.direction = 0;
-}
-
-static void Servo_StreamObserve(uint8_t was_paused, int32_t target)
-{
-    uint16_t iv = s_stream.age;
-    int8_t direction = (int8_t)Fx_Sign32(target - s_servo.target_angle);
-    uint16_t step = (uint16_t)Fx_Abs32(target - s_servo.target_angle);
-
-    if (was_paused) { Servo_StreamReset(); return; }
-    s_stream.age = 0U;
-    if (iv < SERVO_STREAM_MIN_MS)
-    {   /* 同一包：位移记到下一个间隔里 */
-        s_stream.pend = (uint16_t)(s_stream.pend + step);
-        if (s_stream.direction == 0) s_stream.direction = direction;
-        return;
-    }
-    step = (uint16_t)(step + s_stream.pend);
-    s_stream.pend = 0U;
-    if (iv > SERVO_STREAM_MAX_MS || step > SERVO_STREAM_STEP_MAX
-        || (direction != 0 && s_stream.direction != 0 && direction != s_stream.direction))
-    {
-        s_stream.consistent = 0U;
-        s_stream.interval = s_stream.step = 0U;
-        s_stream.direction = direction;
-        return;
-    }
-    if (s_stream.consistent == 0U) { s_stream.interval = iv; s_stream.step = step; }
-    else
-    {
-        if (iv > 2U * s_stream.interval) iv = (uint16_t)(2U * s_stream.interval);   /* 偶发长间隔不把平均拉偏 */
-        s_stream.interval = (uint16_t)((int32_t)s_stream.interval + ((int32_t)iv - (int32_t)s_stream.interval) / 4);
-        s_stream.step     = (uint16_t)((int32_t)s_stream.step + ((int32_t)step - (int32_t)s_stream.step) / 4);
-    }
-    if (s_stream.consistent < SERVO_STREAM_CONFIRM) s_stream.consistent++;
-    if (direction != 0) s_stream.direction = direction;
-}
 
 /* ============================== 基础动作 ============================== */
 
@@ -207,7 +144,6 @@ static void Servo_ApplyTorqueOutput(void)
  * 目标基准一起重锚，否则紧接着"回到旧目标"的指令会被当成重复目标忽略 */
 static void Servo_Resync(uint8_t reinit)
 {
-    Servo_StreamReset();
     if (reinit) A_ServoCtrl_Reset();
     A_ServoCtrl_Rebase();
     s_servo.arrived       = 1U;
@@ -217,36 +153,23 @@ static void Servo_Resync(uint8_t reinit)
     s_servo.target_angle  = GEO->angle;
 }
 
-/* 按 target_angle 下发运动。确认是连续轨迹(同向连续到达，带不带时间都算)时按"跟随"走：展望三个平均间隔
- * (带的时间更长就取它)，下一条总在参考停下前到，速度连续；摊开后的平均速度低于速度噪声底(低速粘滑区)时
- * 不跟随——稀疏的小步按点到点一步走到，比拖成一走一停的慢爬平稳。其余按点到点(带时间的按剩余时间)。 */
+/* 按 target_angle 下发运动：所有位置指令(点到点、带时间、连续流式、T=0)都走同一个入口——从参考当前位置
+ * 用 max(剩余时间, 最短运动时间) 到达，新指令随时覆盖旧的，规划器从当前状态接着走 */
 static void Servo_Move(void)
 {
     uint16_t time_ms = s_servo.timed_position ? (uint16_t)((s_servo.remaining > 0xFFFFU) ? 0xFFFFU : s_servo.remaining) : 0U;
 
+    A_Protect_ExitStallHold(); /* 新指令恢复扭矩限流 */
     A_ServoCtrl_Begin();
     s_servo.arrived      = 0U;
     s_servo.move_pending = 0U;
     s_servo.move_age     = 0U;
-    if (s_stream.consistent >= SERVO_STREAM_CONFIRM)
-    {
-        uint16_t horizon_ms = (uint16_t)(SERVO_STREAM_HORIZON_X * s_stream.interval);
-        uint32_t dist = (uint32_t)Fx_Abs32((int32_t)s_servo.target_angle - A_ServoCtrl_RefPos());
-
-        if (time_ms > horizon_ms) horizon_ms = time_ms;
-        if (dist * 1000U >= (uint32_t)CTRL_VEL_NOISE_CDPS * horizon_ms)
-        {
-            A_ServoCtrl_Follow(s_servo.target_angle, (int32_t)((uint32_t)s_stream.step * 1000U / s_stream.interval), horizon_ms);
-            return;
-        }
-    }
-    A_ServoCtrl_Plan(s_servo.target_angle, time_ms);
+    A_ServoCtrl_Command(s_servo.target_angle, time_ms);
 }
 
 /* 丢掉当前指令的全部记账(停止/改配置共用)；脱困中时置暂停，等新指令 */
 static void Servo_ClearCommand(void)
 {
-    Servo_StreamReset();
     s_servo.arrived      = 1U;
     s_servo.move_pending = 0U;
     s_servo.move_age     = 0xFFFFU;
@@ -343,11 +266,18 @@ void A_Servo_ApplyConfig(void)
     Servo_ApplyTorqueOutput();
 }
 
+/* 恢复出厂(keep_id非0仅保留ID)并复刻上电动作：参数归零、坐标重建后按boot_mode再走一次 */
+void A_Servo_FactoryReset(uint8_t keep_id)
+{
+    A_Config_Default(keep_id);
+    A_Servo_ApplyConfig();
+    Servo_ApplyBootAction();
+}
+
 void A_Servo_Init(void)
 {
     uint8_t enc_ok;
 
-    Servo_StreamReset();
     memset(&s_servo, 0, sizeof(s_servo));
     s_servo.arrived  = 1U;
     s_servo.boot_pwm = Servo_DetectInput();
@@ -402,10 +332,10 @@ static uint8_t Servo_SubmitQ3(uint16_t q3, uint16_t value)
         return SERVO_SUBMIT_OK;
     }
 
-    /* 位置模式：重复的普通目标忽略(PWM输入的抖动已由回差滤波吸收)；带时间参数的指令一律放行 */
+    /* 位置模式：与当前目标相同的指令忽略(带不带时间都一样，PWM输入的抖动已由回差滤波吸收)：目标没变就按原计划走。
+     * 带时间的同目标若放行，上位机周期重发时每条都把到达时刻往后推，参考永远走不完、进不了保持也不能存Flash */
     target = (uint16_t)Fx_ClampRange(A_ServoCtrl_PulseToAngle(q3), GEO->traj_lo, GEO->traj_hi);
-    if (!was_paused && value == 0U && target == s_servo.target_angle) return SERVO_SUBMIT_OK;
-    Servo_StreamObserve(was_paused, target);
+    if (!was_paused && target == s_servo.target_angle) return SERVO_SUBMIT_OK;
     s_servo.target_angle   = target;
     s_servo.timed_position = (uint8_t)(value != 0U);
     s_servo.remaining      = value;
@@ -433,7 +363,6 @@ void A_Servo_Pause(void)
     uint16_t target = s_servo.target_angle;
 
     if (s_servo.torque != SERVO_TORQUE_ON || s_servo.paused || (!s_servo.resume_valid && !s_servo.boot_pending)) return;
-    Servo_StreamReset();
     s_servo.paused = s_servo.resume_valid = 1U;
     if (A_ServoCtrl_IsPosition() && s_servo.enc_state == SERVO_ENC_OK) {
         A_ServoCtrl_Brake();                /* 沿当前方向平滑刹停，保留原目标供继续 */
@@ -466,10 +395,20 @@ void A_Servo_Stop(void)
     Servo_ApplyTorqueOutput();
 }
 
+/* 故障停机方式：只有电压类故障时短路制动而不是放开——过压多是负载拖着电机回馈，放开后体二极管照样回灌、
+ * 负载(重力)自由落下；短路让回馈电流在绕组里耗掉、不进母线，同时把负载阻住。过流/过温仍放开 */
+static uint8_t Servo_FaultTorque(void)
+{
+    const uint16_t volt = PROT_FAULT_OVERVOLT | PROT_FAULT_UNDERVOLT | PROT_FAULT_VOLT_INVALID;
+    uint16_t fault = (uint16_t)(A_Protect_Fault() & (uint16_t)~PROT_FAULT_STALL);
+
+    return ((fault & volt) != 0U && (fault & (uint16_t)~volt) == 0U) ? SERVO_RELEASE_HIGH : SERVO_RELEASE_LOW;
+}
+
 /* torque_mode只表示用户请求；故障只改变实际状态，恢复不复活旧目标。 */
 void A_Servo_SyncTorque(void)
 {
-    uint8_t torque = !A_Protect_CanDrive() ? SERVO_RELEASE_LOW
+    uint8_t torque = !A_Protect_CanDrive() ? Servo_FaultTorque()
                    : g_runtime_config.torque_mode == 1U ? SERVO_TORQUE_ON
                    : g_runtime_config.torque_mode == 2U ? SERVO_RELEASE_HIGH : SERVO_RELEASE_LOW;
     if (torque == s_servo.torque) return;
@@ -579,6 +518,15 @@ uint8_t A_Servo_SaveStartup(void)
 
 uint8_t A_Servo_TorqueOn(void) { return (uint8_t)(s_servo.torque == SERVO_TORQUE_ON); }
 
+/* 1=现在写Flash安全：擦写期间CPU停顿数ms，运动中(参考在走/电机在转)先不写 */
+uint8_t A_Servo_CanSave(void)
+{
+    if (A_ServoCtrl_IsPosition())
+        return (uint8_t)(s_servo.torque != SERVO_TORQUE_ON
+                         || (A_ServoCtrl_TrajDone() && !s_servo.move_pending));
+    return (uint8_t)(s_servo.remaining == 0U || s_servo.motor_mv == 0);
+}
+
 uint8_t A_Servo_GetWorkState(void)
 {
     if (s_servo.enc_state == SERVO_ENC_FAULT || A_Protect_Fault() != PROT_FAULT_NONE) return SERVO_WORK_FAULT;
@@ -665,10 +613,17 @@ void A_Servo_SampleMotion(ServoMotion_t *out)
     s_servo.motion_valid = driving;
 }
 
-/* 堵转处理：放弃当前动作就地保持，不卸力 */
+/* 堵转处理：当前角度设为目标，直接进保持(跳过捕获/交接)，不卸力。
+ * 结束状态与普通完成一次指令后一致，仅少了积分托举力，并限流到0.1A(15kg)。 */
 void A_Servo_HoldHere(void)
 {
-    if (A_ServoCtrl_IsPosition() && s_servo.torque == SERVO_TORQUE_ON) A_Servo_Stop();
+    if (!(A_ServoCtrl_IsPosition() && s_servo.torque == SERVO_TORQUE_ON)) return;
+    Servo_ClearCommand();
+    (void)Servo_ReadPosition();
+    s_servo.target_angle = GEO->angle;
+    A_ServoCtrl_Rebase();
+    A_ServoCtrl_StallHold();
+    A_Protect_EnterStallHold(); /* 保持期电流限到0.1A */
 }
 
 /* ============================== 控制拍 ============================== */
@@ -730,8 +685,6 @@ void A_Servo_Control(void)
     uint16_t pulse;
 
     A_Servo_SyncTorque();
-    if (s_stream.age < 0xFFFFU) s_stream.age++;
-    if (s_stream.age > SERVO_STREAM_MAX_MS) s_stream.consistent = 0U;
     s_servo.control_valid = 0U;
     if (s_servo.input_source == SERVO_INPUT_PWM && (pulse = D_PWM_Read()) != 0U)
         (void)Servo_SubmitQ3(Servo_FilterPulse(pulse), 0U);
@@ -741,7 +694,7 @@ void A_Servo_Control(void)
     }
     if (s_servo.torque != SERVO_TORQUE_ON) {
         (void)Servo_ReadPosition();   /* 卸力时照常读位置：手转时诊断打印和查询都能跟上 */
-        if (s_servo.torque == SERVO_RELEASE_HIGH) A_ServoCtrl_Damping(g_runtime_config.damping_percent);
+        if (s_servo.torque == SERVO_RELEASE_HIGH) A_ServoCtrl_Damping(A_Protect_CanDrive() ? g_runtime_config.damping_percent : 100U);
         return;
     }
     if ((A_ServoCtrl_IsPosition() && !GEO->range_valid)

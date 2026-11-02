@@ -54,7 +54,8 @@ typedef char guard_pot_cdeg_numerator_overflow[
     (((uint32_t)ADC_VDD_MV * 1000UL) / ((uint32_t)CURRENT_SENSE_GAIN * CURRENT_SENSE_MOHM)) /** 满量程电流(mA)，编译期常量 */
 
 int32_t  A_Encoder_Read(void);                 /* 读编码器角度，厘度；失败返回ENCODER_ANGLE_ERROR */
-uint16_t A_Voltage_Read(void);                 /* 读电池电压，返回厘伏(V×100) */
+uint16_t A_Voltage_Read(void);                 /* 读电池电压(约4ms低通)，返回厘伏(V×100) */
+uint16_t A_Voltage_ReadRaw(void);              /* 电池电压单点读数，厘伏；含开关尖峰，只给回馈钳位 */
 int16_t  A_Temperature_Read(void);             /* 读温度，返回0.1摄氏度；失败返回-32768 */
 uint8_t  A_Current_ReadSigned(int32_t *current_ma); /* 绕组电流(mA)，与施加电压同向为正；返回1=本块测得到 */
 uint8_t  A_Current_Read(uint16_t *current_ma);      /* 电流大小(mA)，供保护与上报；返回值同上 */

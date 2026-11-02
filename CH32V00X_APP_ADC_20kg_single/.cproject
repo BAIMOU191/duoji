@@ -266,7 +266,7 @@
             </toolChain>
           </folderInfo>
           <sourceEntries>
-            <entry excluding="Peripheral/src/ch32v00x_opa.c|tests" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+            <entry excluding="Peripheral/src/ch32v00x_opa.c|tests|AI-Run" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
           </sourceEntries>
         </configuration>
       </storageModule>

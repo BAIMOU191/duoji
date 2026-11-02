@@ -4,7 +4,7 @@
 
 /* 调试开关：设0恢复无诊断输出；周期单位ms，默认50Hz。可用编译宏覆盖。 */
 #ifndef TASK_FIREWATER_ENABLE
-#define TASK_FIREWATER_ENABLE    0
+#define TASK_FIREWATER_ENABLE   0
 #endif
 #ifndef TASK_FIREWATER_PERIOD_MS
 #define TASK_FIREWATER_PERIOD_MS  20U

@@ -91,7 +91,7 @@ static void I2C_BusClear(void)
         I2C_BusDelay();
     }
 
-    /* SDA低、SCL高、SDA释放，构造一个明确的STOP。 */
+    /* SDA低→SCL高→SDA释放，构造STOP */
     GPIOC->BCR = I2C_SCL_PIN | I2C_SDA_PIN;
     I2C_BusDelay();
     GPIOC->BSHR = I2C_SCL_PIN;
@@ -127,7 +127,7 @@ static void I2C_SoftReset(I2C_TypeDef *I2Cx)
 {
     I2C_BusClear();
 
-    /* 主机和从机均已回到空闲电平后，再复位主机外设。 */
+    /* 复位前确保总线已回到空闲电平 */
     I2C_SoftwareResetCmd(I2Cx, ENABLE);
     I2C_SoftwareResetCmd(I2Cx, DISABLE);
 
@@ -168,7 +168,6 @@ uint8_t D_I2C_Write(uint8_t devAddr, uint8_t regAddr, uint8_t *pData, uint8_t le
     while (!I2C_CheckEvent(I2C1, I2C_EVENT_MASTER_BYTE_TRANSMITTED))
         if (--timeout == 0) { I2C_SoftReset(I2C1); return 1; }
 
-    /* 逐字节发送数据 */
     while (len--)
     {
         timeout = I2C_TIMEOUT;
@@ -194,7 +193,7 @@ uint8_t D_I2C_Read(uint8_t devAddr, uint8_t regAddr, uint8_t *pData, uint8_t len
 
     if ((pData == NULL) || (len == 0)) return 1;
 
-    /* 每笔事务从已知ACK/POS状态开始，并清除上一次错误标志。 */
+    /* 每笔事务先恢复ACK/POS到已知状态并清上次错误标志 */
     I2C_AcknowledgeConfig(I2C1, ENABLE);
     I2C_NACKPositionConfig(I2C1, I2C_NACKPosition_Current);
     I2C1->STAR1 &= (uint16_t)~I2C_STAR1_ERROR_MASK;
@@ -265,7 +264,7 @@ uint8_t D_I2C_Read(uint8_t devAddr, uint8_t regAddr, uint8_t *pData, uint8_t len
     }
     else
     {
-        /* 通用多字节路径：最后3字节按BTF时序收尾。 */
+        /* 多字节：最后3字节按BTF时序收尾 */
         I2C_ClearADDR(I2C1);
 
         while (len > 3U)
@@ -285,7 +284,7 @@ uint8_t D_I2C_Read(uint8_t devAddr, uint8_t regAddr, uint8_t *pData, uint8_t len
         *pData   = I2C_ReceiveData(I2C1);
     }
 
-    /* 等STOP真正释放总线后再恢复ACK/POS，避免影响最后一个NACK。 */
+    /* 等STOP释放总线再恢复ACK/POS，避免影响最后的NACK */
     timeout = I2C_TIMEOUT;
     while ((I2C1->STAR2 & I2C_STAR2_BUSY) != 0U)
         if (--timeout == 0U) goto read_failed;

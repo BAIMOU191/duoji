@@ -1,7 +1,8 @@
 /* A_UartCmd.c 串口协议层：一根线上三种帧按帧头独占分流——
  *   明文   #IIIP<指令>!            见 Text_*
  *   二进制 AA 66 ID CMD LEN DATA CRC8 66 AA   见 Bin_*
- *   升级   AA 55 ...               交给 iap.c */
+ *   升级   AA 55 ...               交给 iap.c
+ * 广播(ID=255/FF)的应答统一延时 100ms+本机ID×2ms 发出；新帧到达作废未发应答。 */
 
 #include "A_UartCmd.h"
 #include "A_Config.h"
@@ -27,6 +28,10 @@ static uint8_t s_debug_rx_quiet_ms;
 #define BIN_FRAME_MAX (8U + BIN_DATA_MAX)
 #define BIN_BROADCAST 255U
 #define BIN_TELEMETRY_BYTES 16U
+
+/* 广播延时应答：100ms + 本机ID×2ms，多机错开避免半双工撞车；新帧到达则作废未发出的应答 */
+#define BCAST_REPLY_BASE_MS  100U
+#define BCAST_REPLY_ID_MS      2U
 
 /* 应答状态码 */
 #define BIN_ST_OK 0U
@@ -118,6 +123,46 @@ static uint8_t s_text[TEXT_FRAME_MAX], s_text_len;
 static uint8_t s_reply[TEXT_REPLY_MAX], s_reply_len;
 static uint8_t s_bin[BIN_FRAME_MAX], s_bin_len;
 static uint8_t s_wire, s_wire_idle_ms;
+static uint8_t s_reply_bcast;   /* 1=当前帧是广播，应答改为延时发送 */
+static uint8_t s_bin_bcast;
+static uint8_t s_bcast_baud;    /* 广播引起的波特率切换，等延时应答发完再生效 */
+
+static struct {
+    uint8_t  pending;
+    uint16_t wait_ms;
+    uint8_t  len;
+    uint8_t  frame[TEXT_REPLY_MAX];
+} s_bcast;
+
+static void Bcast_Cancel(void)
+{
+    s_bcast.pending = 0U;
+}
+
+/* 广播应答错开 100+id*2 ms 再发；帧内容当场拼好 */
+static void Bcast_Defer(const uint8_t *f, uint8_t len)
+{
+    if (len == 0U || len > sizeof(s_bcast.frame)) return;
+    memcpy(s_bcast.frame, f, len);
+    s_bcast.len     = len;
+    s_bcast.wait_ms = (uint16_t)(BCAST_REPLY_BASE_MS
+                               + (uint16_t)g_config.servo_id * BCAST_REPLY_ID_MS);
+    s_bcast.pending = 1U;
+}
+
+/* 1ms一拍：到期且发送队列可收则发出；发完再处理延迟波特率 */
+static void Bcast_Tick(void)
+{
+    if (!s_bcast.pending) return;
+    if (s_bcast.wait_ms > 1U) { s_bcast.wait_ms--; return; }
+    s_bcast.pending = 0U;
+    (void)D_UART1_Tx_Write(s_bcast.frame, s_bcast.len);
+    if (s_bcast_baud)
+    {
+        s_bcast_baud = 0U;
+        D_UART_SetBaud_Deferred(A_Config_Baudrate());
+    }
+}
 
 /* ============================== 明文协议 ============================== */
 
@@ -173,6 +218,7 @@ static void Reply_Begin(void)
 static void Reply_Send(void)
 {
     Reply_Char('!');
+    if (s_reply_bcast) { Bcast_Defer(s_reply, s_reply_len); return; }
     (void)D_UART1_Tx_Write(s_reply, s_reply_len);   /* 队列放不下整帧丢弃 */
 }
 
@@ -236,16 +282,18 @@ static void Text_Execute(uint8_t code, uint16_t arg)
     case T_CSD: ok = A_Servo_SaveStartup(); break;
     case T_CSM_SET: g_config.boot_mode = (uint8_t)arg; A_Config_MarkDirty(); break;
     case T_BD_SET:  g_config.baud_code = (uint8_t)arg; A_Config_MarkDirty(); break;
-    case T_CLE0: case T_CLE: /* CLE0仅保留ID；CLE全部恢复；二者波特率均恢复默认 */
-        A_Config_Default((uint8_t)(code == T_CLE0));
-        A_Servo_ApplyConfig();
+    case T_CLE0: case T_CLE: /* CLE0仅保留ID；CLE全部恢复；二者波特率均恢复默认，并按上电动作走一次 */
+        A_Servo_FactoryReset((uint8_t)(code == T_CLE0));
         break;
     default: return;
     }
     if (!ok) return;
     Reply_Begin(); Reply_Text("OK"); Reply_Send();
     if (code == T_BD_SET || code == T_CLE0 || code == T_CLE)
-        D_UART_SetBaud_Deferred(A_Config_Baudrate());   /* 先用旧波特率把OK发完再切 */
+    {
+        if (s_reply_bcast) s_bcast_baud = 1U;
+        else D_UART_SetBaud_Deferred(A_Config_Baudrate());   /* 先用旧波特率把OK发完再切 */
+    }
 }
 
 /* 校验帧结构与目标ID，解码执行。参数越界的设置指令整条不认 */
@@ -276,7 +324,9 @@ static void Text_Frame(const uint8_t *f, uint8_t len)
         case T_CSM_SET: if (arg < SERVO_BOOT_GOTO_START || arg > SERVO_BOOT_RELEASE) return; break;
         default: break;
         }
+        s_reply_bcast = (uint8_t)(id == 255U);
         Text_Execute(k_text[i].code, arg);
+        s_reply_bcast = 0U;
         return;
     }
 }
@@ -302,7 +352,7 @@ static uint8_t Bin_Crc8(const uint8_t *p, uint8_t len)
     return crc;
 }
 
-/* 应答：DATA = 状态码 + data */
+/* 应答：DATA = 状态码 + data。广播帧延时发送(100+id*2 ms) */
 static void Bin_Reply(uint8_t cmd, uint8_t status, const uint8_t *data, uint8_t len)
 {
     uint8_t f[BIN_FRAME_MAX];
@@ -312,6 +362,7 @@ static void Bin_Reply(uint8_t cmd, uint8_t status, const uint8_t *data, uint8_t 
     memcpy(f + 6, data, len);
     f[6U + len] = Bin_Crc8(f + 2, (uint8_t)(4U + len));
     f[7U + len] = BIN_TAIL1; f[8U + len] = BIN_TAIL2;
+    if (s_bin_bcast) { Bcast_Defer(f, (uint8_t)(9U + len)); return; }
     (void)D_UART1_Tx_Write(f, (uint8_t)(9U + len));
 }
 
@@ -531,7 +582,7 @@ static uint8_t Bin_ParamWrite(uint8_t id, const uint8_t *data, uint8_t len, uint
     return BIN_ST_OK;
 }
 
-/* 一帧二进制：校验、过滤ID，执行并应答(广播不应答，且只开放实时运动控制的写入) */
+/* 一帧二进制：校验、过滤ID，执行并应答(广播只开放实时运动控制的写入，应答延时 100+id*2 ms) */
 static void Bin_Frame(const uint8_t *f, uint8_t len)
 {
     uint8_t out[BIN_TELEMETRY_BYTES + 1U] = {0U}, out_len = 0U, st = BIN_ST_OK, baud = 0U;
@@ -541,6 +592,7 @@ static void Bin_Frame(const uint8_t *f, uint8_t len)
     if (len != 8U + n || f[6U + n] != BIN_TAIL1 || f[7U + n] != BIN_TAIL2 || f[5U + n] != Bin_Crc8(f + 2, (uint8_t)(3U + n))
         || (id != g_config.servo_id && id != BIN_BROADCAST) || (cmd & 0x80U)   /* 别的设备的应答帧 */
         || (id == BIN_BROADCAST && cmd != BIN_CMD_WRITE)) return;
+    s_bin_bcast = (uint8_t)(id == BIN_BROADCAST);
     switch (cmd)
     {
     case BIN_CMD_STATE:
@@ -556,11 +608,10 @@ static void Bin_Frame(const uint8_t *f, uint8_t len)
                  && data[0] != PARAM_TORQUE_MODE && data[0] != PARAM_DAMPING) st = BIN_ST_STATE;
         else st = Bin_ParamWrite(data[0], data + 1, (uint8_t)(n - 1U), &baud);
         break;
-    case BIN_CMD_RESET_KEEP:   /* 07仅保留ID；08全部恢复；二者均恢复默认波特率 */
+    case BIN_CMD_RESET_KEEP:   /* 07仅保留ID；08全部恢复；二者均恢复默认波特率，并按上电动作走一次 */
     case BIN_CMD_RESET_ALL:
         if (n != 0U) { st = BIN_ST_LENGTH; break; }
-        A_Config_Default((uint8_t)(cmd == BIN_CMD_RESET_KEEP));
-        A_Servo_ApplyConfig();
+        A_Servo_FactoryReset((uint8_t)(cmd == BIN_CMD_RESET_KEEP));
         baud = 1U;
         break;
     case BIN_CMD_RESERVED_04: case BIN_CMD_RESERVED_05: case BIN_CMD_RESERVED_06: case BIN_CMD_REBOOT:
@@ -570,8 +621,13 @@ static void Bin_Frame(const uint8_t *f, uint8_t len)
         st = BIN_ST_CMD;
         break;
     }
-    if (id != BIN_BROADCAST) Bin_Reply(cmd, st, out, (st == BIN_ST_OK) ? out_len : 0U);
-    if (st == BIN_ST_OK && baud) D_UART_SetBaud_Deferred(A_Config_Baudrate());
+    Bin_Reply(cmd, st, out, (st == BIN_ST_OK) ? out_len : 0U);
+    if (st == BIN_ST_OK && baud)
+    {
+        if (s_bin_bcast) s_bcast_baud = 1U;
+        else D_UART_SetBaud_Deferred(A_Config_Baudrate());
+    }
+    s_bin_bcast = 0U;
 }
 
 /* ============================== 收帧分流 ============================== */
@@ -607,7 +663,7 @@ static void Wire_Byte(uint8_t b)
     }
 }
 
-/* 串口任务：排空接收队列 -> 分流执行 -> 半帧超时放弃 -> 驱动收尾(切波特率等) */
+/* 串口任务：排空接收队列 -> 分流执行 -> 半帧超时放弃 -> 广播延时应答 -> 驱动收尾(切波特率等) */
 void A_Uart_Process(void)
 {
     uint8_t b, received = 0U;
@@ -615,6 +671,7 @@ void A_Uart_Process(void)
     while (D_UART1_Rx_Get(&b))
     {
         received = 1U;
+        Bcast_Cancel();   /* 总线来新数据：作废尚未发出的广播应答，避免回旧包撞新令 */
         if (!IAP_UpgradePending()) Wire_Byte(b);   /* 已应答进入升级：只清空队列，不再执行 */
     }
     if (received) s_wire_idle_ms = 0U;
@@ -626,6 +683,7 @@ void A_Uart_Process(void)
     }
     if (received) s_debug_rx_quiet_ms = 0U;
     else if (s_debug_rx_quiet_ms < 10U) s_debug_rx_quiet_ms++;
+    Bcast_Tick();
     D_UART_Service();
 }
 

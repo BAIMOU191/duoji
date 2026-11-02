@@ -4,7 +4,7 @@
  *     1     1ms   Uart          收帧、执行、回复、升级服务                 (A_UartCmd, iap)
  *     2     10ms  Protect       电流/电压/温度/堵转保护与功率限制          (A_Protect)
  *     3     20ms  State         LED状态/故障指示与喂狗                     (A_StatusLed)
- *     4     事件  ConfigSave    参数变脏时写Flash                          (A_Config)
+ *     4     20ms  ConfigSave    参数变脏时写Flash，运动中顺延              (A_Config)
  *     5     20ms  Print         FireWater运行诊断(非阻塞串口入队)          (A_Debug，默认关)
  */
 #include "A_Tasks.h"
@@ -40,8 +40,16 @@ static void Task_State(void)
     D_IWDG_Feed(); /* 主循环卡住时让看门狗复位。 */
 }
 
+#define CONFIG_SAVE_PERIOD_MS     20U  /* 落盘顺延后的重试周期，事件先到照常立即存 */
+#define CONFIG_SAVE_HOLD_MAX_MS  500U  /* 运动中最多顺延这么久，防止连续流指令饿死落盘 */
+
+static uint16_t s_save_hold_ms;
+
 static void Task_ConfigSave(void)
 {
+    /* 写Flash的擦除/编程会冻结CPU数ms：运动中顺延落盘(参数仍即时生效)，到上限强写 */
+    if (!A_Servo_CanSave() && (s_save_hold_ms += CONFIG_SAVE_PERIOD_MS) < CONFIG_SAVE_HOLD_MAX_MS) return;
+    s_save_hold_ms = 0U;
     (void)A_Config_SaveTask(); /* 参数变脏时异步写Flash */
 }
 
@@ -58,7 +66,7 @@ static Task_t s_tasks[] = {
     TASK_DEF(Task_Uart,         1,                        1),
     TASK_DEF(Task_Protect,      10,                       2),
     TASK_DEF(Task_State,        STATUS_LED_PERIOD_MS,     3),
-    TASK_DEF(Task_ConfigSave,   0,                        4), /* 参数变脏时触发。 */
+    TASK_DEF(Task_ConfigSave,   CONFIG_SAVE_PERIOD_MS,    4), /* 参数变脏时触发，运动中顺延。 */
 #if TASK_FIREWATER_ENABLE
     TASK_DEF(Task_Print,        TASK_FIREWATER_PERIOD_MS, 5),
 #endif

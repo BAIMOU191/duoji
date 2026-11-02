@@ -34,31 +34,40 @@
 
 /* ==================== 3. 控制器整定(固件常量，不对外) ====================
  * 带宽越高越硬、越跟手，但电位器噪声放大越多；约束见 C_Pos_Ctrl.h，生效时仍按约束钳位。
- * 电位器滑动时的读数噪声比静止大得多：速度环 120 rad/s / 观测器 21Hz 时，仿真里这份噪声被放大成运动中
- * 10%~20% 的速度起伏(实机"转动时一直加减速")；降到 70 rad/s / 16Hz 后起伏约减半，空载到位不变，
- * 重惯量负载(4倍电机惯量)点到点过冲约多1°。仍嫌抖可降到 60(更顺、带载更软)，要更硬可提到 80~100。 */
-#define TUNE_OBS_BW_HZ          16   /** 观测器三重极点带宽(Hz)，速度环带宽不超过它 */
+ * 电位器滑动时的读数噪声比静止大得多，速度估计的噪声几乎全部来自它，最终输出PWM的抖动也几乎全部来自它。
+ * 观测器的位置/速度极点与扰动极点分开配：位置/速度 12Hz、扰动 5Hz 时，速度估计更多靠电压模型、少靠电位器微分，
+ * 仿真(含滑动噪声、尖峰、位置波纹，同型号另几只的标定误差)里运动中PWM高频抖动约为原 16Hz 三重极点的一半，
+ * 跟踪与到位不变差。速度环带宽仍为 70 rad/s(不超过观测器带宽)。 */
+#define TUNE_OBS_BW_HZ          12   /** 观测器位置/速度极点(Hz)，速度环带宽不超过它 */
+/* 扰动估计直接前馈(重力随角度变、负载摩擦)：这条前馈连同观测器构成扰动观测器回路，负载惯量小于标称时
+ * (空载、齿隙里电机侧空转)回路增益偏大，扰动极点 5Hz 时仿真空载出现 10Hz 振荡；3Hz + 前馈 60ms 低通在
+ * 空载/惯量×0.5~2/标定±20% 下都稳定，重力仍跟得上(力臂 180°/s 摆过竖直) */
+#define TUNE_OBS_DIST_HZ         3   /** 观测器扰动极点(Hz)，≤ TUNE_OBS_BW_HZ */
 /* 速度环带宽受纯延迟限制 ω_v·延迟 ≤ 1/3(与 C_PosCtrl_Init 同一公式)，取值不超过它 */
 #define CTRL_VEL_BW_DELAY_MAX  ((MOTOR_DELAY_US > 333) ? 1000000U / (3U * MOTOR_DELAY_US) : 1000U)
 #define TUNE_VEL_BW_RADS       ((CTRL_VEL_BW_DELAY_MAX < 70U) ? CTRL_VEL_BW_DELAY_MAX : 70U)  /** 速度环带宽 ω_v，rad/s */
 #define TUNE_POS_BW_RADS       ((TUNE_VEL_BW_RADS / 4U < 20U) ? TUNE_VEL_BW_RADS / 4U : 20U)  /** 位置环带宽 ω_p，rad/s：≤ ω_v/4，再按负载惯量比收敛 */
 #define TUNE_INT_BW_RADS         5U  /** 速度积分零点 ω_i，rad/s，≤ ω_p */
-/* 实测版新增唯一负载整定量：J_load/J_motor×10，10=负载惯量等于电机自身，总惯量2倍。
- * 仅供观测器/闭环带宽适配，不修改轨迹限值或加速度前馈；改后重新编译，不占Flash/SRAM协议地址。 */
-#define TUNE_LOAD_RATIO_X10     20U
+/* 模型负载惯量比：标称 J_load/J_motor×10，10=负载惯量等于电机自身，总惯量2倍。观测器模型和加速度前馈共用
+ * (两者必须一致，否则扰动估计和前馈重复补惯量)。按常用负载取，宁小勿大：标称惯量大于实际时扰动观测器回路
+ * 增益>1，空载会振。改后重新编译，不占协议地址。 */
+#define TUNE_LOAD_RATIO_X10     10U
+/* 位置环带宽上限按的负载惯量比×10：按可能的最大负载取(稳定裕度看最大惯量)，与上面的模型惯量比分开 */
+#define TUNE_BW_LOAD_RATIO_X10  20U
 
 /* ==================== 4. 运行参数出厂值 ====================
  * 精度、齿隙、刚度、V/A/D、平滑时间、最短运动时间是运行参数(Flash/SRAM 两份，可由协议修改)，这里只是出厂值。 */
 #define CFG_DEF_RESOLUTION_CDEG 50U  /** 到位精度：误差在它以内且静止才算到位，厘度 */
-#define CFG_DEF_HOLD_KP         80  /** 保持 P，‰/°：超出到位窗 1° 输出标定电压的多少‰(相对扭矩)；*/
-#define CFG_DEF_HOLD_KI           0  /** 保持 I，‰/(°·s)：超出 1° 持续 1s，输出再加标定电压的多少‰；0=积分不动，只用到位时继承的托举力 */
+#define CFG_DEF_HOLD_KP         80  /** 保持 P，‰/°：超出到位窗 1° 输出标定电压的 1.5×P‰(实际效果为参数的1.5倍)；*/
+#define CFG_DEF_HOLD_KI           0  /** 保持 I，‰/(°·s)：超出 1° 持续 1s，输出再加标定电压的 1.5×I‰；0=积分不动，只用到位时继承的托举力 */
 /* 恢复原运动默认值：V/A/D取额定能力的90%/70%/70%，具体值由本型号标定参数计算。
  * 控制器优化独立保留；实际限值仍由现有Flash/SRAM参数决定，0表示按额定。 */
 #define CFG_DEF_VMAX_DPS       (MOTOR_RATED_VEL_DPS * 9U / 10U)
 #define CFG_DEF_AMAX_DPS2      (MOTOR_RATED_ACC_DPS2 * 7U / 10U)
 #define CFG_DEF_DMAX_DPS2      (MOTOR_RATED_DEC_DPS2 * 7U / 10U)
-#define CFG_DEF_SMOOTH_MS        50  /** 平滑时间(加速度从0升到A的时间，即规划器速度滑动平均的窗口)，ms；0=自动取机械时间常数τ */
-#define CFG_DEF_MOVE_MIN_MS    150U  /** 最短运动时间，ms；0=关闭：每段运动至少走这么久(带时间的取较大者)，小动作按比例降低 V/A/J */
+#define CFG_DEF_SMOOTH_MS       100  /** 平滑时间(加速度从0升到A的时间，即规划器速度滑动平均的窗口)，ms；0=自动取机械时间常数τ */
+#define CFG_DEF_MOVE_MIN_MS    150U  /** 最短运动时间，ms；0=关闭：每条指令至少用这么久到达(带时间的取较大者)。
+                                       * T=0 的连续指令间隔不超过它时连成一条，超过时一步一停；调小则密集指令跟得更紧 */
 
 /* ==================== 5. 硬件量程与旋向 ==================== */
 #define CDEG_RANGE          36000 /** 整圈角度，厘度 */
@@ -78,7 +87,7 @@
 #define CFG_SMOOTH_MAX_MS          TRAJ_SMOOTH_MS_MAX    /** 平滑时间上限，ms：规划器速度滑动平均的窗口上限 */
 #define CFG_SMOOTH_MIN_MS          1U                    /** 平滑时间下限，ms(0 另外允许=自动取 τ) */
 #define CFG_MOVE_MIN_MAX_MS        TRAJ_MOVE_MIN_MS_MAX  /** 最短运动时间上限，ms */
-#define CFG_HOLD_KP_MAX            100U  /** 保持 P 上限，‰/°：超出 1° 给 10% 标定电压，30kg 约等于旧单位的 23 */
+#define CFG_HOLD_KP_MAX            100U  /** 保持 P 上限，‰/°：设100时超出 1° 给 15% 标定电压(实际效果×1.5) */
 #define CFG_HOLD_KI_MAX            100U  /** 保持 I 上限，‰/(°·s) */
 #define CFG_RESOLUTION_MIN_CDEG    (MOTOR_MIN_STEP_CDEG * 3U / 2U)  /** 到位精度下限=1.5×最小可靠位移(与 C_PosCtrl 捕获窗同一公式) */
 #define CFG_RESOLUTION_MAX_CDEG    500U
@@ -95,7 +104,8 @@ _Static_assert(MOTOR_KV_UV > 0 && MOTOR_KA_NV > 0 && MOTOR_FS_MV >= MOTOR_FC_MV 
                && MOTOR_CAL_MV > 0 && MOTOR_MIN_STEP_CDEG >= 1, "Invalid motor calibration");
 _Static_assert(MOTOR_SIGN == 1 || MOTOR_SIGN == -1, "Invalid motor direction");
 _Static_assert(TUNE_POS_BW_RADS * 4U <= TUNE_VEL_BW_RADS && TUNE_INT_BW_RADS <= TUNE_POS_BW_RADS && TUNE_INT_BW_RADS >= 1U
-               && TUNE_VEL_BW_RADS * 1000U <= TUNE_OBS_BW_HZ * 6283U, "Controller bandwidths violate constraints");
+               && TUNE_VEL_BW_RADS * 1000U <= TUNE_OBS_BW_HZ * 6283U
+               && TUNE_OBS_DIST_HZ >= 1U && TUNE_OBS_DIST_HZ <= TUNE_OBS_BW_HZ, "Controller bandwidths violate constraints");
 _Static_assert(CFG_DEF_RESOLUTION_CDEG >= CFG_RESOLUTION_MIN_CDEG && CFG_DEF_RESOLUTION_CDEG <= CFG_RESOLUTION_MAX_CDEG
                && CFG_RESOLUTION_MIN_CDEG >= 1U
                && CFG_DEF_HOLD_KP <= CFG_HOLD_KP_MAX
@@ -165,7 +175,7 @@ typedef struct {
     uint32_t traj_dmax_dps2;       /** 轨迹最大减速度，度/秒^2，≤额定；0=按额定 */
     uint16_t traj_vmax_dps;        /** 轨迹最大速度，度/秒，≤额定；0=按额定 */
     uint16_t traj_smooth_ms;       /** S曲线平滑时间(加速度0→A)，ms；0=自动(τ)，或 CFG_SMOOTH_MIN_MS~200 */
-    uint16_t traj_move_min_ms;     /** 最短运动时间，ms；0=关闭。每段运动至少走这么久，小动作按比例降低 V/A/J */
+    uint16_t traj_move_min_ms;     /** 最短运动时间，ms；0=关闭。每条指令至少用这么久到达(带时间的取较大者) */
     uint16_t prot_current_limit_ma;/** 过流保护阈值，mA */
     uint16_t prot_current_time_ms; /** 过流超过阈值后持续多久触发，ms */
     uint16_t prot_temp_limit_dC;   /** 过温保护阈值，0.1摄氏度 */

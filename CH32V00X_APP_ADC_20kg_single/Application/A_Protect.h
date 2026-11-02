@@ -56,7 +56,7 @@ static inline uint16_t A_Torque_CurrentLimit(uint16_t torque_ckgcm,
 #define PROT_CURRENT_TIME_DEFAULT_MS    30U /** 出厂过流持续时间(ms) */
 #define PROT_CURRENT_TIME_MIN_MS        10U /** 用户可设最短时间(ms) */
 #define PROT_CURRENT_TIME_MAX_MS      1000U /** 用户可设最长时间(ms) */
-#define PROT_CURRENT_COOLDOWN_MS 500 /** 过流后强制卸力的冷却时长(ms) */
+#define PROT_CURRENT_COOLDOWN_MS        500 /** 过流后强制卸力的冷却时长(ms) */
 
 /* 保护功能开关：每一位独立控制，出厂全部开启。 */
 #define PROT_ENABLE_TEMP     0x01U
@@ -66,15 +66,21 @@ static inline uint16_t A_Torque_CurrentLimit(uint16_t torque_ckgcm,
 #define PROT_ENABLE_IMPLEMENTED 0x0FU   /** 已实现的功能位，也是对外取值上限 */
 #define PROT_ENABLE_DEFAULT     0x0FU
 
-/* 工作电压单位为0.1V；用户设置范围为6.0~9.0V，采样有效边界仍为4.8~9.2V。 */
+/* 工作电压单位为0.1V。用户可设范围 6.0~9.0V，出厂即全范围；保护在设置值外再放宽上下各0.5V才动作
+ * (采样误差、接线压降、减速回馈泵升)，出厂实际动作线 5.5V/9.5V。 */
 #define PROT_VOLTAGE_MIN_DEFAULT_DV 60U
 #define PROT_VOLTAGE_MAX_DEFAULT_DV 90U
 #define PROT_VOLTAGE_CFG_MIN_DV     60U
 #define PROT_VOLTAGE_CFG_MAX_DV     90U
-#define PROT_VOLTAGE_ABS_MIN_DV     48U
-#define PROT_VOLTAGE_ABS_MAX_DV     92U
+#define PROT_VOLTAGE_TOL_LO_DV       5U   /** 欠压动作线 = 设置下限 - 本值 */
+#define PROT_VOLTAGE_TOL_HI_DV       5U   /** 过压动作线 = 设置上限 + 本值 */
+/* 内部有效电压边界 = 最宽的动作线，估算母线电压时超出即视为采样无效 */
+#define PROT_VOLTAGE_ABS_MIN_DV     (PROT_VOLTAGE_CFG_MIN_DV - PROT_VOLTAGE_TOL_LO_DV)
+#define PROT_VOLTAGE_ABS_MAX_DV     (PROT_VOLTAGE_CFG_MAX_DV + PROT_VOLTAGE_TOL_HI_DV)
 #define PROT_VOLTAGE_HYST_DV         2U
-#define PROT_VOLTAGE_TRIP_MS        50U
+#define PROT_VOLTAGE_TRIP_MS        50U   /** 过压/采样无效持续这么久停机：回馈顶高母线，电容耐压有限，要快 */
+#define PROT_UNDERVOLT_TRIP_MS    1000U   /** 欠压持续这么久才停机：带载举升时供电内阻上的压降可达1V，只持续几百ms，
+                                         * 不算供电不足；真没电会一直低下去 */
 #define PROT_VOLTAGE_RECOVER_MS    500U
 
 /* 上下各留回差后仍须有恢复区间，不能只剩一个采样点。协议与开机修复共用。 */
@@ -98,6 +104,7 @@ static inline uint8_t A_Protect_VoltageRangeValid(uint16_t lo, uint16_t hi)
 #define PROT_STALL_TRIP_MIN            1U /** 用户可设连续次数下限 */
 #define PROT_STALL_TRIP_MAX          100U /** 用户可设连续次数上限 */
 #define PROT_STALL_HOLD_TICKS 15 /** 周期内轨迹被冻结这么多拍，同样算"轨迹在变" */
+#define PROT_STALL_HOLD_LIMIT_MA   100U /** 堵转进入保持后的限流目标(mA)，新指令恢复 */
 
 #define PROT_FAULT_NONE        0x0000U /** 无故障 */
 #define PROT_FAULT_OVERTEMP    0x0001U /** 过温 */
@@ -113,6 +120,8 @@ uint8_t A_Protect_SetTorque(uint16_t torque_ckgcm); /* 设扭矩上限并落盘�
 uint16_t A_Protect_GetTorque(void);          /* 读已生效扭矩上限，0.01 kgf·cm */
 uint16_t A_Protect_Fault(void);               /* 读故障位掩码，供诊断 */
 uint8_t A_Protect_Stalled(void);              /* 1=最近一次动作以堵转收场，供诊断 */
+void    A_Protect_EnterStallHold(void);       /* 堵转保持：限流到 PROT_STALL_HOLD_LIMIT_MA */
+void    A_Protect_ExitStallHold(void);        /* 新指令等：恢复扭矩限流 */
 /* 周期采样缓存供集合查询复用，查询本身不访问ADC或温度传感器。 */
 typedef struct {
     uint16_t current_ma;    /* 最近一次电流值，mA */

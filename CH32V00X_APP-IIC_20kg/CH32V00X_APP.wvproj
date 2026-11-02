@@ -73,7 +73,7 @@
 					"use_pipelines": false,
 					"show_caret_indicating_the_column": false,
 					"calling_convention_variant": false,
-					"other_optimization_flags": ""
+					"other_optimization_flags": "-flto"
 				},
 				"warnings": {
 					"check_syntax_only": false,
@@ -234,7 +234,7 @@
 						"use_wch_printffloat": false,
 						"use_wch_printf": false,
 						"use_iqmath": false,
-						"other_linker_flags": ""
+						"other_linker_flags": "-flto"
 					}
 				},
 				"cpplinker": {

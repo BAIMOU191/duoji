@@ -1,22 +1,6 @@
 /*
- * A_Calib_Min.c —— 标定固件：在额定电压下按固定序列开环激励电机，在 MCU 上辨识电压域模型，
- * 最后打印一段可直接整节替换 A_Config.h 第2节的标定块(无 Python 步骤)。
- *
- * 激励序列(每段之间先预定位到起点)：
- *   noise    静止，测读数噪声
- *   ramp ±   3个位置×两方向的慢速占空比斜坡，测起转电压
- *   step ±   3个起点×6档占空比×双方向：预载/静置 -> 驱动 -> 反向制动 -> 静置
- *   pulse ±  短脉冲，测最小可靠位移
- *
- * 辨识只用积分量，电位器随位置的读数波纹影响很小：
- *   kv/fc  每个方向多档稳速做 U = kv·v + fc 直线拟合
- *   τ/延迟 阶跃位移：后段渐近线截距给 d+τ，前段形状再定 τ(ka = kv·τ)
- *   制动比 反向同幅电压的刹停距离与模型对比
- *   fs、噪声、最小可靠位移直接测；额定 V/A/D 由模型在标定电压下算出并留10%余量
- * 自检不过时标定块里带 #error，粘贴后编译即报错，不会悄悄用上可疑参数。
- *
- * 串口(当前配置的波特率)：@SIGN、@SEG 为进度；标定块之后 @DONE；
- *   @FAIL,<码>,<位置>：2=方向测不出 3=编码器读不到 4=冲出行程 5=预定位超时 6=起转/脉冲测量不足 7=阶跃数据不足以辨识
+ * A_Calib_Min.c —— 标定固件：额定电压下开环激励电机，MCU 辨识电压域模型并打印可整节替换 A_Config.h 的标定块。
+ * 序列：noise 测噪声 → ramp 起转 → step 阶跃辨识 → pulse 最小位移；串口 @SIGN/@SEG 进度、@FAIL 错误码、@DONE 结束。
  */
 
 #include "A_Calib_Min.h"
@@ -31,18 +15,18 @@
 #include <stdio.h>
 #include <string.h>
 
-#define CAL_GUARD_CDEG   500       /* 距可读两端还剩这么多就判越界 */
+#define CAL_GUARD_CDEG   500       /* 距可读行程两端的保护余量，厘度 */
 #define CAL_LO           (ENCODER_ANGLE_LO + CAL_GUARD_CDEG)
 #define CAL_HI           (ENCODER_ANGLE_HI - CAL_GUARD_CDEG)
 #define CAL_START_LO     2000      /* 正向阶跃起点 */
 #define CAL_START_HI     ((int32_t)ENCODER_POT_SPAN_CDEG - 2000) /* 反向阶跃起点 */
 #define CAL_CENTER       ((int32_t)ENCODER_POT_SPAN_CDEG / 2)
 
-#define GOTO_TOL_CDEG    300       /* 预定位到位判据，标定不需要精确 */
+#define GOTO_TOL_CDEG    300       /* 预定位到位容差，厘度 */
 #define GOTO_FAST_DUTY   900
 #define GOTO_SLOW_DUTY   600
 #define GOTO_SLOW_CDEG   2500
-#define GOTO_CHECK_MS    150U      /* 每隔这么久检查一次误差是否在减小，否则掉头(极性未知时) */
+#define GOTO_CHECK_MS    150U      /* 误差不减小则掉头(兜住极性未知)，ms */
 #define GOTO_TIMEOUT_MS  8000U
 #define REST_MS          300U
 
@@ -51,18 +35,18 @@
 #define SIGN_MIN_CDEG    50
 
 #define NOISE_MS         1000U
-#define RAMP_PRE_DUTY    1000      /* 同向预载：把齿隙顶到测试方向 */
+#define RAMP_PRE_DUTY    1000      /* 同向预载顶齿隙 */
 #define RAMP_PRE_MS      150U
-#define RAMP_STEP_MS     10U       /* 每10ms抬高 RAMP_STEP_DUTY */
+#define RAMP_STEP_MS     10U       /* 斜坡步进周期，ms */
 #define RAMP_STEP_DUTY   3
 #define RAMP_MAX_DUTY    900
-#define PRE_MS           50U       /* 阶跃/方波/脉冲前的静止 */
-#define STEP_RUN_CDEG   18000      /* 驱动段最长行程，给较快电机留出300~400ms稳速窗口 */
+#define PRE_MS           50U       /* 阶跃/脉冲前静止，ms */
+#define STEP_RUN_CDEG   18000      /* 驱动段最长行程，厘度 */
 #define STEP_RUN_MS      600U
 #define STEP_BRAKE_MS    150U
-#define SPEED_FROM_MS    300U      /* 满占空比稳速测量窗口：驱动后 300~400ms */
-#define SPEED_TO_MS      400U
-#define START_MS         40U       /* 满占空比起步位移的测量时长 */
+#define SPEED_FROM_MS    300U      /* 稳速测量窗起点，ms */
+#define SPEED_TO_MS      400U      /* 稳速测量窗终点，ms */
+#define START_MS         40U
 #define PULSE_DUTY       1400
 #define STEP_PRELOAD_MS  100U
 #define STEP_HISTORY    20U
@@ -75,7 +59,7 @@ enum { K_NOISE = 0, K_RAMP, K_STEP, K_PULSE };
 typedef struct { uint8_t kind; int8_t dir; int16_t arg; int32_t start; } CalSeg_t;
 
 static const int16_t k_step_duty[] = { 360, 720, 1080, 1440, 1920, 2400 };
-static const int16_t k_step_offset[] = { 0, 373, 937 }; /* 分散起点，避免单一位置波纹主导拟合 */
+static const int16_t k_step_offset[] = { 0, 373, 937 }; /* 分散起点避免单点波纹主导 */
 static const int16_t k_pulse_ms[]  = { 2, 3, 4, 6, 8, 12, 20, 32 };
 static const int32_t k_ramp_pos[]  = { ENCODER_POT_SPAN_CDEG / 4, ENCODER_POT_SPAN_CDEG / 2,
                                        ENCODER_POT_SPAN_CDEG * 3 / 4 };
@@ -93,7 +77,7 @@ static struct {
     int8_t   sign;
     uint16_t timer, t_mark;
     int32_t  pos, mark, peak, target, goto_err;
-    int32_t  avg_buf[8], avg_sum;  /* 最近8拍位置之和：缓升判动与步长测量用均值，噪声降到约1/3 */
+    int32_t  avg_buf[8], avg_sum;  /* 最近8拍位置滑动和，降噪约1/3 */
     uint8_t  avg_idx;
     int16_t  duty, level, quiet_level;
     uint8_t  sub;                 /* 段内子阶段 */
@@ -102,25 +86,25 @@ static struct {
 
 /* 直接测量项 */
 static struct {
-    uint16_t rest_cv;             /* 开始时的静止母线电压 */
+    uint16_t rest_cv;             /* 开始时静止母线电压 */
     int32_t  noise_lo, noise_hi;
-    int32_t  noise;               /* 读数噪声幅值(±)，取3倍标准差：单个毛刺不会把它抬高 */
+    int32_t  noise;               /* 读数噪声幅值(±，3σ) */
     int32_t  noise_ref, noise_sum, noise_sum2;
     uint16_t noise_n;
-    int32_t  ramp_step[2 * N_RAMP];   /* 缓升起转、动了立即撤力后的净位移：末端修正的真实最小步长 */
+    int32_t  ramp_step[2 * N_RAMP];   /* 缓升起转后净位移，厘度 */
     uint8_t  n_rstep;
     int32_t  breakaway[2 * N_RAMP];
     uint8_t  n_break;
-    int32_t  pulse[N_PULSE][2];   /* 每个脉宽两方向的位移 */
+    int32_t  pulse[N_PULSE][2];   /* 每脉宽两方向位移 */
     int32_t  p_speed;
 } s_meas;
 
-/* 每个占空比/方向一条曲线。mask 标记实际测到的点，行程提前结束的点不补零当数据。 */
+/* 每占空比/方向一条曲线；mask 标记有效点，行程提前结束不补零 */
 typedef struct {
     int32_t speed, brake_speed;
     uint32_t cv_sum;
     uint16_t cv_n, mask;
-    int16_t pos[N_POINT], brake_dist; /* 全部在受保护的电位器行程内，压缩RAM */
+    int16_t pos[N_POINT], brake_dist; /* 全在受保护行程内以省RAM */
 } StepRecord_t;
 typedef char guard_step_position_range[(CAL_HI - CAL_LO < 32767) ? 1 : -1];
 static StepRecord_t s_step[N_RECORD];
@@ -136,7 +120,7 @@ static uint8_t s_iap_stopped;
 
 /* ==================== 激励序列 ==================== */
 
-/* 第 n 段的定义：噪声 -> 斜坡 -> 阶跃 -> 脉冲，方向正反交替 */
+/* 取第 n 段定义，方向正反交替 */
 static CalSeg_t Cal_Segment(uint8_t n)
 {
     CalSeg_t g = { K_NOISE, 1, 0, CAL_CENTER };
@@ -177,7 +161,7 @@ static void Cal_Fail(uint8_t code)
 
 static void Cal_Enter(uint8_t phase) { s_cal.phase = phase; s_cal.timer = 0U; s_cal.sub = 0U; }
 
-/* 预定位到 target，到位静置后进入 after 阶段 */
+/* 预定位到 target，到位静置后进入 after */
 static void Cal_Goto(int32_t target, uint8_t after)
 {
     s_cal.target   = target;
@@ -187,7 +171,7 @@ static void Cal_Goto(int32_t target, uint8_t after)
     Cal_Enter(PH_GOTO);
 }
 
-/* 预定位一拍：bang-bang 靠近目标，接近时换小幅值；误差不减小就掉头(兜住极性未知或判错) */
+/* 预定位一拍：bang-bang 靠近，接近换小幅值；误差不减小则掉头 */
 static void Cal_GotoTick(void)
 {
     int32_t err = s_cal.target - s_cal.pos;
@@ -225,7 +209,7 @@ static uint8_t Cal_RunTick(void)
             s_meas.noise_sum += d; s_meas.noise_sum2 += d * d; s_meas.noise_n++;
         }
         if (t < NOISE_MS) return 0U;
-        {   /* 3σ：σ×10 = √(100·方差) */
+        {   /* 3σ */
             int32_t n = s_meas.noise_n;
             int32_t var100 = (int32_t)((((int64_t)s_meas.noise_sum2 * n - (int64_t)s_meas.noise_sum * s_meas.noise_sum) * 100)
                                        / ((int64_t)n * n));
@@ -236,16 +220,15 @@ static uint8_t Cal_RunTick(void)
 
     case K_RAMP:
         if (s_cal.sub == 0U)
-        {   /* 预载 -> 静置 -> 斜坡 */
+        {   /* 预载 → 静置 → 斜坡 */
             if (t < RAMP_PRE_MS) { Cal_Drive(Cal_Out(dir, RAMP_PRE_DUTY)); return 0U; }
             Cal_Drive(0);
             if (t < RAMP_PRE_MS + REST_MS) return 0U;
             s_cal.sub = 1U; s_cal.t_mark = t; s_cal.mark = s_cal.avg_sum; s_cal.level = 0; s_cal.quiet_level = 0;
         }
         if (s_cal.sub == 1U)
-        {   /* 8拍均值越过阈值判动了(噪声幅值×3/4，约为两个8拍均值之差的5σ，斜坡几百拍里不误判)；
-             * 起转值取最后一次仍在一半阈值内时的幅值。阈值就是测得步长的下限，所以不用单拍读数：
-             * 噪声14时单拍3倍噪声阈值是42，会把步长测成1度以上 */
+        {   /* 8拍均值判动；阈值=噪声×3/4，取最后仍在半阈内时幅值为起转值。
+             * 单拍噪声阈会把步长抬到1度以上，故不用单拍 */
             int32_t thr = (s_meas.noise * 3 / 4 > 4) ? s_meas.noise * 3 / 4 : 4;
             int32_t moved = Fx_Abs32(s_cal.avg_sum - s_cal.mark) / 8;
             if (moved * 2 <= thr) s_cal.quiet_level = s_cal.level;
@@ -253,7 +236,7 @@ static uint8_t Cal_RunTick(void)
             {
                 if (s_cal.level < RAMP_MAX_DUTY && s_meas.n_break < 2U * N_RAMP)
                     s_meas.breakaway[s_meas.n_break++] = (int32_t)s_cal.quiet_level * A_Voltage_Read() * 10 / CFG_PWM_FULL;
-                s_cal.sub = (s_cal.level < RAMP_MAX_DUTY) ? 2U : 3U;   /* 3=爬满没动，不量步长 */
+                s_cal.sub = (s_cal.level < RAMP_MAX_DUTY) ? 2U : 3U;   /* 3=爬满没动 */
                 s_cal.t_mark = t; Cal_Drive(0);
                 return 0U;
             }
@@ -263,7 +246,7 @@ static uint8_t Cal_RunTick(void)
         }
         Cal_Drive(0);
         if ((uint16_t)(t - s_cal.t_mark) < REST_MS) return 0U;
-        if (s_cal.sub == 2U && s_meas.n_rstep < 2U * N_RAMP)   /* 撤力停稳后这一下到底走了多远(8拍均值) */
+        if (s_cal.sub == 2U && s_meas.n_rstep < 2U * N_RAMP)   /* 撤力停稳后净位移 */
             s_meas.ramp_step[s_meas.n_rstep++] = (Fx_Abs32(s_cal.avg_sum - s_cal.mark) + 4) / 8;
         return 1U;
 
@@ -290,7 +273,7 @@ static uint8_t Cal_RunTick(void)
             }
         }
         if (s_cal.sub == 0U)
-        {   /* 驱动：到行程或时间上限 */
+        {   /* 驱动到行程或时间上限 */
             Cal_Drive(Cal_Out(dir, s_cal.cur.arg));
             if (dir * (s_cal.pos - s_cal.mark) >= STEP_RUN_CDEG || t >= PRE_MS + STEP_RUN_MS)
             { s_cal.sub = 1U; s_cal.t_mark = (uint16_t)(t + 1U); s_cal.peak = dir * s_cal.pos; }
@@ -299,7 +282,7 @@ static uint8_t Cal_RunTick(void)
             return 0U;
         }
         if (s_cal.sub == 1U)
-        {   /* 反向制动：位置开始回退或时间上限 */
+        {   /* 反向制动至回退或时间上限 */
             StepRecord_t *r = Cal_StepRecord();
             if (t == s_cal.t_mark) {
                 s_brake_start = dir * s_cal.pos;
@@ -343,8 +326,7 @@ static int32_t Cal_Median(int32_t *v, uint8_t n)
     return n ? v[n / 2U] : 0;
 }
 
-/* 脉冲法：从最短脉宽起，第一个两方向都超过3倍噪声的脉宽，取两方向较小位移。
- * 固定幅值的短脉冲受电气滞后影响，推得动时往往已冲出一大截，只作诊断和后备 */
+/* 脉冲法：第一个两方向都超3σ的脉宽中较小位移；仅作诊断/后备 */
 static int32_t Cal_PulseStep(void)
 {
     int32_t thr = (3 * s_meas.noise > 10) ? 3 * s_meas.noise : 10;
@@ -355,10 +337,10 @@ static int32_t Cal_PulseStep(void)
         int32_t m = (s_meas.pulse[i][0] < s_meas.pulse[i][1]) ? s_meas.pulse[i][0] : s_meas.pulse[i][1];
         if (m >= thr) return m;
     }
-    return 0; /* 不能把没有测出的最小位移伪造为噪声阈值 */
+    return 0; /* 未测出则返回0，不可伪造 */
 }
 
-/* 最小可靠位移：缓升起转、一动就撤力后的净位移中位数(末端修正的真实工况，同 30kg1)；不足2次时退回脉冲法 */
+/* 最小可靠位移：缓升法净位移中位数；不足2次退回脉冲法 */
 static int32_t Cal_MinStep(void)
 {
     static int32_t v[2 * N_RAMP];
@@ -369,17 +351,17 @@ static int32_t Cal_MinStep(void)
     return Cal_Median(v, s_meas.n_rstep);
 }
 
-/* ==================== 辨识(全部在 MCU 上，停稳后做一次，用 double) ==================== */
+/* ==================== 辨识(停稳后一次，用 double) ==================== */
 
-#define ID_TAU_MIN_MS   3.0     /* τ 搜索范围 */
+#define ID_TAU_MIN_MS   3.0     /* τ 搜索下限，ms */
 #define ID_TAU_MAX_MS 150.0
-#define ID_DELAY_MAX_MS 8.0     /* 延迟搜索上限：落在上限说明对象不符合一阶+延迟 */
-#define ID_FIT_DUTY    1080     /* 只用这档以上的阶跃拟合 τ/延迟与制动：低档受起转过程影响 */
-#define ID_ASYM_MS      120U    /* 这个时刻以后的点用来求渐近线截距(d+τ) */
-#define ID_MARGIN       0.9     /* 额定能力留10%余量 */
-#define ID_CHECK_BW     120.0   /* 自检用的速度环带宽，与出厂默认值一致 */
+#define ID_DELAY_MAX_MS 8.0     /* 延迟搜索上限，ms；达上限说明对象不符一阶+延迟 */
+#define ID_FIT_DUTY    1080     /* 只用此档以上阶跃拟合，避免起转过程干扰 */
+#define ID_ASYM_MS      120U    /* 求渐近线截距(d+τ)的时刻下限，ms */
+#define ID_MARGIN       0.9     /* 额定留10%余量 */
+#define ID_CHECK_BW     120.0   /* 自检速度环带宽，rad/s */
 
-static double Cal_Exp(double x)   /* x ≤ 0：缩小参数后泰勒展开再平方回去，不依赖 libm */
+static double Cal_Exp(double x)   /* x≤0：缩参后泰勒再平方回，免 libm */
 {
     double s = 1.0, t = 1.0;
     uint8_t n = 0U, i;
@@ -391,7 +373,7 @@ static double Cal_Exp(double x)   /* x ≤ 0：缩小参数后泰勒展开再平
     return s;
 }
 
-static double Cal_Ln(double y)    /* y > 0：按2的幂归一化后用 atanh 级数 */
+static double Cal_Ln(double y)    /* y>0：按2的幂归一后 atanh 级数 */
 {
     double z, z2, s = 0.0, t;
     int8_t k = 0;
@@ -406,7 +388,7 @@ static double Cal_Ln(double y)    /* y > 0：按2的幂归一化后用 atanh 级
 
 static int32_t Cal_Round(double x) { return (int32_t)((x >= 0.0) ? x + 0.5 : x - 0.5); }
 
-/* 一阶+纯延迟的阶跃位移：x(t) = v∞·(s − τ(1 − e^(−s/τ)))，s = t − d */
+/* 一阶+纯延迟阶跃位移：x(t)=v∞·(s−τ(1−e^(−s/τ)))，s=t−d */
 static double Cal_StepShape(double t, double d, double tau)
 {
     double s = t - d;
@@ -421,12 +403,12 @@ static double Cal_Volt(const StepRecord_t *r, uint8_t i)
 typedef struct {
     double kv, fc, kv_dir[2], fc_dir[2];  /* mV/(厘度/s)、mV */
     double tau, delay;                    /* ms */
-    double brake;                         /* 反向制动实测出力 / 模型出力：只用于算额定减速度，不输出参数 */
-    double cal_mv, vel_full;              /* 标定电压、满占空比两向较小的稳速 */
+    double brake;                         /* 制动实测/模型出力比，只参与额定计算 */
+    double cal_mv, vel_full;              /* 标定电压、两向较小稳速 */
     int32_t fs, n_fit;
 } CalModel_t;
 
-/* kv/fc：每个方向对多档稳速做 U = kv·v + fc 的直线拟合 */
+/* kv/fc：各向多档稳速直线拟合 U=kv·v+fc */
 static uint8_t Cal_FitSpeed(CalModel_t *m)
 {
     uint8_t d, i, ok = 1U;
@@ -459,8 +441,7 @@ static uint8_t Cal_FitSpeed(CalModel_t *m)
     return (uint8_t)(ok && m->kv > 0 && m->vel_full < 1e9);
 }
 
-/* 渐近速度用 120→200ms 的局部斜率：与渐近线截距取自同一段行程，不受 300~400ms 段的电位器刻度差、
- * 电压变化影响(用远处测的稳速会把 d+τ 估偏，实测出现过延迟被估成0)。两点不全时退回稳速 */
+/* 用120→200ms局部斜率作渐近速度，与截距同段，避免远处稳速估偏d+τ */
 static double Cal_LocalSpeed(const StepRecord_t *r)
 {
     const uint16_t m = (uint16_t)((1U << (N_POINT - 2U)) | (1U << (N_POINT - 1U)));
@@ -470,8 +451,7 @@ static double Cal_LocalSpeed(const StepRecord_t *r)
     return r->speed;
 }
 
-/* 阶跃位移(积分量，对电位器随位置的波纹不敏感)反解 τ 与延迟：
- * 后段渐近线 x ≈ v∞·(t − d − τ) 给出 S = d + τ；再在 τ∈(0,S) 上用前段形状做一维黄金分割 */
+/* 反解τ与延迟：后段渐近线给S=d+τ，前段形状在τ∈(0,S)黄金分割 */
 static double Cal_ShapeSse(double tau, double S)
 {
     double sse = 0.0, d = S - tau;
@@ -525,7 +505,7 @@ static uint8_t Cal_FitDynamics(CalModel_t *m)
     return 1U;
 }
 
-/* 制动侧出力比 g：反向同幅电压时刹停距离 = v0·d + τ·(v0 − c·ln(1 + v0/c))，c = (g·U + fc)/kv，按距离二分求 g */
+/* 按刹停距离公式反求制动出力比 g，c=(g·U+fc)/kv，对距离二分 */
 static double Cal_BrakeDist(double g, double u, double v0, const CalModel_t *m)
 {
     double c = (g * u + m->fc) / m->kv;
@@ -534,7 +514,7 @@ static double Cal_BrakeDist(double g, double u, double v0, const CalModel_t *m)
 
 static void Cal_FitBrake(CalModel_t *m)
 {
-    static int16_t g[N_RECORD];   /* 千分比，省 RAM */
+    static int16_t g[N_RECORD];   /* 千分比，省RAM */
     uint8_t i, n = 0U, j, it;
 
     for (i = 0U; i < N_RECORD; i++)
@@ -555,7 +535,7 @@ static void Cal_FitBrake(CalModel_t *m)
     m->brake = n ? g[n / 2U] / 1000.0 : 1.0;
 }
 
-/* 打印可直接整节替换 A_Config.h 第2节的标定块；自检不过时块里带 #error，粘贴后编译即报错 */
+/* 打印可整节替换的标定块；自检不过时块内带 #error */
 static void Cal_Report(void)
 {
     CalModel_t m;
@@ -635,7 +615,7 @@ static void Cal_NextSegment(void)
 
 /* ==================== 任务入口 ==================== */
 
-/* 1ms 标定拍：读编码器 -> 行程保护 -> 状态机 */
+/* 1ms 标定拍 */
 static void A_Calib_Min_Tick(void)
 {
     int32_t raw;
@@ -676,7 +656,7 @@ static void A_Calib_Min_Tick(void)
         return;
 
     case PH_SIGN:
-        Cal_Drive(SIGN_DUTY);               /* 极性未知，按正占空比试推 */
+        Cal_Drive(SIGN_DUTY);               /* 极性未知，先按正占空比试推 */
         if (s_cal.timer + 1U < SIGN_MS) break;
         Cal_Drive(0);
         if (Fx_Abs32(s_cal.pos - s_cal.mark) < SIGN_MIN_CDEG) { Cal_Fail(2U); return; }
@@ -703,7 +683,7 @@ static void A_Calib_Min_Tick(void)
     s_cal.timer++;
 }
 
-/* 通过身份校验后先停标定、低阻卸力，等待应答发送结束期间也不能重新施力 */
+/* IAP 身份校验通过后停标定、低阻卸力；应答发送期间也不得施力 */
 static void Cal_StopForIAP(void)
 {
     s_iap_stopped = 1U;
@@ -712,17 +692,17 @@ static void Cal_StopForIAP(void)
 
 void A_Calib_Min_Init(void)
 {
-    setvbuf(stdout, 0, _IONBF, 0); /* 单片机RAM有限，避免stdio分配1KB发送缓存 */
+    setvbuf(stdout, 0, _IONBF, 0); /* 省stdio缓存RAM */
     memset(&s_cal, 0, sizeof(s_cal));
     memset(&s_meas, 0, sizeof(s_meas));
     memset(s_step, 0, sizeof(s_step));
-    s_cal.sign = 1;                 /* 测出极性前先按正接线 */
+    s_cal.sign = 1;                 /* 测极性前按正接线 */
     s_iap_stopped = 0U;
     IAP_SetStopHandler(Cal_StopForIAP);
     Cal_Drive(0);
 }
 
-/* 只处理 IAP，普通舵机指令不能干扰开环标定 */
+/* 只处理 IAP，普通舵机指令不参与标定 */
 static void Task_CalibIAP(void)
 {
     uint8_t byte;

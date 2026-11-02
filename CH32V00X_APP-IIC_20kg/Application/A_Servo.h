@@ -28,9 +28,9 @@ typedef struct {
     int32_t  speed_cdps;  /* 0.01度/秒；INT32_MIN=观测器当前不在更新 */
 } ServoTelemetry_t;
 
-/* FireWater诊断快照：位置/速度按行程坐标增大为正，不按协议反向翻转。
- * flags: bit0=本拍闭环有效，bit1=最近位置采样有效，bit2=观测器粘住预测，bit3=电流本块测得到(整块采在驱动段)。
- * bit0=0时参考可能保持旧值，速度和控制器诊断输出置0。 */
+/* 诊断快照：位置/速度按行程增大为正，不按协议翻转。
+ * flags: bit0=本拍闭环，bit1=位置有效，bit2=观测器粘住，bit3=电流测得到；bit0=0时速度/诊断输出置0。
+ * state: 0=MOVE 1=SETTLE 2=HOLD；bit0=0时为3。工作状态用协议 0xC0 查。 */
 typedef struct {
     int32_t target_cdeg, ref_cdeg, actual_cdeg;
     int32_t ref_cdps, actual_cdps;
@@ -46,14 +46,15 @@ void     A_Servo_Control(void);                         /* 1ms控制拍 */
 /* 运动指令受理结果 */
 typedef enum { SERVO_SUBMIT_OK = 0, SERVO_SUBMIT_VALUE, SERVO_SUBMIT_STATE } ServoSubmit_t;
 /* 运动指令：脉宽 + 时间(ms，电机定圈模式为圈数)。返回 ServoSubmit_t：VALUE=脉宽超出协议量程或 SMI/SMX 边界，
- * STATE=故障/编码器失效/行程无效/扭矩上限不允许驱动。重复目标、被合并都算受理 */
+ * STATE=故障/编码器失效/行程无效/扭矩上限不允许驱动。重复目标、被合并、多圈分段续接都算受理 */
 uint8_t  A_Servo_Submit(uint16_t pwm, uint16_t value);
-uint8_t  A_Servo_SubmitTurns(uint16_t pwm, uint8_t turns, uint16_t turn_ms); /* 0~9圈，T为每圈ms */
+uint8_t  A_Servo_SubmitTurns(uint16_t pwm, uint8_t turns, uint16_t turn_ms); /* 0~9圈，turn_ms为每圈时间 */
 void     A_Servo_Pause(void);
 void     A_Servo_Resume(void);
 void     A_Servo_Stop(void);
 void     A_Servo_Release(uint8_t high_resistance);      /* 卸力：0=自由转，1=短路制动 */
 void     A_Servo_RestoreTorque(void);
+void     A_Servo_SyncTorque(void);                      /* 用户请求与保护禁止合成实际状态 */
 uint8_t  A_Servo_SetTorqueMode(uint8_t mode);           /* 0=自由，1=正常，2=自定义阻尼 */
 uint8_t  A_Servo_SetDamping(uint8_t percent);           /* 自定义阻尼 0~100% */
 uint8_t  A_Servo_SetMode(uint8_t mode);                 /* 切换工作模式并落盘 */
@@ -63,6 +64,8 @@ uint8_t  A_Servo_SetTravelEnd(uint8_t is_min);          /* AMI/AMX：行程一�
 uint8_t  A_Servo_SetPulseLimit(uint8_t is_min);         /* SMI/SMX：当前位置的脉宽设为可响应边界 */
 uint8_t  A_Servo_SaveStartup(void);                     /* 当前位置存为上电目标 */
 void     A_Servo_ApplyConfig(void);                     /* 让模式/校准参数立即生效 */
+void     A_Servo_FactoryReset(uint8_t keep_id);         /* 恢复出厂并复刻上电动作；非0仅保留ID */
+uint8_t  A_Servo_CanSave(void);                         /* 1=当前无运动，可安全写Flash(擦写冻结CPU数ms) */
 void     A_Servo_ApplyTrajConfig(void);                 /* V/A/D、平滑时间、最短运动时间：下一次规划生效 */
 uint8_t  A_Servo_TorqueOn(void);
 uint8_t  A_Servo_GetWorkState(void);                    /* ServoWorkState_t */
@@ -71,4 +74,4 @@ void     A_Servo_GetDebugTelemetry(ServoDebugTelemetry_t *out); /* 只读控制�
 uint16_t A_Servo_GetPositionPwm(void);                  /* 重读位置并换算为协议脉宽 */
 void     A_Servo_SetOutputLimit(int16_t limit);         /* 保护模块设PWM上限 */
 void     A_Servo_SampleMotion(ServoMotion_t *out);      /* 堵转采样，并把区间基准推到本拍 */
-void     A_Servo_HoldHere(void);                        /* 堵转：放弃当前动作就地保持 */
+void     A_Servo_HoldHere(void);                        /* 堵转：当前角度为目标，直接进保持；同普通到位，无积分托举力，限流0.1A */

@@ -1,5 +1,5 @@
-/* C_Traj_Planner.c 在线轨迹规划器：期望路径(每条指令一段) -> 跟踪器(V/A/D 受限) -> 速度滑动平均
- * 内部单位：位置 Q8 厘度；速度 Q20 厘度/拍；加速度 Q20 厘度/拍^2。1拍 = 1ms。 */
+/* C_Traj_Planner.c 在线轨迹规划器：期望路径 → 跟踪器(V/A/D 受限) → 速度滑动平均。
+ * 内部单位：位置 Q8 厘度；速度 Q20 厘度/拍；加速度 Q20 厘度/拍²。1拍=1ms。 */
 
 #include "C_Traj_Planner.h"
 #include "C_Fixed.h"
@@ -8,8 +8,8 @@
 #define Q_POS   8    /* 位置小数位 */
 #define Q_VEL   20   /* 速度/加速度小数位 */
 #define POS_TO_VEL (Q_VEL - Q_POS)
-#define TRACK_TAU_MS 25U  /* 路径还在走时，跟踪器追路径误差的时间常数：有限增益，路径速度变化时不把速度冲过头 */
-#define TRACK_GAIN_Q16 ((int32_t)((1UL << (POS_TO_VEL + 16)) / TRACK_TAU_MS))   /* Q8 误差 -> Q20 速度/τ，Q16 */
+#define TRACK_TAU_MS 25U  /* 路径还在走时跟踪器追路径误差的时间常数 ms：有限增益，速度变化不冲过头 */
+#define TRACK_GAIN_Q16 ((int32_t)((1UL << (POS_TO_VEL + 16)) / TRACK_TAU_MS))   /* Q8 误差→Q20 速度/τ，Q16 */
 
 static struct {
     /* 用户上限 */
@@ -18,21 +18,21 @@ static struct {
     int32_t lo, hi;              /* 行程，厘度 */
     int32_t vcap, acc, dec;      /* 上面三个换成 Q20 */
 
-    /* 第1级：期望路径。最新一条指令：从下指令时的参考位置 r0 匀速走到终点，用 n 拍 */
+    /* 第1级：期望路径。最新指令：从 r0 匀速走到终点，用 n 拍 */
     int32_t end;                 /* 终点(最新目标)，Q8 */
     int32_t r0;                  /* 路径起点，Q8 */
     int32_t slope;               /* 路径速度，Q20/拍 */
-    uint16_t k, n;               /* 路径已走拍数、总拍数；k ≥ n 即路径已到终点 */
+    uint16_t k, n;               /* 路径已走/总拍数；k≥n 即到终点 */
 
     /* 第1级：跟踪器 */
     int32_t p;                   /* 位置，Q8 */
     int32_t v;                   /* 速度，Q20/拍 */
-    int32_t carry;               /* 速度换成位置增量时的余数，Q20 */
+    int32_t carry;               /* 速度换位置增量的余数，Q20 */
     uint8_t braking;             /* 本拍在减速 */
 
     /* 第2级：速度滑动平均 */
     int16_t buf[TRAJ_SMOOTH_MS_MAX];   /* 最近 n 拍的位置增量，Q8 */
-    uint16_t win, idx, idle;     /* 窗口长度；写指针；第1级静止后已过的拍数 */
+    uint16_t win, idx, idle;     /* 窗口长度；写指针；第1级静止后已过拍数 */
     int32_t sum, sum_prev;       /* 窗口内增量之和，Q8 */
     int32_t out, rem;            /* 输出位置 Q8；win·输出 的余数 */
     int32_t inv_n_q24;           /* 1/win，Q24 */
@@ -107,24 +107,28 @@ void C_Traj_SetRangeOpen(int32_t lo, int32_t hi)
 int32_t C_Traj_GetPos(void) { return Fx_MulShift(s_tj.p, 1, Q_POS); }
 uint8_t C_Traj_Is_Done(void) { return s_tj.done; }
 
-/* 唯一的运动入口：从参考此刻的位置出发，用 max(T, 最短运动时间) 走到 target(T=0 即按最短运动时间，
- * 走不了那么快的由跟踪器按 V/A/D 限住)。路径是匀速直线；平滑窗口的延迟(约半个窗口)不从里面扣：
- * 扣掉的话 T 等于指令间隔的连续指令每段都提前走完，两条之间停一下。
- * 新指令随时覆盖旧的，速度由跟踪器连续接过去，不先停。 */
+/* 唯一运动入口：从参考此刻位置用 max(T,最短运动时间) 走到 target(T=0 即最短时间)；路径匀速直线。
+ * 平滑窗口半窗延迟不扣：扣掉则 T=指令间隔的连续指令每段提前走完、之间停一下。
+ * 例外：从静止起步且 T≥4倍(窗口+跟踪滞后)时扣掉这份滞后(不扣实测晚 120~200ms)；
+ * T 短的不扣(流式第一条也是静止起步，扣了第一段接第二条时速度回落顿一下)。
+ * 新指令随时覆盖旧的，速度由跟踪器连续接过去，不先停 */
 void C_Traj_Command(int32_t target, uint16_t time_ms)
 {
     uint32_t t = (time_ms > s_tj.move_min_ms) ? time_ms : s_tj.move_min_ms;
+    uint32_t lag = (uint32_t)s_tj.win + TRACK_TAU_MS;
+
+    if (s_tj.done && time_ms >= 4U * lag && time_ms - lag > s_tj.move_min_ms) t = time_ms - lag;
     int32_t  r = (s_tj.k < s_tj.n) ? s_tj.r0 + (int32_t)(((int64_t)s_tj.slope * s_tj.k) >> POS_TO_VEL) : s_tj.end;   /* 旧路径当前点 */
 
     s_tj.end   = Fx_ClampRange(target, s_tj.lo, s_tj.hi) << Q_POS;
-    /* 路径起点：旧路径当前点在参考与新目标之间(顺路，连续流式指令的常态)就从它接着走，跟踪误差连续、速度不跳；
-     * 否则(反向、新目标比旧路径近)从参考位置起算，由跟踪器按全减速度掉头 */
+    /* 旧路径当前点顺路(在参考与新目标之间)就从它接着走，误差连续速度不跳；
+     * 否则(反向或更近)从参考位置起，由跟踪器按全减速度掉头 */
     s_tj.r0 = ((int64_t)(r - s_tj.p) * (s_tj.end - r) >= 0 && (int64_t)(r - s_tj.p) * (s_tj.end - s_tj.p) > 0) ? r : s_tj.p;
-    if (s_tj.end == s_tj.r0) t = 0U;   /* 零长路径直接到头：不让参考白白"在动"T 毫秒 */
+    if (s_tj.end == s_tj.r0) t = 0U;   /* 零长路径直接到头：不让参考白白"在动"T ms */
     s_tj.k     = 0U;
     s_tj.n     = (uint16_t)((t > 0xFFFFU) ? 0xFFFFU : t);
     if (s_tj.n)
-    {   /* 路径速度超过 V 没有意义(跟踪器也走不了)，限住；最短运动时间为0、T 只有几ms时不限会溢出 */
+    {   /* 路径速度超过 V 没有意义(跟踪器也走不了)，限住；T 只有几 ms 时不限会溢出 */
         int64_t slope = (((int64_t)(s_tj.end - s_tj.r0)) << POS_TO_VEL) / s_tj.n;
         s_tj.slope = (int32_t)((slope > s_tj.vcap) ? s_tj.vcap : ((slope < -s_tj.vcap) ? -s_tj.vcap : slope));
     }
@@ -139,7 +143,7 @@ void C_Traj_Stop(void)
     int32_t stop;
 
     if (s_tj.done) return;
-    /* 按全减速度刹停的距离：v²/(2D) + v/2(离散每拍先走后减) */
+    /* 刹停距离：v²/(2D)+v/2(离散每拍先走后减) */
     stop = (int32_t)((((int64_t)s_tj.v * s_tj.v) / (2 * (int64_t)s_tj.dec) + Fx_Abs32(s_tj.v) / 2) >> POS_TO_VEL);
     stop = Fx_MulShift(s_tj.p + Fx_Sign32(s_tj.v) * stop, 1, Q_POS);   /* 终点取整到厘度 */
     s_tj.end = s_tj.r0 = Fx_ClampRange(stop, s_tj.lo, s_tj.hi) << Q_POS;
@@ -147,8 +151,8 @@ void C_Traj_Stop(void)
     s_tj.k = s_tj.n = 0U;
 }
 
-/* 离散制动曲线：v + (v−D) + … ≤ d  ⇒  v ≤ √(D²/4 + 2·D·d) − D/2，且一拍不越过 d；d 为 Q8 距离，返回 Q20 速度。
- * 开方只在可能起作用(cap² + cap·D ≥ 2·D·d)时做 */
+/* 离散制动曲线：v+(v−D)+…≤d ⇒ v≤√(D²/4+2·D·d)−D/2，且一拍不越过 d；d 为 Q8 距离，返回 Q20 速度。
+ * 开方只在可能起作用(cap²+cap·D≥2·D·d)时做 */
 static int32_t Traj_BrakeCap(int32_t d, int32_t cap)
 {
     int64_t dq = (int64_t)d << POS_TO_VEL, two_dd = 2 * (int64_t)s_tj.dec * dq;
@@ -161,8 +165,8 @@ static int32_t Traj_BrakeCap(int32_t d, int32_t cap)
     return ((int64_t)cap > dq) ? (int32_t)dq : cap;
 }
 
-/* 第1级一拍：期望速度 = 路径速度 + 追平路径误差的制动曲线速度，再受"在终点前刹得住"与 V 限制；
- * 按加速度(变快)或减速度(变慢/掉头)逼近；返回位置增量 Q8 */
+/* 第1级一拍：期望速度 = 路径速度 + 追平路径误差的制动曲线速度，再受"终点前刹得住"与 V 限制；
+ * 按 A(变快)或 D(变慢/掉头)逼近；返回位置增量 Q8 */
 static int32_t Traj_Track(void)
 {
     int32_t r, rdot, e, d, vdes, dv, lim, inc;
@@ -180,7 +184,7 @@ static int32_t Traj_Track(void)
     e = r - s_tj.p;
     {
         int32_t cap = s_tj.vcap;
-        /* 路径还在走：误差按时间常数追(有限增益)，路径速度一变不至于把速度冲过头；路径到头后按制动曲线最快收尾 */
+        /* 路径还在走：误差按 τ 追(有限增益)；路径到头后按制动曲线最快收尾 */
         if (s_tj.k < s_tj.n)
         {
             int32_t lin = Fx_MulShift(Fx_Abs32(e), TRACK_GAIN_Q16, 16);   /* |e|/τ，Q20/拍 */
@@ -203,7 +207,7 @@ static int32_t Traj_Track(void)
 
     inc = (s_tj.v + s_tj.carry) >> POS_TO_VEL;
     s_tj.carry = s_tj.v + s_tj.carry - (inc << POS_TO_VEL);
-    /* 路径已到头、到达或越过终点(含取整余量)：落在终点、速度归零 */
+    /* 路径已到头且到达/越过终点(含取整余量)：落在终点、速度归零 */
     if (s_tj.k >= s_tj.n && ((d > 0 && inc >= d) || (d < 0 && inc <= d) || d == 0)
         && (d == 0 || Fx_Abs32(s_tj.v) <= s_tj.dec + (1 << POS_TO_VEL)))
     {
@@ -224,7 +228,7 @@ void C_Traj_Step(TrajRef_t *out, uint8_t hold)
     if (inc > 32767) inc = 32767;
     if (inc < -32768) inc = -32768;
 
-    /* 第2级：窗口和 += 新增量 − 移出的增量；输出位置每拍加 窗口和/win(余数留到下一拍，位置严格守恒) */
+    /* 第2级：窗口和 += 新增量 − 移出的增量；输出位置每拍加 窗口和/win(余数留下一拍，位置严格守恒) */
     s_tj.sum += inc - s_tj.buf[s_tj.idx];
     s_tj.buf[s_tj.idx] = (int16_t)inc;
     if (++s_tj.idx >= s_tj.win) s_tj.idx = 0U;

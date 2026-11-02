@@ -4,10 +4,8 @@
 #include "ch32v00X.h"
 #include "C_Ring_Buf.h"
 
-/*
- * D_uart.h —— USART1 单线半双工驱动(PC0，AFIO PartialRemap3)
- * 收发各一条环形队列，中断只搬字节；发送期间关RXNE，TC确认末字节移出后再开回接收。
- */
+/* D_uart.h USART1单线半双工驱动(PC0，AFIO PartialRemap3)：收发各一条环形队列，中断只搬字节；
+ * 发送期间关RXNE，TC确认末字节移出引脚后再开回接收。 */
 
 /* ---- 生命周期 ---- */
 void    D_USART1_Cfg(uint32_t baudrate); /* 配置引脚/波特率/半双工/接收中断 */

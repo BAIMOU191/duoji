@@ -53,6 +53,7 @@ typedef struct {
     uint16_t stall_act_cdeg;  /** 已生效的实际位移阈值 */
     uint16_t stall_trip;      /** 已生效的连续判定次数 */
     uint16_t i_limit_ma; /** 物理扭矩反算的限流值 */
+    uint16_t hold_limit_ma; /** 堵转保持限流(mA)，0=不启用；覆盖 i_limit_ma */
     uint16_t last_ma;    /** 最近一块电流读数(mA)，供 RIV 查询上报 */
     uint16_t last_cv;    /** 最近一次电压读数，厘伏 */
     int16_t last_temp;   /** 最近一次温度读数，0.1摄氏度；-32768=无效 */
@@ -87,7 +88,8 @@ _Static_assert((PROT_STALL_HOLD_TICKS >= 1) && (PROT_STALL_HOLD_TICKS <= PROT_ST
 
 /* ============================ 扭矩上限设置 ============================ */
 
-/* 限流启用时按扭矩反算电流/PWM上限；关闭时使用满量程，仍保留零扭矩语义。 */
+/* 限流启用时按扭矩反算电流/PWM上限；关闭时使用满量程，仍保留零扭矩语义。
+ * 堵转保持限流(hold_limit_ma)优先，不被扭矩配置刷新覆盖。 */
 static void Protect_ApplyTorqueSetting(void)
 {
     uint16_t rated = A_Config_TorqueMax();
@@ -99,9 +101,18 @@ static void Protect_ApplyTorqueSetting(void)
     s_prot.i_limit_ma = A_Torque_CurrentLimit(torque, rated);
 #if PROT_CURRENT_DERATING_ENABLE
     /* 同值写不重置降额；真正改扭矩重建初始上限，避免零扭矩恢复后无有效采样而无法起转。 */
-    s_prot.pwm_limit = (int16_t)((uint32_t)s_prot.i_limit_ma * CFG_PWM_FULL
-                               / TORQUE_STALL_CURRENT_MA);
-    if (s_prot.pwm_limit < PROT_LIMIT_MIN) s_prot.pwm_limit = PROT_LIMIT_MIN;
+    if (s_prot.hold_limit_ma != 0U)
+    {
+        int32_t limit = (int32_t)s_prot.hold_limit_ma * CFG_PWM_FULL / TORQUE_STALL_CURRENT_MA;
+        if (limit < PROT_LIMIT_MIN) limit = PROT_LIMIT_MIN;
+        s_prot.pwm_limit = (int16_t)limit;
+    }
+    else
+    {
+        s_prot.pwm_limit = (int16_t)((uint32_t)s_prot.i_limit_ma * CFG_PWM_FULL
+                                   / TORQUE_STALL_CURRENT_MA);
+        if (s_prot.pwm_limit < PROT_LIMIT_MIN) s_prot.pwm_limit = PROT_LIMIT_MIN;
+    }
 #else
     s_prot.pwm_limit = torque == 0U ? PROT_LIMIT_MIN : CFG_PWM_FULL;
 #endif
@@ -121,6 +132,8 @@ static void Protect_ApplyConfig(void)
 #define APPLY(cache, config) s_prot.cache = g_runtime_config.config;
     PROTECT_SETTINGS(APPLY)
 #undef APPLY
+    /* APPLY写的是配置原样值，扭矩缓存必须保持钳位后的生效值 */
+    if (s_prot.torque_ckgcm > A_Config_TorqueMax()) s_prot.torque_ckgcm = A_Config_TorqueMax();
     s_prot.stall_ref_cdeg = (uint16_t)(s_prot.stall_act_cdeg * PROT_STALL_REF_RATIO);
     s_prot.current_trip_ticks = (uint16_t)((s_prot.current_time_ms + PROT_TICK_MS - 1U)
                                            / PROT_TICK_MS);
@@ -147,6 +160,27 @@ uint16_t A_Protect_GetTorque(void)
 /* 读故障位掩码，堵转不在其中 */
 uint16_t A_Protect_Fault(void)
 { return s_prot.fault; }
+
+/* 堵转进入保持后：限流目标改为 PROT_STALL_HOLD_LIMIT_MA，并立刻压低 PWM 上限 */
+void A_Protect_EnterStallHold(void)
+{
+    int32_t limit;
+
+    s_prot.hold_limit_ma = PROT_STALL_HOLD_LIMIT_MA;
+    limit = (int32_t)s_prot.hold_limit_ma * CFG_PWM_FULL / TORQUE_STALL_CURRENT_MA;
+    if (limit < PROT_LIMIT_MIN) limit = PROT_LIMIT_MIN;
+    s_prot.pwm_limit = (int16_t)limit;
+    A_Servo_SetOutputLimit(s_prot.pwm_limit);
+}
+
+/* 新指令等离开堵转保持：恢复扭矩限流 */
+void A_Protect_ExitStallHold(void)
+{
+    if (s_prot.hold_limit_ma == 0U) return;
+    s_prot.hold_limit_ma = 0U;
+    s_prot.pwm_limit = 0; /* 强制重套扭矩限流初值 */
+    Protect_ApplyTorqueSetting();
+}
 
 uint8_t A_Protect_CanDrive(void)
 {
@@ -177,22 +211,24 @@ void A_Protect_GetTelemetry(ProtectTelemetry_t *out)
 
 /* ============================== 功率限制 ============================== */
 
-/* 限流回路：快降慢升，瞬时过流立刻按住，恢复平滑 */
+/* 限流回路：快降慢升，瞬时过流立刻按住，恢复平滑。
+ * 堵转保持期间目标电流改为 hold_limit_ma，回升天花板也折到对应 PWM。 */
 #if PROT_CURRENT_DERATING_ENABLE
 static void Protect_PowerLimit(uint8_t valid, uint16_t ma)
 {
     int32_t limit = s_prot.pwm_limit; /* 本拍算出的新上限 */
     int32_t ceiling;                  /* 回升目标         */
     int32_t step;                     /* 降额步长         */
+    uint16_t i_lim = (s_prot.hold_limit_ma != 0U) ? s_prot.hold_limit_ma : s_prot.i_limit_ma;
 
     if (s_prot.torque_ckgcm == 0U)
     {
         /* 零扭矩不参与回升，保留最小限幅(0是控制器的取消限幅标记) */
         limit = PROT_LIMIT_MIN;
     }
-    else if (valid && ma > s_prot.i_limit_ma)
+    else if (valid && ma > i_lim)
     {
-        step = (int32_t)(ma - s_prot.i_limit_ma) / PROT_LIMIT_DOWN_DIV;
+        step = (int32_t)(ma - i_lim) / PROT_LIMIT_DOWN_DIV;
         if (step < 1) step = 1;
         if (step > PROT_LIMIT_DOWN_MAX) step = PROT_LIMIT_DOWN_MAX;
         limit -= step;
@@ -201,7 +237,12 @@ static void Protect_PowerLimit(uint8_t valid, uint16_t ma)
     {
         /* 采样有效时可回升到满量程；采样无效(占空比太低或刹车段，电流不可测)时保持当前上限不动，
                  * 不回落到开环估计——否则停着时上限被持续压低，每条新指令都拿不到满功率。 */
-        ceiling = valid ? (int32_t)CFG_PWM_FULL : limit;
+        if (s_prot.hold_limit_ma != 0U)
+        {
+            ceiling = (int32_t)s_prot.hold_limit_ma * CFG_PWM_FULL / TORQUE_STALL_CURRENT_MA;
+            if (ceiling < PROT_LIMIT_MIN) ceiling = PROT_LIMIT_MIN;
+        }
+        else ceiling = valid ? (int32_t)CFG_PWM_FULL : limit;
 
         if (limit < ceiling)
         {
@@ -288,8 +329,8 @@ static void Protect_Stall(void)
         if (++s_prot.stall_cnt >= s_prot.stall_trip)
         {
             s_prot.stall_cnt = 0U;
-            s_prot.stalled   = 1U;
-            A_Servo_HoldHere(); /* 目标改成当前实际位置，就地保持，不卸力 */
+            A_Servo_HoldHere(); /* 当前角度设为目标，直接进保持；不卸力 */
+            s_prot.stalled = 0U; /* 与普通到位一致，不留下堵转诊断标志 */
         }
         return;
     }

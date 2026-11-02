@@ -6,9 +6,10 @@
 #define BLOCK         20U  /* 每块的触发次数 = 20个PWM周期 = 1ms */
 #define RANKS         1U   /* MT6701走I2C，规则组只采电流 */
 #define ZERO_BLOCKS   16U  /* 上电零点标定的块数 */
+#define VBAT_SHIFT    3U   /* 母线电压一阶低通：每半块走差值的1/8，时间常数约4ms，见 Voltage_Take */
 #define ZERO_SHIFT    8U   /* 续流段零点跟踪：每块走差值的1/256，时间常数约0.26s，只跟温漂不跟噪声 */
-/* 采样段变了，作废的块数。块与1ms控制拍对齐(块一完成就是控制拍)，控制在拍头改占空比，下个周期生效，
- * 变化最多带进下一块开头一两个采样：作废下一块即可。其它时刻(卸力、保护)的变化也落在被作废的这一块里 */
+/* 采样段变了要作废的块数。块与1ms控制拍对齐，占空比在拍头改、下个周期生效，
+ * 变化最多混进下一块开头一两个采样，作废下一块即可(卸力、保护的变化也落在这块里) */
 #define SETTLE_BLOCKS 1U
 
 /* "除以n"换成乘倒数(芯片无除法指令，中断里每0.5ms一次)；在被除数范围内与除法逐位相同 */
@@ -27,6 +28,7 @@ static volatile struct {
     int32_t  zero_q12;            /* 电流零点，Q12：上电标定，续流段持续跟踪 */
     uint16_t raw_q4;              /* 最新块电流原始均值(未扣零点)，Q4 */
     uint16_t vbat;                /* 最近一次电池电压，ADC计数 */
+    uint32_t vbat_q4;             /* 电池电压一阶低通，ADC计数 Q4；0=还没采到 */
     uint16_t seq;                 /* 每发布一块加一，零点标定用 */
     uint8_t  phase, settle;       /* 采样点所在段、还要作废的块数 */
     uint8_t  drive;               /* 1=最新块整块采在同一方向的驱动段 */
@@ -49,8 +51,8 @@ static uint32_t Current_Sum(uint8_t from, uint8_t to, uint16_t *min, uint16_t *m
     return sum;
 }
 
-/* 发布一块电流：20个采样去掉最大、最小各一个再平均(挡掉单个开关/换向尖峰，以及段变化时混进来的一个旧采样)，
- * 扣零点、反向驱动段取负；整块停在续流段时跟踪零点。不在这里再滤波，使用者需要再自己滤 */
+/* 发布一块电流：20个采样去掉最大、最小各一个再平均(挡掉单个尖峰和段变化混入的旧采样)，
+ * 扣零点、反向驱动段取负；整块停在续流段时跟踪零点。此处不滤波，使用者自滤 */
 static void Current_Publish(uint32_t sum, uint16_t min, uint16_t max)
 {
     uint16_t raw   = (uint16_t)DIVN((sum - min - max) * D_ADC_CURRENT_SCALE + (BLOCK - 2U) / 2U, BLOCK - 2U);
@@ -71,6 +73,10 @@ static void Voltage_Take(void)
     if (ADC_GetFlagStatus(ADC1, ADC_FLAG_JEOC) == RESET) return;
     s.vbat = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
     ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);
+    /* 注入组只转换一次、时刻不固定，会采到开关瞬间尖峰，过压保护易被单点带歪。
+     * 每半块(0.5ms)一阶低通2^VBAT_SHIFT次，时间常数约4ms：滤掉尖峰，回馈顶高母线(几十ms)仍跟得上 */
+    if (s.vbat_q4 == 0U) s.vbat_q4 = (uint32_t)s.vbat << 4;
+    else s.vbat_q4 = (uint32_t)((int32_t)s.vbat_q4 + ((((int32_t)s.vbat << 4) - (int32_t)s.vbat_q4) >> VBAT_SHIFT));
 }
 
 /* 上电零点：此时两路输出恒低、绕组高阻，保证真零电流；平均16块。采样没跑起来就不写，留给续流段跟踪 */
@@ -211,7 +217,12 @@ uint8_t D_ADC_Current_Read(int32_t *value_q4)
     return ok;
 }
 
-uint16_t D_ADC_Voltage_Read(void)
+uint16_t D_ADC_Voltage_Raw(void)
 {
     return s.vbat;   /* 16位对齐读取本身是原子的 */
+}
+
+uint16_t D_ADC_Voltage_Read(void)
+{
+    return (uint16_t)((s.vbat_q4 + 8U) >> 4);   /* 32位对齐读取是原子的 */
 }

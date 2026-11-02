@@ -89,6 +89,8 @@ static uint8_t s_debug_rx_quiet_ms;
 #define PARAM_VOLTAGE_MIN 0x47U
 #define PARAM_VOLTAGE_MAX 0x48U
 #define PARAM_MIN_START_TORQUE 0x49U
+#define PARAM_LOAD_RATIO 0x4AU    /* 负载惯量比×10，0=扰动前馈关闭 */
+#define PARAM_LOAD_LEARN 0x4BU    /* 位置负载(重力)自学习：1=开 0=关 */
 #define PARAM_MOTION_REQUEST 0x80U
 #define PARAM_MOTION_ACTION 0x81U
 #define PARAM_TORQUE_MODE 0x82U
@@ -102,6 +104,8 @@ static uint8_t s_debug_rx_quiet_ms;
 #define PARAM_RT_HOLD_KP 0x8AU
 #define PARAM_RT_RESOLUTION 0x8EU
 #define PARAM_RT_HOLD_KI 0x8FU
+#define PARAM_RT_LOAD_RATIO 0x90U
+#define PARAM_RT_LOAD_LEARN 0x91U
 #define PARAM_CAL_ACTION 0x8BU
 #define PARAM_WORK_STATE 0xC0U
 #define PARAM_FAULT 0xC1U
@@ -150,7 +154,7 @@ static void Bcast_Defer(const uint8_t *f, uint8_t len)
     s_bcast.pending = 1U;
 }
 
-/* 1ms一拍：到期且发送队列可收则发出；发完再处理延迟波特率 */
+/* 1ms一拍：到期发出；发完再处理延迟波特率 */
 static void Bcast_Tick(void)
 {
     if (!s_bcast.pending) return;
@@ -385,8 +389,8 @@ static void Bin_Telemetry(uint8_t *out)
     Bin_Put16(out + 14, p.voltage_cv);
 }
 
-/* 普通参数表：取值范围、Flash/SRAM 两份存放、写后是否让轨迹参数生效，读写共用。
- * 有联动或要调用其它模块的参数在 Bin_ParamWrite 的 switch 里写，表里只用它们的读取 */
+/* 普通参数表：范围/Flash·SRAM双份/写后生效标志，读写共用；
+ * 有联动的参数在 Bin_ParamWrite 的 switch 里处理，表里只放读取 */
 #define PF_NONE 0xFFFFU   /* 没有这一份存放 */
 #define PF_TRAJ 0x01U     /* 写后让轨迹参数生效 */
 #define PF_BAUD 0x02U     /* 写后切波特率 */
@@ -430,6 +434,8 @@ static const struct {
     { PARAM_VOLTAGE_MIN,        1, 0, PCFG(voltage_min_dv),        PF_NONE, 0U, 0U },
     { PARAM_VOLTAGE_MAX,        1, 0, PCFG(voltage_max_dv),        PF_NONE, 0U, 0U },
     { PARAM_MIN_START_TORQUE,   2, PF_TMAX, PCFG(min_start_torque_ckgcm), PRT(min_start_torque_ckgcm), 0U, 0U },
+    { PARAM_LOAD_RATIO,         1, 0, PCFG(load_ratio_x10),        PRT(load_ratio_x10), 0U, CFG_LOAD_RATIO_MAX_X10 },
+    { PARAM_LOAD_LEARN,         2, 0, PCFG(load_learn),            PRT(load_learn),     0U, 1U },
     { PARAM_TORQUE_MODE,    1, 0,       PF_NONE, PRT(torque_mode),        0U, 0U },
     { PARAM_DAMPING,        1, 0,       PF_NONE, PRT(damping_percent),    0U, 0U },
     { PARAM_RT_TORQUE_LIMIT, 2, PF_TMAX, PF_NONE, PRT(torque_limit_ckgcm), 0U, 0U },
@@ -441,6 +447,8 @@ static const struct {
     { PARAM_RT_HOLD_KP,     2, 0,       PF_NONE, PRT(hold_kp),            0U, CFG_HOLD_KP_MAX },
     { PARAM_RT_RESOLUTION, 2, 0, PF_NONE, PRT(position_resolution_cdeg), CFG_RESOLUTION_MIN_CDEG, CFG_RESOLUTION_MAX_CDEG },
     { PARAM_RT_HOLD_KI,     2, 0,       PF_NONE, PRT(hold_ki),            0U, CFG_HOLD_KI_MAX },
+    { PARAM_RT_LOAD_RATIO,  1, 0,       PF_NONE, PRT(load_ratio_x10),     0U, CFG_LOAD_RATIO_MAX_X10 },
+    { PARAM_RT_LOAD_LEARN,  2, 0,       PF_NONE, PRT(load_learn),         0U, 1U },
 };
 
 /* 在表里找参数，返回下标，-1=不在表里 */
@@ -480,6 +488,10 @@ static uint8_t Bin_ParamRead(uint8_t id, uint8_t *out, uint8_t *out_len)
     out[0] = id;
     if (t >= 0)
         n = Bin_PutN(out + 1, Param_Load(Param_Addr(k_params[t].cfg, k_params[t].rt), k_params[t].size), k_params[t].size);
+    /* 速度/加减速报标定值(标定电压下的能力)：与用户可设上限同源，不读 IAP 区 */
+    else if (id == PARAM_HW_VMAX) n = Bin_PutN(out + 1, MOTOR_RATED_VEL_DPS, 2U);
+    else if (id == PARAM_HW_AMAX) n = Bin_PutN(out + 1, MOTOR_RATED_ACC_DPS2, 4U);
+    else if (id == PARAM_HW_DMAX) n = Bin_PutN(out + 1, MOTOR_RATED_DEC_DPS2, 4U);
     else if (id <= PARAM_HW_MIN_STEP)
     {
         if (!IAP_HwInfoRead(&hw)) return BIN_ST_FAILED;
@@ -489,9 +501,6 @@ static uint8_t Bin_ParamRead(uint8_t id, uint8_t *out, uint8_t *out_len)
         case PARAM_HW_VERSION: n = Bin_PutN(out + 1, hw.hw_version, 1U);     break;
         case PARAM_HW_VOLTAGE: n = Bin_PutN(out + 1, hw.voltage, 1U);        break;
         case PARAM_HW_TORQUE:  n = Bin_PutN(out + 1, hw.torque, 1U);         break;
-        case PARAM_HW_VMAX:    n = Bin_PutN(out + 1, hw.max_speed_dps, 2U);  break;
-        case PARAM_HW_AMAX:    n = Bin_PutN(out + 1, hw.max_accel_dps2, 4U); break;
-        case PARAM_HW_DMAX:    n = Bin_PutN(out + 1, hw.max_decel_dps2, 4U); break;
         case PARAM_HW_SMOOTH:  n = Bin_PutN(out + 1, hw.smooth_ms, 2U);      break;
         default:               n = Bin_PutN(out + 1, hw.min_step_cdeg, 2U);  break;
         }
@@ -561,7 +570,7 @@ static uint8_t Bin_ParamWrite(uint8_t id, const uint8_t *data, uint8_t len, uint
         else if (data[0] == 3U) A_Servo_Stop();
         else return BIN_ST_VALUE;
         return BIN_ST_OK;
-    case PARAM_MOTION_REQUEST: /* 脉宽2字节 + 时间2字节；脉宽越界(含 SMI/SMX 边界)=值非法，故障/编码器失效/行程无效=状态不允许 */
+    case PARAM_MOTION_REQUEST: /* 脉宽2B+时间2B；脉宽越界=值非法，故障/编码器失效/行程无效=状态不允许 */
         if (len != 4U) return BIN_ST_LENGTH;
         value = A_Servo_Submit(Bin_Get16(data), Bin_Get16(data + 2));
         return (value == SERVO_SUBMIT_OK) ? BIN_ST_OK : (value == SERVO_SUBMIT_VALUE) ? BIN_ST_VALUE : BIN_ST_STATE;
@@ -582,7 +591,7 @@ static uint8_t Bin_ParamWrite(uint8_t id, const uint8_t *data, uint8_t len, uint
     return BIN_ST_OK;
 }
 
-/* 一帧二进制：校验、过滤ID，执行并应答(广播只开放实时运动控制的写入，应答延时 100+id*2 ms) */
+/* 一帧二进制：校验、滤ID、执行应答；广播只允许实时运动控制写入，应答延时 100+id*2 ms */
 static void Bin_Frame(const uint8_t *f, uint8_t len)
 {
     uint8_t out[BIN_TELEMETRY_BYTES + 1U] = {0U}, out_len = 0U, st = BIN_ST_OK, baud = 0U;

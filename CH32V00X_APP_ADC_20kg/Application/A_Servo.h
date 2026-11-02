@@ -28,11 +28,9 @@ typedef struct {
     int32_t  speed_cdps;  /* 0.01度/秒；INT32_MIN=观测器当前不在更新 */
 } ServoTelemetry_t;
 
-/* FireWater诊断快照：位置/速度按行程坐标增大为正，不按协议反向翻转。
- * flags: bit0=本拍闭环有效，bit1=最近位置采样有效，bit2=观测器粘住预测，bit3=电流本块测得到(整块采在驱动段)。
- * bit0=0时参考可能保持旧值，速度和控制器诊断输出置0。
- * state: 控制器状态 PosCtrlState_t，0=MOVE(参考在走) 1=SETTLE(参考已停、未捕获) 2=HOLD(已捕获)；bit0=0时为3。
- * 工作状态(MOVING/IDLE…)用协议 0xC0 查询。 */
+/* 诊断快照：位置/速度按行程增大为正，不按协议翻转。
+ * flags: bit0=本拍闭环，bit1=位置有效，bit2=观测器粘住，bit3=电流测得到；bit0=0时速度/诊断输出置0。
+ * state: 0=MOVE 1=SETTLE 2=HOLD；bit0=0时为3。工作状态用协议 0xC0 查。 */
 typedef struct {
     int32_t target_cdeg, ref_cdeg, actual_cdeg;
     int32_t ref_cdps, actual_cdps;

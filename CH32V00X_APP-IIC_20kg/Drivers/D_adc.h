@@ -3,17 +3,12 @@
 
 #include "ch32v00X.h"
 
-/* ADC1：TIM2_CH4 每个PWM周期触发一次规则组 [电流(运放内部输出IN9)]，
- * 规则组转完硬件自动接一次注入组电池电压(PD6)。DMA 攒满20个周期(=1ms)发布一块均值，电流保留4位小数(Q4)。
- * 每发布一块就是一个1ms控制拍(见 ch32v00X_it.c)：控制拿到的总是刚出炉的一块，在拍头改的占空比从下一块开头生效。
- * 电流块均值去掉最大、最小各一个采样再平均，挡掉单个尖峰。
- *
- * 电流：低边检流电阻只在PWM驱动段有电流，采样点由 D_motor 放在驱动段正中(孔径居中)。
- *   驱动段太窄(含0)时采样点放在续流段，检流电阻上没有电流，读数就是零点，拿来跟踪温漂。
- *   电机驱动每次改占空比都用 D_ADC_Current_Phase 声明采样点在哪一段；段变了，紧接着的一块作废。 */
+/* D_adc.h ADC1：TIM2_CH4每PWM周期触发规则组[电流(运放IN9)]，自动注入组电池电压(PD6)；
+ * DMA攒20周期(=1ms)发布一块均值(去最大最小各一采样)，电流Q4，每块即一个1ms控制拍。
+ * 电流采样点由 D_motor 经 D_ADC_Current_Phase 按段声明：驱动段孔径居中读电流，续流段读零点跟踪温漂，段变后相邻块作废。 */
 
 /* 电流采样时序，单位为定时器拍(48MHz)；ADC时钟24MHz，1个ADC周期 = 2拍 */
-#define D_ADC_CUR_SETTLE_TICKS   106U  /* 驱动段开通到检流电压稳定(开通尖峰+运放建立)：按2.2us取，偏保守，实测后可减 */
+#define D_ADC_CUR_SETTLE_TICKS   106U  /* 驱动段开通到检流电压稳定(开通尖峰+运放建立)：按2.2us取，偏保守 */
 #define D_ADC_CUR_APERTURE_TICKS  57U  /* 采样孔径：28.5个ADC周期(CyclesMode3)，改采样档要一起改 */
 #define D_ADC_CUR_LEAD_TICKS     (4U + D_ADC_CUR_APERTURE_TICKS / 2U) /* 触发到孔径中点：触发延迟2个ADC周期 + 半孔径 */
 /* 孔径居中、前沿离开通沿至少一个稳定时间所需的最短驱动段(约11%占空比)；更窄时测不准 */
@@ -34,6 +29,7 @@ uint8_t  D_ADC_DMA_ISR(void);                   /* DMA1_Channel1_IRQHandler 中�
 void     D_ADC_Current_Phase(uint8_t phase);    /* 声明采样点所在段，D_CUR_xxx */
 /* 最新块电流：扣零点、与施加电压同向为正(被倒拖回馈为负)，Q4计数。返回1=整块都采在同一方向的驱动段 */
 uint8_t  D_ADC_Current_Read(int32_t *value_q4);
-uint16_t D_ADC_Voltage_Read(void);               /* 最近一次电池电压(ADC计数)，上电后尚无结果时为0 */
+uint16_t D_ADC_Voltage_Read(void);               /* 电池电压(ADC计数)，约4ms一阶低通；上电后尚无结果时为0 */
+uint16_t D_ADC_Voltage_Raw(void);                /* 最近一次电池电压单点(ADC计数)，含开关尖峰：只给要抢时间的回馈钳位 */
 
 #endif /* __D_ADC_H__ */

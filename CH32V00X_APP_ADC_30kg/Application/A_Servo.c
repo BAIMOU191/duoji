@@ -1,11 +1,5 @@
-/*
- * A_Servo.c —— 舵机编排层："做什么"。
- *   输入源(上电嗅探 PWM/串口、PWM 脉宽滤波)、指令受理(所有位置指令只走规划器一个入口)、
- *   扭矩/暂停/脱困状态机、电机模式(7~10)开环输出，以及一个控制拍的固定顺序。
- * "怎么转"(坐标、观测器/规划器/控制器、电压换算与H桥)在 A_Servo_Ctrl.c。
- * 位置模式(1~4, 11)走闭环；电机模式开环给电压、只用编码器数圈。
- * 反馈是电位器的线性行程，两端之外有测不到角度的死区，掉进去时开环脱困。
- */
+/* A_Servo.c —— 舵机编排层：输入源、指令受理、扭矩/暂停/脱困状态机与控制拍顺序。
+ * 底层"怎么转"在 A_Servo_Ctrl.c；电位器两端死区掉入时开环脱困。 */
 
 #include "A_Servo.h"
 #include "A_Servo_Ctrl.h"
@@ -140,8 +134,7 @@ static void Servo_ApplyTorqueOutput(void)
     }
 }
 
-/* 以当前实测位置为起点重建参考；reinit=1 连观测器、控制器状态一起重置(坐标跳变或卸力恢复后)。
- * 目标基准一起重锚，否则紧接着"回到旧目标"的指令会被当成重复目标忽略 */
+/* 以实测位置重建参考；reinit=1 连观测器/控制器一起重置。目标基准须一并重锚，否则"回旧目标"会被当重复忽略 */
 static void Servo_Resync(uint8_t reinit)
 {
     if (reinit) A_ServoCtrl_Reset();
@@ -153,8 +146,7 @@ static void Servo_Resync(uint8_t reinit)
     s_servo.target_angle  = GEO->angle;
 }
 
-/* 按 target_angle 下发运动：所有位置指令(点到点、带时间、连续流式、T=0)都走同一个入口——从参考当前位置
- * 用 max(剩余时间, 最短运动时间) 到达，新指令随时覆盖旧的，规划器从当前状态接着走 */
+/* 按 target_angle 下发：所有位置指令共用此入口，从当前状态以 max(剩余时间,最短时间) 到达，新指令覆盖旧的 */
 static void Servo_Move(void)
 {
     uint16_t time_ms = s_servo.timed_position ? (uint16_t)((s_servo.remaining > 0xFFFFU) ? 0xFFFFU : s_servo.remaining) : 0U;
@@ -332,8 +324,7 @@ static uint8_t Servo_SubmitQ3(uint16_t q3, uint16_t value)
         return SERVO_SUBMIT_OK;
     }
 
-    /* 位置模式：与当前目标相同的指令忽略(带不带时间都一样，PWM输入的抖动已由回差滤波吸收)：目标没变就按原计划走。
-     * 带时间的同目标若放行，上位机周期重发时每条都把到达时刻往后推，参考永远走不完、进不了保持也不能存Flash */
+    /* 位置模式：同目标指令忽略(带时间同目标若放行，上位机重发会不断后推到达时刻，参考走不完) */
     target = (uint16_t)Fx_ClampRange(A_ServoCtrl_PulseToAngle(q3), GEO->traj_lo, GEO->traj_hi);
     if (!was_paused && target == s_servo.target_angle) return SERVO_SUBMIT_OK;
     s_servo.target_angle   = target;
@@ -381,8 +372,7 @@ void A_Servo_Resume(void)
     if (s_servo.enc_state != SERVO_ENC_ESCAPING && A_ServoCtrl_IsPosition()) { s_servo.move_age = 0xFFFFU; Servo_Move(); }
 }
 
-/* 停止：丢弃目标，就地保持；卸力/电机模式立即按扭矩状态收尾。已在保持中就停在原保持点、不重锚：
- * 重锚会让窗外托着负载的 P 一拍消失，负载再掉一截 */
+/* 停止：丢弃目标就地保持；卸力/电机模式按扭矩收尾。保持中不重锚——重锚会让托着负载的输出一拍消失 */
 void A_Servo_Stop(void)
 {
     uint8_t measured;
@@ -395,10 +385,19 @@ void A_Servo_Stop(void)
     Servo_ApplyTorqueOutput();
 }
 
+/* 仅电压类故障时短路制动：短路让回馈电流在绕组耗掉、阻住负载；放开会回灌且负载自由落下。过流/过温仍放开 */
+static uint8_t Servo_FaultTorque(void)
+{
+    const uint16_t volt = PROT_FAULT_OVERVOLT | PROT_FAULT_UNDERVOLT | PROT_FAULT_VOLT_INVALID;
+    uint16_t fault = (uint16_t)(A_Protect_Fault() & (uint16_t)~PROT_FAULT_STALL);
+
+    return ((fault & volt) != 0U && (fault & (uint16_t)~volt) == 0U) ? SERVO_RELEASE_HIGH : SERVO_RELEASE_LOW;
+}
+
 /* torque_mode只表示用户请求；故障只改变实际状态，恢复不复活旧目标。 */
 void A_Servo_SyncTorque(void)
 {
-    uint8_t torque = !A_Protect_CanDrive() ? SERVO_RELEASE_LOW
+    uint8_t torque = !A_Protect_CanDrive() ? Servo_FaultTorque()
                    : g_runtime_config.torque_mode == 1U ? SERVO_TORQUE_ON
                    : g_runtime_config.torque_mode == 2U ? SERVO_RELEASE_HIGH : SERVO_RELEASE_LOW;
     if (torque == s_servo.torque) return;
@@ -684,7 +683,7 @@ void A_Servo_Control(void)
     }
     if (s_servo.torque != SERVO_TORQUE_ON) {
         (void)Servo_ReadPosition();   /* 卸力时照常读位置：手转时诊断打印和查询都能跟上 */
-        if (s_servo.torque == SERVO_RELEASE_HIGH) A_ServoCtrl_Damping(g_runtime_config.damping_percent);
+        if (s_servo.torque == SERVO_RELEASE_HIGH) A_ServoCtrl_Damping(A_Protect_CanDrive() ? g_runtime_config.damping_percent : 100U);
         return;
     }
     if ((A_ServoCtrl_IsPosition() && !GEO->range_valid)

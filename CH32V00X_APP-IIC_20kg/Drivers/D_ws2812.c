@@ -30,9 +30,9 @@ void D_WS2812_Init(void)
 /* 按GRB顺序编码后经SPI发送 */
 void D_WS2812_Send(uint8_t r, uint8_t g, uint8_t b)
 {
-    WS2812_Encode(g, s_frame + 0U);   /* GRB顺序：先绿 */
-    WS2812_Encode(r, s_frame + 8U);   /* 再红           */
-    WS2812_Encode(b, s_frame + 16U);  /* 最后蓝         */
+    WS2812_Encode(g, s_frame + 0U);   /* GRB顺序：绿、红、蓝 */
+    WS2812_Encode(r, s_frame + 8U);
+    WS2812_Encode(b, s_frame + 16U);
 
     D_SPI1_Send_Buf(s_frame, WS_FRAME_LEN);
     Delay_Us(60U); /* 复位锁存延时，须大于50us */

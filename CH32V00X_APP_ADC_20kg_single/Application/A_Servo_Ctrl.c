@@ -16,7 +16,7 @@
 #define HOLD_KP_SLEW_MS   10U   /* 运行中改保持 P：每10ms最多变 1‰/°，避免力矩阶跃 */
 
 typedef char cfg_pwm_full_matches_motor[(CFG_PWM_FULL == MOTOR_PWM_MAX) ? 1 : -1];
-_Static_assert(TUNE_LOAD_RATIO_X10 <= POS_CTRL_LOAD_RATIO_MAX_X10, "Invalid fixed load inertia ratio");
+_Static_assert(TUNE_LOAD_RATIO_X10 <= POS_CTRL_LOAD_RATIO_MAX_X10 && TUNE_BW_LOAD_RATIO_X10 <= POS_CTRL_LOAD_RATIO_MAX_X10, "Invalid fixed load inertia ratio");
 
 /* 电机标定(A_Config.h 第2节，由标定固件生成) */
 static const MotorCal_t k_motor_cal = {
@@ -51,6 +51,10 @@ static struct {                                    /* 3. 输出级 */
     int16_t  applied_pwm;   /* D_Motor_Set 返回的实际PWM */
     int32_t  limit_mv;      /* 上限在当前母线下对应的电压，控制器硬限幅 */
     int32_t  applied_mv;    /* 上一拍实际施加电压(角度增大为正)，供观测器 */
+    int32_t  sup_mv_q8;     /* 供电电压估计 mV Q8：降得快升得慢，回馈把母线顶高时不跟着涨 */
+    int32_t  sup_cap[3];    /* 当前供电下的速度(厘度/s)/加速/减速(厘度/s²)能力；0=还没算 */
+    uint8_t  sup_tick;      /* 供电能力重算分频 */
+    uint8_t  regen_clamped; /* 上一拍回馈钳位减过占空比：同输出饱和一样冻结轨迹时钟 */
 } s_out;
 
 static void Out_VbusUpdate(uint16_t cv);
@@ -75,7 +79,7 @@ uint8_t A_ServoCtrl_Init(ServoMode_t mode)
     {   /* 观测器按固定负载惯量比放大加速度系数 */
         MotorCal_t observer_cal = *C_MotorModel_Cal();
         observer_cal.ka_nv = (int32_t)((int64_t)observer_cal.ka_nv * (10U + TUNE_LOAD_RATIO_X10) / 10);
-        C_SpeedObs_Configure(&observer_cal, TUNE_OBS_BW_HZ, CTRL_VEL_NOISE_CDPS);
+        C_SpeedObs_Configure(&observer_cal, TUNE_OBS_BW_HZ, TUNE_OBS_DIST_HZ, CTRL_VEL_NOISE_CDPS);
     }
     Loop_ObsInit(s_geom.angle_circ);
     C_PosCtrl_Init(C_MotorModel_Cal(), CTRL_VEL_NOISE_CDPS, TUNE_OBS_BW_HZ);
@@ -204,7 +208,8 @@ void A_ServoCtrl_UpdateRange(void)
     if (s_geom.range_valid) C_Traj_SetRange(lo, hi);
 }
 
-/* SCK/SCZ：当前位置记为锚点(中点/500us端)；有效行程与零点下次 A_ServoCtrl_SetMode 时现推 */
+/* SCK/SCZ：当前位置记为锚点(中点/500us端)；有效行程与零点下次 A_ServoCtrl_SetMode 时现推。
+ * 自定义模式没有锚点这套真值，零点直接写进 custom_offset(与AMI/AMX同一套)并作废旧锚点。 */
 uint8_t A_ServoCtrl_SetCalAnchor(uint8_t kind)
 {
     int32_t  raw = A_Encoder_Read(), offset;
@@ -214,6 +219,13 @@ uint8_t A_ServoCtrl_SetCalAnchor(uint8_t kind)
         || raw > ENCODER_TRAVEL_HI || nominal == 0U) return 0U;
     Geom_DeriveCal(kind, raw, nominal, &span, &offset);
     if (span < SERVO_CUSTOM_SPAN_MIN) return 0U;   /* 推不出至少1度的行程：本次校准作废 */
+    if (s_geom.mode == SERVO_MODE_CUSTOM)
+    {
+        if (span != g_config.custom_span_cdeg) return 0U;   /* 行程被收缩，custom_span表达不了 */
+        g_config.custom_offset_cdeg = Geom_WrapAngle(offset + CDEG_RANGE);
+        g_config.cal_kind           = (uint8_t)SERVO_CAL_NONE;
+        return 1U;
+    }
     g_config.cal_kind        = kind;
     g_config.cal_anchor_cdeg = (uint16_t)raw;
     return 1U;
@@ -240,22 +252,55 @@ uint8_t A_ServoCtrl_SetTravelEnd(uint8_t is_min)
 
 /* ============================== 2. 算法链 ============================== */
 
-/* 设定值为0或超过额定能力时取额定(额定已含余量) */
-static int32_t Loop_LimitOf(uint32_t user, uint32_t rated)
+/* 当前供电下电机能达到的速度/加速/减速(按电机模型，不另留余量)：
+ *   速度 (供电 − 动摩擦)/kv：反电势要留在供电以下控制器才刹得住，否则负载(重力)拖着轴时反电势高过母线、
+ *        经体二极管回灌顶到过压；
+ *   零速加速 (供电 − 动摩擦)/ka；低速减速 (供电 + 动摩擦)/ka(摩擦帮着减速)。
+ * 每 100ms 按供电估计重算，任一项变化超过 2% 才更新规划器。余下的回馈由输出级的回馈钳位兜住 */
+#define SUPCAP_RISE_SHIFT 11     /* 供电估计上升时间常数 2^11 ms≈2s：回馈顶高的几百ms不当成供电变高 */
+#define SUPCAP_FALL_SHIFT  7     /* 下降时间常数 128ms：启动压降(百ms级)只少量带进来，真掉电跟得上 */
+#define SUPCAP_PERIOD_MS 100U
+
+/* 由 u(mV) 和模型系数 k(每单位速度/加速度的 µV 或 nV，scale 为 mV 到该单位的倍数)算能力，不低于标定值的10%；
+ * 电机模型还没初始化(k=0)时返回0=不限 */
+static int32_t Loop_CapOf(int32_t u_mv, int32_t k, int32_t scale, uint32_t rated)
 {
-    return (int32_t)((user > 0U && user < rated) ? user : rated);
+    int64_t v;
+
+    if (k <= 0 || rated == 0U) return 0;
+    v = (u_mv > 0) ? (int64_t)u_mv * scale / k : 0;
+    if (v > INT32_MAX) v = INT32_MAX;
+    return (int32_t)((v > (int64_t)rated / 10) ? v : (int64_t)rated / 10);
 }
 
-/* 生效限值 = min(设定值, 额定)；平滑时间为0时取机械时间常数 τ；另设最短运动时间。下一次规划生效，不打断当前轨迹 */
+static void Loop_SupplyCaps(int32_t cap[3])
+{
+    const MotorCal_t *cal = C_MotorModel_Cal();
+    int32_t sup = s_out.sup_mv_q8 >> 8;
+
+    cap[0] = Loop_CapOf(sup - cal->fc_mv, cal->kv_uv, 1000,    (uint32_t)cal->rated_vel_dps * 100U);
+    cap[1] = Loop_CapOf(sup - cal->fc_mv, cal->ka_nv, 1000000, cal->rated_acc_dps2 * 100U);
+    cap[2] = Loop_CapOf(sup + cal->fc_mv, cal->ka_nv, 1000000, cal->rated_dec_dps2 * 100U);
+}
+
+/* 生效限值 = min(RAM 设定值, 标定值, 当前供电能力)；设定值为0取标定值；供电能力还没算(0)时不限 */
+static int32_t Loop_LimitOf(uint32_t user, uint32_t rated, int32_t cap)
+{
+    int32_t v = (int32_t)((user > 0U && user < rated) ? user : rated);
+
+    return (cap > 0 && cap < v) ? cap : v;
+}
+
+/* 速度/加速/减速限值见 Loop_LimitOf；平滑时间为0时取机械时间常数 τ；另设最短运动时间。下一次规划生效，不打断当前轨迹 */
 void A_ServoCtrl_ApplyTrajConfig(void)
 {
     const MotorCal_t *cal = C_MotorModel_Cal();
     uint32_t smooth = g_runtime_config.traj_smooth_ms ? g_runtime_config.traj_smooth_ms
                                                       : ((uint32_t)C_MotorModel_TauUs() + 500U) / 1000U;
 
-    C_Traj_SetLimits(Loop_LimitOf((uint32_t)g_runtime_config.traj_vmax_dps * 100U, (uint32_t)cal->rated_vel_dps * 100U),
-                     Loop_LimitOf(g_runtime_config.traj_amax_dps2 * 100U, cal->rated_acc_dps2 * 100U),
-                     Loop_LimitOf(g_runtime_config.traj_dmax_dps2 * 100U, cal->rated_dec_dps2 * 100U),
+    C_Traj_SetLimits(Loop_LimitOf((uint32_t)g_runtime_config.traj_vmax_dps * 100U, (uint32_t)cal->rated_vel_dps * 100U, s_out.sup_cap[0]),
+                     Loop_LimitOf(g_runtime_config.traj_amax_dps2 * 100U, cal->rated_acc_dps2 * 100U, s_out.sup_cap[1]),
+                     Loop_LimitOf(g_runtime_config.traj_dmax_dps2 * 100U, cal->rated_dec_dps2 * 100U, s_out.sup_cap[2]),
                      (uint16_t)((smooth > TRAJ_SMOOTH_MS_MAX) ? TRAJ_SMOOTH_MS_MAX : smooth));
     C_Traj_SetMoveMinMs(g_runtime_config.traj_move_min_ms);
 }
@@ -265,7 +310,8 @@ void A_ServoCtrl_ApplyGains(void)
 {
     PosCtrlGains_t g = {
         .pos_bw = TUNE_POS_BW_RADS, .vel_bw = TUNE_VEL_BW_RADS,
-        .int_bw = TUNE_INT_BW_RADS, .load_ratio_x10 = TUNE_LOAD_RATIO_X10
+        .int_bw = TUNE_INT_BW_RADS, .load_ratio_x10 = TUNE_LOAD_RATIO_X10,
+        .bw_load_ratio_x10 = TUNE_BW_LOAD_RATIO_X10
     };
 
     (void)C_PosCtrl_SetGains(&g);
@@ -316,14 +362,13 @@ void A_ServoCtrl_Begin(void)
     if (C_Traj_Is_Done()) C_Traj_Hold(Fx_ClampRange(s_loop.obs.pos, s_geom.traj_lo, s_geom.traj_hi));
 }
 
-/* 点到点/带时间：时长取 max(T, 最短运动时间)，比最快走法长时整体放慢；运动中来的新目标从当前状态接着走 */
-void A_ServoCtrl_Plan(uint16_t target, uint16_t time_ms) { C_Traj_Plan(target, time_ms); }
+/* 堵转触发的保持：清积分托举力，保持态只靠窗外弹簧 */
+void A_ServoCtrl_StallHold(void) { C_PosCtrl_StallHold(); }
 
-/* 连续轨迹：按平均指令速度走，滞后偏离 速度·展望 的部分慢慢追平 */
-void A_ServoCtrl_Follow(uint16_t target, int32_t vel_cdps, uint16_t horizon_ms) { C_Traj_Follow(target, vel_cdps, horizon_ms); }
+/* 所有位置指令的唯一入口：从参考当前位置用 max(T, 最短运动时间) 到达；新目标从当前状态接着走 */
+void A_ServoCtrl_Command(uint16_t target, uint16_t time_ms) { C_Traj_Command(target, time_ms); }
 
 void    A_ServoCtrl_Brake(void)    { C_Traj_Stop(); }
-int32_t A_ServoCtrl_RefPos(void)   { return C_Traj_GetPos(); }
 uint8_t A_ServoCtrl_TrajDone(void) { return C_Traj_Is_Done(); }
 uint8_t A_ServoCtrl_Holding(void)  { return (uint8_t)(C_Traj_Is_Done() && C_PosCtrl_Reached()); }
 uint8_t A_ServoCtrl_Arrived(void)  { return (uint8_t)(s_loop.ref.done && C_PosCtrl_ArrivalQualified()); }
@@ -336,7 +381,7 @@ void A_ServoCtrl_Observe(uint8_t measured)
 /* 上一拍输出饱和且跟踪落后时冻结轨迹时钟(参考不再领先)，冻结拍数交给堵转检测 */
 void A_ServoCtrl_Update(uint8_t measured)
 {
-    uint8_t hold = (uint8_t)(s_loop.dbg.sat && (int64_t)s_loop.dbg.e_pos * s_loop.ref.vel > 0);
+    uint8_t hold = (uint8_t)((s_loop.dbg.sat || s_out.regen_clamped) && (int64_t)s_loop.dbg.e_pos * s_loop.ref.vel > 0);
     PosCtrlFeedback_t feedback;
     int32_t u_mv;
 
@@ -345,6 +390,7 @@ void A_ServoCtrl_Update(uint8_t measured)
     Loop_HoldParams();
     feedback.pos   = s_loop.obs.pos;
     feedback.vel   = s_loop.obs.vel;
+    feedback.dist  = s_loop.obs.dist;
     feedback.valid = measured;
     u_mv = C_PosCtrl_Update(&s_loop.ref, &feedback, s_out.limit_mv, &s_loop.dbg);
     A_ServoCtrl_Output(A_ServoCtrl_MvToDuty(u_mv * MOTOR_SIGN));
@@ -368,6 +414,35 @@ const PosCtrlDbg_t  *A_ServoCtrl_Dbg(void) { return &s_loop.dbg; }
 int16_t A_ServoCtrl_MvToDuty(int32_t mv) { return (int16_t)Fx_Clamp32(Fx_MulShift(mv, s_out.to_duty_q16, 16), CFG_PWM_FULL); }
 static int32_t Out_DutyToMv(int16_t duty) { return Fx_MulShift(duty, s_out.to_mv_q16, 16); }
 
+/* 回馈钳位：电机在回馈(施加电压与反电势同向但小于它，电流倒灌)时，母线高过软阈值就按比例减小占空比，
+ * 到硬阈值减到0。AT8236 慢衰减：续流段两路全高、绕组短路，回馈只在驱动段流回母线；占空比越小制动越强、
+ * 回母线的能量越少，0 即纯短路制动、能量全耗在绕组里。电源不吸收、母线电容小、没有制动电阻：重力拖着负载
+ * 下行时这股能量只能这样消化，代价是母线高时下行被多刹一点、落后参考(轨迹时钟同饱和一样冻结)。
+ * 软阈值 = min(设置上限 − 1.1V, 供电 + 3V)，至少高出供电 0.3V；硬阈值 = 软 + 0.6V，不超过设置上限 − 0.5V。
+ * 钳到0后母线还会再冲约0.5V，硬阈值离过压动作线(设置上限 + 容差)留出这段 */
+#define REGEN_SOFT_ABOVE_MV  3000   /* 软阈值最多高出供电 */
+#define REGEN_SOFT_MIN_MV     300   /* 软阈值至少高出供电：供电本身的波动不算回馈 */
+#define REGEN_SPAN_MV         600   /* 软→硬阈值的线性区 */
+#define REGEN_SPAN_MIN_MV     100
+#define REGEN_HARD_BELOW_MV   500   /* 硬阈值低于设置上限 */
+
+static int16_t Out_RegenClamp(int16_t duty, uint16_t cv)
+{
+    const MotorCal_t *cal = C_MotorModel_Cal();
+    int32_t u = Out_DutyToMv(duty) * MOTOR_SIGN;
+    int32_t e = (int32_t)(((int64_t)cal->kv_uv * s_loop.obs.vel) / 1000);
+    int32_t sup = s_out.sup_mv_q8 >> 8, v = (int32_t)cv * 10, soft, hard;
+
+    if (duty == 0 || sup == 0 || (int64_t)u * e <= 0 || Fx_Abs32(u) >= Fx_Abs32(e)) return duty;
+    hard = (int32_t)g_runtime_config.voltage_max_dv * 100 - REGEN_HARD_BELOW_MV;
+    soft = Fx_ClampRange(hard - REGEN_SPAN_MV, sup + REGEN_SOFT_MIN_MV, sup + REGEN_SOFT_ABOVE_MV);
+    hard = Fx_ClampRange(hard, soft + REGEN_SPAN_MIN_MV, soft + REGEN_SPAN_MV);
+    if (v <= soft) return duty;
+    s_out.regen_clamped = 1U;
+    if (v >= hard) return 0;
+    return (int16_t)(((int32_t)duty * (hard - v)) / (hard - soft));
+}
+
 int16_t A_ServoCtrl_Limit(void)      { return s_out.out_limit; }
 int16_t A_ServoCtrl_AppliedPwm(void) { return s_out.applied_pwm; }
 
@@ -376,11 +451,17 @@ static void Out_UpdateLimitMv(void)
     s_out.limit_mv = Out_DutyToMv(s_out.out_limit);
 }
 
+static uint8_t Out_CvValid(uint16_t cv)
+{
+    return (uint8_t)(cv >= PROT_VOLTAGE_ABS_MIN_DV * 10U && cv <= PROT_VOLTAGE_ABS_MAX_DV * 10U);
+}
+
 static void Out_VbusUpdate(uint16_t cv)
 {
     uint32_t mv = (uint32_t)cv * 10U;
 
-    if (cv < PROT_VOLTAGE_ABS_MIN_DV * 10U || cv > PROT_VOLTAGE_ABS_MAX_DV * 10U) return;
+    if (!Out_CvValid(cv)) return;
+    if (s_out.sup_mv_q8 == 0) s_out.sup_mv_q8 = (int32_t)mv << 8;   /* 速度上限等电机模型初始化后由输出拍首次算出 */
     s_out.bus_cv      = cv;
     s_out.to_duty_q16 = (int32_t)(((uint32_t)CFG_PWM_FULL << 16) / mv);
     s_out.to_mv_q16   = (int32_t)((mv << 16) / CFG_PWM_FULL);
@@ -397,13 +478,31 @@ static uint16_t Out_BootBusCv(void)
     return (uint16_t)((sum + 4U) >> 3);
 }
 
+/* 供电估计(降得快升得慢，回馈把母线顶高时不跟着涨)与由它决定的轨迹能力，见 Loop_SupplyCaps */
+static void Out_SupplyTrack(uint16_t cv)
+{
+    int32_t d, cap[3];
+    uint8_t i, changed = 0U;
+
+    if (s_out.sup_mv_q8 == 0 || !Out_CvValid(cv)) return;
+    d = ((int32_t)cv * 10 << 8) - s_out.sup_mv_q8;
+    s_out.sup_mv_q8 += d >> ((d > 0) ? SUPCAP_RISE_SHIFT : SUPCAP_FALL_SHIFT);
+    if (++s_out.sup_tick < SUPCAP_PERIOD_MS && s_out.sup_cap[0] != 0) return;   /* 上电第一拍就算 */
+    s_out.sup_tick = 0U;
+    Loop_SupplyCaps(cap);
+    for (i = 0U; i < 3U; i++)
+        if ((int64_t)cap[i] * 50 > (int64_t)s_out.sup_cap[i] * 51 || (int64_t)cap[i] * 50 < (int64_t)s_out.sup_cap[i] * 49)
+        { s_out.sup_cap[i] = cap[i]; changed = 1U; }
+    if (changed) A_ServoCtrl_ApplyTrajConfig();
+}
+
 /* 驱动H桥并记下实际施加电压；驱动期间母线电压8拍平均后更新换算(不跟随单拍压降) */
 void A_ServoCtrl_Output(int16_t duty)
 {
     uint16_t cv = A_Voltage_Read();
 
     if (s_out.bus_cv == 0U) Out_VbusUpdate(cv); /* 首份有效电压不依赖驱动已出力。 */
-    else if (duty != 0 && cv >= PROT_VOLTAGE_ABS_MIN_DV * 10U && cv <= PROT_VOLTAGE_ABS_MAX_DV * 10U) {
+    else if (duty != 0 && Out_CvValid(cv)) {
         s_out.vbus_sum += cv;
         if (++s_out.vbus_n >= 8U) {
             cv = (uint16_t)((s_out.vbus_sum + 4U) >> 3);
@@ -411,6 +510,9 @@ void A_ServoCtrl_Output(int16_t duty)
             s_out.vbus_sum = 0U; s_out.vbus_n = 0U;
         }
     }
+    Out_SupplyTrack(cv);
+    s_out.regen_clamped = 0U;
+    duty = Out_RegenClamp(duty, A_Voltage_ReadRaw());   /* 钳位要抢时间：母线电容小，几十mA回馈10ms就顶起1~2V */
     s_out.applied_pwm = D_Motor_Set(duty);
     s_out.applied_mv  = Out_DutyToMv(s_out.applied_pwm) * MOTOR_SIGN;
 }

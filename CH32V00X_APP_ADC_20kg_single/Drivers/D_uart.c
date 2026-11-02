@@ -8,8 +8,15 @@ static RingBuf_t        s_tx_rb;        /* 发送队列：任务写，ISR读    
 static volatile uint8_t s_tx_busy;      /* 1=正在发送，末字节尚未离开引脚      */
 static volatile uint8_t s_enabled;      /* 1=本驱动占用PC0；0=引脚已释放       */
 static uint32_t         s_pending_baud; /* !=0时表示有一次待生效的波特率切换   */
+static volatile uint8_t s_tx_progress;  /* 每装一个字节加1：服务里据此判断发送是否停滞 */
+static uint8_t          s_tx_seen;      /* 服务上次看到的 s_tx_progress */
+static uint8_t          s_tx_stall_ms;  /* 发送忙但无进展的毫秒数 */
+
+#define UART_TX_STALL_MS 20U   /* 发送忙却这么久没装出一个字节：判收尾丢失，强制回接收(最低波特率一字节约1ms) */
+#define UART_ERR_FLAGS   (USART_FLAG_ORE | USART_FLAG_NE | USART_FLAG_FE | USART_FLAG_PE)
 
 /* 按指定波特率重配USART1；USART_Init 保留中断使能位与HDSEL，切换不掉中断 */
+
 static void Uart_ApplyParams(uint32_t baudrate)
 {
     USART_InitTypeDef usart = {0};
@@ -35,6 +42,7 @@ static void Uart_TxStart(void)
     if (!C_Ring_Buf_Get(&s_tx_rb, &byte)) return;
 
     s_tx_busy = 1U;
+    s_tx_progress++;
     USART_ITConfig(USART1, USART_IT_RXNE, DISABLE); /* 半双工：不接收自己发的 */
     USART_ITConfig(USART1, USART_IT_TC,   DISABLE);
     USART_SendData(USART1, byte);
@@ -44,9 +52,11 @@ static void Uart_TxStart(void)
 /* 末字节已移出引脚：丢掉自回环并恢复接收 */
 static void Uart_TxDone(void)
 {
-    /* 倒掉半双工期间收到的自身字节并清ORE，否则第一个真回复字节会被吃掉 */
-    if (USART_GetFlagStatus(USART1, USART_FLAG_RXNE) != RESET)
-        (void)USART_ReceiveData(USART1);
+    /* 倒掉半双工期间收到的自身字节，并按"先读STATR再读DATAR"清掉发送期间攒下的 ORE/NE/FE/PE：
+     * 发送时接收中断关着，自回环和大电流干扰会置错误位；只在 RXNE=1 时读 DATAR 的话，ORE 残留而 RXNE=0
+     * 时一开接收中断就进个不停(本驱动不处理 ORE 分支)，主循环被饿死 */
+    (void)USART1->STATR;
+    (void)USART1->DATAR;
 
     USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
     s_tx_busy = 0U;
@@ -151,9 +161,33 @@ void D_UART_SetBaud_Deferred(uint32_t baudrate)
     s_pending_baud = baudrate;
 }
 
-/* 周期收尾：发送队列排空后执行登记的波特率切换 */
+/* 发送停滞兜底(每1ms由串口任务调用)：发送忙而 UART_TX_STALL_MS 没装出字节，说明 TXE/TC 收尾丢了。
+ * 出口只有 Uart_TxDone，一旦丢失接收中断永远关着、s_tx_busy 永远为1：收不到指令也发不出回复，
+ * 主循环与喂狗照常、不会复位。
+ * 这里关掉发送中断、丢弃没发完的这帧(已不完整)，按收尾流程把线还给接收 */
+static void Uart_TxWatchdog(void)
+{
+    uint32_t irq_state;
+
+    if (!s_tx_busy || s_tx_progress != s_tx_seen) { s_tx_seen = s_tx_progress; s_tx_stall_ms = 0U; return; }
+    if (++s_tx_stall_ms < UART_TX_STALL_MS) return;
+    irq_state = __get_MSTATUS();
+    __disable_irq();
+    if (s_tx_busy && s_tx_progress == s_tx_seen)
+    {
+        USART_ITConfig(USART1, USART_IT_TXE, DISABLE);
+        USART_ITConfig(USART1, USART_IT_TC,  DISABLE);
+        C_Ring_Buf_Init(&s_tx_rb);
+        Uart_TxDone();
+    }
+    __set_MSTATUS(irq_state);
+    s_tx_stall_ms = 0U;
+}
+
+/* 周期收尾：发送停滞兜底；发送队列排空后执行登记的波特率切换 */
 void D_UART_Service(void)
 {
+    if (s_enabled) Uart_TxWatchdog();
     if (s_pending_baud == 0U || !D_UART_Tx_Idle()) return;
 
     Uart_ApplyParams(s_pending_baud);
@@ -173,6 +207,12 @@ void D_UART1_ISR(void)
 
     if (!s_enabled) return;
 
+    /* 错误位残留而无数据：ORE 在 RXNEIE 打开时也会触发本中断，下面三个分支都不认它，不清的话中断进个不停 */
+    {
+        uint16_t sr = (uint16_t)USART1->STATR;
+        if ((sr & UART_ERR_FLAGS) != 0U && (sr & USART_FLAG_RXNE) == 0U) (void)USART1->DATAR;
+    }
+
     /* 接收：入队即可 */
     if (USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)
     {
@@ -187,6 +227,7 @@ void D_UART1_ISR(void)
         if (C_Ring_Buf_Get(&s_tx_rb, &byte))
         {
             USART_SendData(USART1, byte);
+            s_tx_progress++;
             return;
         }
 

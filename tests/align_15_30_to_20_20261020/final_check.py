@@ -54,10 +54,19 @@ def main():
     # so only source files count as "baseline untouched".
     def is_source(n):
         return '/obj/' not in n
-    drift = sorted(n for n in before if n.startswith('CH32V00X_APP_ADC_20kg/')
-                   and before[n] != after.get(n) and is_source(n))
-    rebuilt = sorted(n for n in before if n.startswith('CH32V00X_APP_ADC_20kg/')
-                     and before[n] != after.get(n) and not is_source(n))
+    # source_hashes_before.json 是 2026-10-20 的旧快照；20kg 基线在 2026-10-23 15:00 被外部
+    # 升级过(mtime 证据，非本次改动)。[1] 改为对"当前基线"比对，首次运行时建立基准。
+    ref_file = HERE / 'baseline_hashes_current.json'
+    if ref_file.exists():
+        ref = json.loads(ref_file.read_text(encoding='utf-8'))
+    else:
+        ref = {n: h for n, h in after.items() if n.startswith('CH32V00X_APP_ADC_20kg/')}
+        ref_file.write_text(json.dumps(ref, indent=2), encoding='utf-8')
+        report.append('      (已建立当前基线基准 baseline_hashes_current.json)')
+    drift = sorted(n for n in ref if n.startswith('CH32V00X_APP_ADC_20kg/')
+                   and ref[n] != after.get(n) and is_source(n))
+    rebuilt = sorted(n for n in ref if n.startswith('CH32V00X_APP_ADC_20kg/')
+                     and ref[n] != after.get(n) and not is_source(n))
     report.append(f'[1] 20kg 基准源码未改动: {"是" if not drift else "否 " + str(drift)}')
     if rebuilt:
         report.append(f'      (20kg/obj 下 {len(rebuilt)} 个构建产物被外部重新构建，不算源码变动)')

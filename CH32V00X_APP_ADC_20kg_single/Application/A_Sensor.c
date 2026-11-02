@@ -55,6 +55,11 @@ uint16_t A_Voltage_Read(void)
     return (uint16_t)(((uint32_t)D_ADC_Voltage_Read() * VOLT_CV_K) >> 12);
 }
 
+uint16_t A_Voltage_ReadRaw(void)
+{
+    return (uint16_t)(((uint32_t)D_ADC_Voltage_Raw() * VOLT_CV_K) >> 12);
+}
+
 /* 读TMP112温度，返回0.1摄氏度；失败返回-32768 */
 int16_t A_Temperature_Read(void)
 {

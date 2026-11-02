@@ -6,6 +6,7 @@
 #define BLOCK         20U  /* 每块的触发次数 = 20个PWM周期 = 1ms */
 #define RANKS         2U   /* 规则组 [电流, 电位器]，DMA 缓冲区按此交错 */
 #define ZERO_BLOCKS   16U  /* 上电零点标定的块数 */
+#define VBAT_SHIFT    3U   /* 母线电压一阶低通：每半块走差值的1/8，时间常数约4ms，见 Voltage_Take */
 #define ZERO_SHIFT    8U   /* 续流段零点跟踪：每块走差值的1/256，时间常数约0.26s，只跟温漂不跟噪声 */
 /* 采样段变了，作废的块数。块与1ms控制拍对齐(块一完成就是控制拍)，控制在拍头改占空比，下个周期生效，
  * 变化最多带进下一块开头一两个采样：作废下一块即可。其它时刻(卸力、保护)的变化也落在被作废的这一块里 */
@@ -15,41 +16,34 @@
 #define DIV_M(n)    ((uint32_t)(((1UL << 24) + (n) - 1U) / (n)))
 #define DIVN(x, n)  ((uint32_t)(((uint64_t)(x) * DIV_M(n)) >> 24))
 #define DIV_MAX_X   (BLOCK * 4095UL * 16UL + BLOCK)
-_Static_assert((uint64_t)(DIV_M(BLOCK) * BLOCK - (1UL << 24)) * DIV_MAX_X < (1UL << 24)
-               && (uint64_t)(DIV_M(BLOCK - 2U) * (BLOCK - 2U) - (1UL << 24)) * DIV_MAX_X < (1UL << 24),
+_Static_assert((uint64_t)(DIV_M(BLOCK - 2U) * (BLOCK - 2U) - (1UL << 24)) * DIV_MAX_X < (1UL << 24),
                "DIVN no longer matches division");
 
 static volatile uint16_t s_buf[BLOCK * RANKS];   /* DMA循环缓冲：[电流, 电位器] × 20 */
 static volatile struct {
     uint32_t cur_half, pot_half;  /* 半传输时锁存的前半块和 */
     uint16_t cur_min, cur_max;    /* 前半块电流的最小、最大采样 */
+    uint16_t pot_min, pot_max;    /* 前半块电位器的最小、最大采样 */
     int32_t  cur_q4;              /* 最新块电流：扣零点、按方向带符号，Q4 */
     int32_t  zero_q12;            /* 电流零点，Q12：上电标定，续流段持续跟踪 */
     uint16_t raw_q4;              /* 最新块电流原始均值(未扣零点)，Q4 */
     uint16_t pot_q4;              /* 最新块电位器均值，Q4 */
     uint16_t vbat;                /* 最近一次电池电压，ADC计数 */
+    uint32_t vbat_q4;             /* 电池电压一阶低通，ADC计数 Q4；0=还没采到 */
     uint16_t seq;                 /* 每发布一块加一，零点标定用 */
     uint8_t  phase, settle;       /* 采样点所在段、还要作废的块数 */
     uint8_t  drive;               /* 1=最新块整块采在同一方向的驱动段 */
     uint8_t  ready;               /* 1=至少发布过一块 */
 } s;
 
-static uint32_t Block_Sum(uint8_t from, uint8_t to, uint8_t rank)
-{
-    uint32_t sum = 0U;
-
-    while (from < to) sum += s_buf[from++ * RANKS + rank];
-    return sum;
-}
-
-/* 半块电流的和，同时更新最小、最大采样 */
-static uint32_t Current_Sum(uint8_t from, uint8_t to, uint16_t *min, uint16_t *max)
+/* 半块某一路的和，同时更新最小、最大采样 */
+static uint32_t Block_Sum(uint8_t from, uint8_t to, uint8_t rank, uint16_t *min, uint16_t *max)
 {
     uint32_t sum = 0U;
 
     while (from < to)
     {
-        uint16_t v = s_buf[from++ * RANKS];
+        uint16_t v = s_buf[from++ * RANKS + rank];
 
         sum += v;
         if (v < *min) *min = v;
@@ -80,6 +74,11 @@ static void Voltage_Take(void)
     if (ADC_GetFlagStatus(ADC1, ADC_FLAG_JEOC) == RESET) return;
     s.vbat = ADC_GetInjectedConversionValue(ADC1, ADC_InjectedChannel_1);
     ADC_ClearFlag(ADC1, ADC_FLAG_JEOC);
+    /* 注入组只转换一次、落在PWM周期里哪一刻不固定，会采到开关瞬间，带载时相邻 10ms 读数能跳 1~2V，
+     * 过压保护被单点尖峰带歪。每半块(0.5ms)一阶低通 2^VBAT_SHIFT 次，时间常数约4ms：滤掉开关尖峰，
+     * 回馈把母线顶高(几十ms)照样跟得上 */
+    if (s.vbat_q4 == 0U) s.vbat_q4 = (uint32_t)s.vbat << 4;
+    else s.vbat_q4 = (uint32_t)((int32_t)s.vbat_q4 + ((((int32_t)s.vbat << 4) - (int32_t)s.vbat_q4) >> VBAT_SHIFT));
 }
 
 /* 上电零点：此时两路输出恒低、绕组高阻，保证真零电流；平均16块。采样没跑起来就不写，留给续流段跟踪 */
@@ -186,19 +185,25 @@ uint8_t D_ADC_DMA_ISR(void)
     {
         DMA_ClearITPendingBit(DMA1_IT_HT1);
         min = 0xFFFFU; max = 0U;
-        s.cur_half = Current_Sum(0U, BLOCK / 2U, &min, &max);
+        s.cur_half = Block_Sum(0U, BLOCK / 2U, 0U, &min, &max);
         s.cur_min  = min;
         s.cur_max  = max;
-        s.pot_half = Block_Sum(0U, BLOCK / 2U, 1U);
+        min = 0xFFFFU; max = 0U;
+        s.pot_half = Block_Sum(0U, BLOCK / 2U, 1U, &min, &max);
+        s.pot_min  = min;
+        s.pot_max  = max;
         Voltage_Take();
     }
     if (DMA_GetITStatus(DMA1_IT_TC1) == RESET) return 0U;
     DMA_ClearITPendingBit(DMA1_IT_TC1);
     Voltage_Take();
 
-    s.pot_q4 = (uint16_t)DIVN((s.pot_half + Block_Sum(BLOCK / 2U, BLOCK, 1U)) * D_ADC_ENCODER_SCALE + BLOCK / 2U, BLOCK);
+    /* 电位器同样去掉最大、最小各一个采样再平均：挡掉抽头跳动的单个尖峰。块内匀速转动时两端的采样对称去掉，均值不偏 */
+    min = s.pot_min; max = s.pot_max;
+    sum = s.pot_half + Block_Sum(BLOCK / 2U, BLOCK, 1U, &min, &max);
+    s.pot_q4 = (uint16_t)DIVN((sum - min - max) * D_ADC_ENCODER_SCALE + (BLOCK - 2U) / 2U, BLOCK - 2U);
     min = s.cur_min; max = s.cur_max;
-    sum = s.cur_half + Current_Sum(BLOCK / 2U, BLOCK, &min, &max);
+    sum = s.cur_half + Block_Sum(BLOCK / 2U, BLOCK, 0U, &min, &max);
     Current_Publish(sum, min, max);
     s.ready = 1U;
     s.seq++;
@@ -237,7 +242,12 @@ uint8_t D_ADC_Encoder_Read(uint16_t *value_q4)
     return ok;
 }
 
-uint16_t D_ADC_Voltage_Read(void)
+uint16_t D_ADC_Voltage_Raw(void)
 {
     return s.vbat;   /* 16位对齐读取本身是原子的 */
+}
+
+uint16_t D_ADC_Voltage_Read(void)
+{
+    return (uint16_t)((s.vbat_q4 + 8U) >> 4);   /* 32位对齐读取是原子的 */
 }

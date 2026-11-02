@@ -1,8 +1,7 @@
-/* C_Ring_Buf.c 单生产者/单消费者环形缓冲区，无硬件依赖。 */
+/* C_Ring_Buf.c —— 单生产者/单消费者环形缓冲区，无锁无硬件依赖 */
 
 #include "C_Ring_Buf.h"
 
-/* 初始化，头尾指针清零 */
 void C_Ring_Buf_Init(RingBuf_t *rb)
 {
     if (rb == 0) return;
@@ -10,7 +9,7 @@ void C_Ring_Buf_Init(RingBuf_t *rb)
     rb->tail = 0;
 }
 
-/* 写1字节，满时拒绝(不覆盖旧数据)，返回false */
+/* 满时拒绝不覆盖旧数据，返回false */
 bool C_Ring_Buf_Put(RingBuf_t *rb, uint8_t data)
 {
     uint8_t next;
@@ -26,7 +25,7 @@ bool C_Ring_Buf_Put(RingBuf_t *rb, uint8_t data)
     return true;
 }
 
-/* 读1字节，空时返回false */
+/* 空时返回false */
 bool C_Ring_Buf_Get(RingBuf_t *rb, uint8_t *data)
 {
     if (rb == 0 || data == 0) return false;
@@ -38,7 +37,6 @@ bool C_Ring_Buf_Get(RingBuf_t *rb, uint8_t *data)
     return true;
 }
 
-/* 当前已存字节数 */
 uint8_t C_Ring_Buf_Get_Count(RingBuf_t *rb)
 {
     if (rb == 0) return 0;

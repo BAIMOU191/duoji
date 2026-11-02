@@ -1,7 +1,8 @@
 /* A_UartCmd.c 串口协议层：一根线上三种帧按帧头独占分流——
  *   明文   #IIIP<指令>!            见 Text_*
  *   二进制 AA 66 ID CMD LEN DATA CRC8 66 AA   见 Bin_*
- *   升级   AA 55 ...               交给 iap.c */
+ *   升级   AA 55 ...               交给 iap.c
+ * 广播(ID=255/FF)的应答统一延时 100ms+本机ID×2ms 发出；新帧到达作废未发应答。 */
 
 #include "A_UartCmd.h"
 #include "A_Config.h"
@@ -27,6 +28,10 @@ static uint8_t s_debug_rx_quiet_ms;
 #define BIN_FRAME_MAX (8U + BIN_DATA_MAX)
 #define BIN_BROADCAST 255U
 #define BIN_TELEMETRY_BYTES 16U
+
+/* 广播延时应答：100ms + 本机ID×2ms，多机错开避免半双工撞车；新帧到达则作废未发出的应答 */
+#define BCAST_REPLY_BASE_MS  100U
+#define BCAST_REPLY_ID_MS      2U
 
 /* 应答状态码 */
 #define BIN_ST_OK 0U
@@ -84,6 +89,8 @@ static uint8_t s_debug_rx_quiet_ms;
 #define PARAM_VOLTAGE_MIN 0x47U
 #define PARAM_VOLTAGE_MAX 0x48U
 #define PARAM_MIN_START_TORQUE 0x49U
+#define PARAM_LOAD_RATIO 0x4AU    /* 负载惯量比×10，0=扰动前馈关闭 */
+#define PARAM_LOAD_LEARN 0x4BU    /* 位置负载(重力)自学习：1=开 0=关 */
 #define PARAM_MOTION_REQUEST 0x80U
 #define PARAM_MOTION_ACTION 0x81U
 #define PARAM_TORQUE_MODE 0x82U
@@ -97,6 +104,8 @@ static uint8_t s_debug_rx_quiet_ms;
 #define PARAM_RT_HOLD_KP 0x8AU
 #define PARAM_RT_RESOLUTION 0x8EU
 #define PARAM_RT_HOLD_KI 0x8FU
+#define PARAM_RT_LOAD_RATIO 0x90U
+#define PARAM_RT_LOAD_LEARN 0x91U
 #define PARAM_CAL_ACTION 0x8BU
 #define PARAM_SYSTEM_ACTION 0x8CU
 #define PARAM_WORK_STATE 0xC0U
@@ -119,6 +128,46 @@ static uint8_t s_text[TEXT_FRAME_MAX], s_text_len;
 static uint8_t s_reply[TEXT_REPLY_MAX], s_reply_len;
 static uint8_t s_bin[BIN_FRAME_MAX], s_bin_len;
 static uint8_t s_wire, s_wire_idle_ms;
+static uint8_t s_reply_bcast;   /* 1=当前帧是广播，应答改为延时发送 */
+static uint8_t s_bin_bcast;
+static uint8_t s_bcast_baud;    /* 广播引起的波特率切换，等延时应答发完再生效 */
+
+static struct {
+    uint8_t  pending;
+    uint16_t wait_ms;
+    uint8_t  len;
+    uint8_t  frame[TEXT_REPLY_MAX];
+} s_bcast;
+
+static void Bcast_Cancel(void)
+{
+    s_bcast.pending = 0U;
+}
+
+/* 广播应答错开 100+id*2 ms 再发；帧内容当场拼好 */
+static void Bcast_Defer(const uint8_t *f, uint8_t len)
+{
+    if (len == 0U || len > sizeof(s_bcast.frame)) return;
+    memcpy(s_bcast.frame, f, len);
+    s_bcast.len     = len;
+    s_bcast.wait_ms = (uint16_t)(BCAST_REPLY_BASE_MS
+                               + (uint16_t)g_config.servo_id * BCAST_REPLY_ID_MS);
+    s_bcast.pending = 1U;
+}
+
+/* 1ms一拍：到期发出；发完再处理延迟波特率 */
+static void Bcast_Tick(void)
+{
+    if (!s_bcast.pending) return;
+    if (s_bcast.wait_ms > 1U) { s_bcast.wait_ms--; return; }
+    s_bcast.pending = 0U;
+    (void)D_UART1_Tx_Write(s_bcast.frame, s_bcast.len);
+    if (s_bcast_baud)
+    {
+        s_bcast_baud = 0U;
+        D_UART_SetBaud_Deferred(A_Config_Baudrate());
+    }
+}
 
 /* ============================== 明文协议 ============================== */
 
@@ -174,6 +223,7 @@ static void Reply_Begin(void)
 static void Reply_Send(void)
 {
     Reply_Char('!');
+    if (s_reply_bcast) { Bcast_Defer(s_reply, s_reply_len); return; }
     (void)D_UART1_Tx_Write(s_reply, s_reply_len);   /* 队列放不下整帧丢弃 */
 }
 
@@ -237,16 +287,18 @@ static void Text_Execute(uint8_t code, uint16_t arg)
     case T_CSD: ok = A_Servo_SaveStartup(); break;
     case T_CSM_SET: g_config.boot_mode = (uint8_t)arg; A_Config_MarkDirty(); break;
     case T_BD_SET:  g_config.baud_code = (uint8_t)arg; A_Config_MarkDirty(); break;
-    case T_CLE0: case T_CLE: /* CLE0仅保留ID；CLE全部恢复；二者波特率均恢复默认 */
-        A_Config_Default((uint8_t)(code == T_CLE0));
-        A_Servo_ApplyConfig();
+    case T_CLE0: case T_CLE: /* CLE0仅保留ID；CLE全部恢复；二者波特率均恢复默认，并按上电动作走一次 */
+        A_Servo_FactoryReset((uint8_t)(code == T_CLE0));
         break;
     default: return;
     }
     if (!ok) return;
     Reply_Begin(); Reply_Text("OK"); Reply_Send();
     if (code == T_BD_SET || code == T_CLE0 || code == T_CLE)
-        D_UART_SetBaud_Deferred(A_Config_Baudrate());   /* 先用旧波特率把OK发完再切 */
+    {
+        if (s_reply_bcast) s_bcast_baud = 1U;
+        else D_UART_SetBaud_Deferred(A_Config_Baudrate());   /* 先用旧波特率把OK发完再切 */
+    }
 }
 
 /* 校验帧结构与目标ID，解码执行。参数越界的设置指令整条不认 */
@@ -254,14 +306,14 @@ static void Text_Frame(const uint8_t *f, uint8_t len)
 {
     const uint8_t *body = f + 5;
     uint8_t  n = (uint8_t)(len - 6U), i, k;
-    uint16_t id, pwm, arg = 0U;
+    uint16_t id, pwm, turns, arg = 0U;
 
     if (len < 7U || f[0] != '#' || f[4] != 'P' || f[len - 1U] != '!' || !Text_Digits(f + 1, 3U, &id)
         || (id != g_config.servo_id && id != 255U)) return;   /* 255=广播 */
-    uint16_t turns;
     if (n == 11U && body[4] == 'N' && body[6] == 'T'
         && Text_Digits(body, 4U, &pwm) && Text_Digits(body + 5, 1U, &turns)
-        && Text_Digits(body + 7, 4U, &arg)) {
+        && Text_Digits(body + 7, 4U, &arg))
+    {   /* nnnnNnTnnnn：目标脉宽 + 整圈数 + 每圈时间(ms)，磁编码整圈/多圈 */
         (void)A_Servo_SubmitTurns(pwm, (uint8_t)turns, arg);
         return;
     }
@@ -284,7 +336,9 @@ static void Text_Frame(const uint8_t *f, uint8_t len)
         case T_CSM_SET: if (arg < SERVO_BOOT_GOTO_START || arg > SERVO_BOOT_RELEASE) return; break;
         default: break;
         }
+        s_reply_bcast = (uint8_t)(id == 255U);
         Text_Execute(k_text[i].code, arg);
+        s_reply_bcast = 0U;
         return;
     }
 }
@@ -310,7 +364,7 @@ static uint8_t Bin_Crc8(const uint8_t *p, uint8_t len)
     return crc;
 }
 
-/* 应答：DATA = 状态码 + data */
+/* 应答：DATA = 状态码 + data。广播帧延时发送(100+id*2 ms) */
 static void Bin_Reply(uint8_t cmd, uint8_t status, const uint8_t *data, uint8_t len)
 {
     uint8_t f[BIN_FRAME_MAX];
@@ -320,6 +374,7 @@ static void Bin_Reply(uint8_t cmd, uint8_t status, const uint8_t *data, uint8_t 
     memcpy(f + 6, data, len);
     f[6U + len] = Bin_Crc8(f + 2, (uint8_t)(4U + len));
     f[7U + len] = BIN_TAIL1; f[8U + len] = BIN_TAIL2;
+    if (s_bin_bcast) { Bcast_Defer(f, (uint8_t)(9U + len)); return; }
     (void)D_UART1_Tx_Write(f, (uint8_t)(9U + len));
 }
 
@@ -342,8 +397,8 @@ static void Bin_Telemetry(uint8_t *out)
     Bin_Put16(out + 14, p.voltage_cv);
 }
 
-/* 普通参数表：取值范围、Flash/SRAM 两份存放、写后是否让轨迹参数生效，读写共用。
- * 有联动或要调用其它模块的参数在 Bin_ParamWrite 的 switch 里写，表里只用它们的读取 */
+/* 普通参数表：范围/Flash·SRAM双份/写后生效标志，读写共用；
+ * 有联动的参数在 Bin_ParamWrite 的 switch 里处理，表里只放读取 */
 #define PF_NONE 0xFFFFU   /* 没有这一份存放 */
 #define PF_TRAJ 0x01U     /* 写后让轨迹参数生效 */
 #define PF_BAUD 0x02U     /* 写后切波特率 */
@@ -387,6 +442,8 @@ static const struct {
     { PARAM_VOLTAGE_MIN,        1, 0, PCFG(voltage_min_dv),        PF_NONE, 0U, 0U },
     { PARAM_VOLTAGE_MAX,        1, 0, PCFG(voltage_max_dv),        PF_NONE, 0U, 0U },
     { PARAM_MIN_START_TORQUE,   2, PF_TMAX, PCFG(min_start_torque_ckgcm), PRT(min_start_torque_ckgcm), 0U, 0U },
+    { PARAM_LOAD_RATIO,         1, 0, PCFG(load_ratio_x10),        PRT(load_ratio_x10), 0U, CFG_LOAD_RATIO_MAX_X10 },
+    { PARAM_LOAD_LEARN,         2, 0, PCFG(load_learn),            PRT(load_learn),     0U, 1U },
     { PARAM_TORQUE_MODE,    1, 0,       PF_NONE, PRT(torque_mode),        0U, 0U },
     { PARAM_DAMPING,        1, 0,       PF_NONE, PRT(damping_percent),    0U, 0U },
     { PARAM_RT_TORQUE_LIMIT, 2, PF_TMAX, PF_NONE, PRT(torque_limit_ckgcm), 0U, 0U },
@@ -398,6 +455,8 @@ static const struct {
     { PARAM_RT_HOLD_KP,     2, 0,       PF_NONE, PRT(hold_kp),            0U, CFG_HOLD_KP_MAX },
     { PARAM_RT_RESOLUTION, 2, 0, PF_NONE, PRT(position_resolution_cdeg), CFG_RESOLUTION_MIN_CDEG, CFG_RESOLUTION_MAX_CDEG },
     { PARAM_RT_HOLD_KI,     2, 0,       PF_NONE, PRT(hold_ki),            0U, CFG_HOLD_KI_MAX },
+    { PARAM_RT_LOAD_RATIO,  1, 0,       PF_NONE, PRT(load_ratio_x10),     0U, CFG_LOAD_RATIO_MAX_X10 },
+    { PARAM_RT_LOAD_LEARN,  2, 0,       PF_NONE, PRT(load_learn),         0U, 1U },
 };
 
 /* 在表里找参数，返回下标，-1=不在表里 */
@@ -437,6 +496,10 @@ static uint8_t Bin_ParamRead(uint8_t id, uint8_t *out, uint8_t *out_len)
     out[0] = id;
     if (t >= 0)
         n = Bin_PutN(out + 1, Param_Load(Param_Addr(k_params[t].cfg, k_params[t].rt), k_params[t].size), k_params[t].size);
+    /* 速度/加减速报标定值(标定电压下的能力)：与用户可设上限同源，不读 IAP 区 */
+    else if (id == PARAM_HW_VMAX) n = Bin_PutN(out + 1, MOTOR_RATED_VEL_DPS, 2U);
+    else if (id == PARAM_HW_AMAX) n = Bin_PutN(out + 1, MOTOR_RATED_ACC_DPS2, 4U);
+    else if (id == PARAM_HW_DMAX) n = Bin_PutN(out + 1, MOTOR_RATED_DEC_DPS2, 4U);
     else if (id <= PARAM_HW_MIN_STEP)
     {
         if (!IAP_HwInfoRead(&hw)) return BIN_ST_FAILED;
@@ -446,9 +509,6 @@ static uint8_t Bin_ParamRead(uint8_t id, uint8_t *out, uint8_t *out_len)
         case PARAM_HW_VERSION: n = Bin_PutN(out + 1, hw.hw_version, 1U);     break;
         case PARAM_HW_VOLTAGE: n = Bin_PutN(out + 1, hw.voltage, 1U);        break;
         case PARAM_HW_TORQUE:  n = Bin_PutN(out + 1, hw.torque, 1U);         break;
-        case PARAM_HW_VMAX:    n = Bin_PutN(out + 1, hw.max_speed_dps, 2U);  break;
-        case PARAM_HW_AMAX:    n = Bin_PutN(out + 1, hw.max_accel_dps2, 4U); break;
-        case PARAM_HW_DMAX:    n = Bin_PutN(out + 1, hw.max_decel_dps2, 4U); break;
         case PARAM_HW_SMOOTH:  n = Bin_PutN(out + 1, hw.smooth_ms, 2U);      break;
         default:               n = Bin_PutN(out + 1, hw.min_step_cdeg, 2U);  break;
         }
@@ -503,10 +563,10 @@ static uint8_t Bin_ParamWrite(uint8_t id, const uint8_t *data, uint8_t len, uint
         g_config.prot_stall_act_cdeg = g_runtime_config.prot_stall_act_cdeg = (uint16_t)value;
         A_Config_MarkDirty(); return BIN_ST_OK;
     case PARAM_VOLTAGE_MIN:
-    case PARAM_VOLTAGE_MAX:   /* 上下限之间至少留回差 */
+    case PARAM_VOLTAGE_MAX:   /* 上下各留回差后仍有恢复区间 */
         if (len != 1U) return BIN_ST_LENGTH;
-        if ((id == PARAM_VOLTAGE_MIN) ? (value < PROT_VOLTAGE_CFG_MIN_DV || value + PROT_VOLTAGE_HYST_DV > g_config.voltage_max_dv)
-                                      : (value > PROT_VOLTAGE_CFG_MAX_DV || g_config.voltage_min_dv + PROT_VOLTAGE_HYST_DV > value))
+        if (!A_Protect_VoltageRangeValid(id == PARAM_VOLTAGE_MIN ? (uint16_t)value : g_config.voltage_min_dv,
+                                        id == PARAM_VOLTAGE_MAX ? (uint16_t)value : g_config.voltage_max_dv))
             return BIN_ST_VALUE;
         if (id == PARAM_VOLTAGE_MIN) g_config.voltage_min_dv = g_runtime_config.voltage_min_dv = (uint8_t)value;
         else                         g_config.voltage_max_dv = g_runtime_config.voltage_max_dv = (uint8_t)value;
@@ -518,7 +578,7 @@ static uint8_t Bin_ParamWrite(uint8_t id, const uint8_t *data, uint8_t len, uint
         else if (data[0] == 3U) A_Servo_Stop();
         else return BIN_ST_VALUE;
         return BIN_ST_OK;
-    case PARAM_MOTION_REQUEST: /* 脉宽2字节 + 时间2字节；脉宽越界(含 SMI/SMX 边界)=值非法，故障/编码器失效/行程无效=状态不允许 */
+    case PARAM_MOTION_REQUEST: /* 脉宽2B+时间2B；脉宽越界=值非法，故障/编码器失效/行程无效=状态不允许 */
         if (len != 4U) return BIN_ST_LENGTH;
         value = A_Servo_Submit(Bin_Get16(data), Bin_Get16(data + 2));
         return (value == SERVO_SUBMIT_OK) ? BIN_ST_OK : (value == SERVO_SUBMIT_VALUE) ? BIN_ST_VALUE : BIN_ST_STATE;
@@ -529,7 +589,7 @@ static uint8_t Bin_ParamWrite(uint8_t id, const uint8_t *data, uint8_t len, uint
         if (len != 1U) return BIN_ST_LENGTH;
         if (data[0] == 1U) { A_Config_ReloadRuntime(0U); A_Servo_ApplyTrajConfig(); return BIN_ST_OK; }
         if (data[0] != 2U && data[0] != 3U) return BIN_ST_VALUE;
-        A_Config_Default((uint8_t)(data[0] == 2U)); A_Servo_ApplyConfig();
+        A_Servo_FactoryReset((uint8_t)(data[0] == 2U));
         *baud_changed = 1U; /* 默认波特率在应答发完后生效 */
         return BIN_ST_OK;
     default: break;
@@ -546,7 +606,7 @@ static uint8_t Bin_ParamWrite(uint8_t id, const uint8_t *data, uint8_t len, uint
     return BIN_ST_OK;
 }
 
-/* 一帧二进制：校验、过滤ID，执行并应答(广播不应答，且只开放实时运动控制的写入) */
+/* 一帧二进制：校验、滤ID、执行应答；广播只允许实时运动控制写入，应答延时 100+id*2 ms */
 static void Bin_Frame(const uint8_t *f, uint8_t len)
 {
     uint8_t out[BIN_TELEMETRY_BYTES + 1U] = {0U}, out_len = 0U, st = BIN_ST_OK, baud = 0U;
@@ -556,6 +616,7 @@ static void Bin_Frame(const uint8_t *f, uint8_t len)
     if (len != 8U + n || f[6U + n] != BIN_TAIL1 || f[7U + n] != BIN_TAIL2 || f[5U + n] != Bin_Crc8(f + 2, (uint8_t)(3U + n))
         || (id != g_config.servo_id && id != BIN_BROADCAST) || (cmd & 0x80U)   /* 别的设备的应答帧 */
         || (id == BIN_BROADCAST && cmd != BIN_CMD_WRITE)) return;
+    s_bin_bcast = (uint8_t)(id == BIN_BROADCAST);
     switch (cmd)
     {
     case BIN_CMD_STATE:
@@ -571,11 +632,10 @@ static void Bin_Frame(const uint8_t *f, uint8_t len)
                  && data[0] != PARAM_TORQUE_MODE && data[0] != PARAM_DAMPING) st = BIN_ST_STATE;
         else st = Bin_ParamWrite(data[0], data + 1, (uint8_t)(n - 1U), &baud);
         break;
-    case BIN_CMD_RESET_KEEP:   /* 07仅保留ID；08全部恢复；二者均恢复默认波特率 */
+    case BIN_CMD_RESET_KEEP:   /* 07仅保留ID；08全部恢复；二者均恢复默认波特率，并按上电动作走一次 */
     case BIN_CMD_RESET_ALL:
         if (n != 0U) { st = BIN_ST_LENGTH; break; }
-        A_Config_Default((uint8_t)(cmd == BIN_CMD_RESET_KEEP));
-        A_Servo_ApplyConfig();
+        A_Servo_FactoryReset((uint8_t)(cmd == BIN_CMD_RESET_KEEP));
         baud = 1U;
         break;
     case BIN_CMD_RESERVED_04: case BIN_CMD_RESERVED_05: case BIN_CMD_RESERVED_06: case BIN_CMD_REBOOT:
@@ -585,8 +645,13 @@ static void Bin_Frame(const uint8_t *f, uint8_t len)
         st = BIN_ST_CMD;
         break;
     }
-    if (id != BIN_BROADCAST) Bin_Reply(cmd, st, out, (st == BIN_ST_OK) ? out_len : 0U);
-    if (st == BIN_ST_OK && baud) D_UART_SetBaud_Deferred(A_Config_Baudrate());
+    Bin_Reply(cmd, st, out, (st == BIN_ST_OK) ? out_len : 0U);
+    if (st == BIN_ST_OK && baud)
+    {
+        if (s_bin_bcast) s_bcast_baud = 1U;
+        else D_UART_SetBaud_Deferred(A_Config_Baudrate());
+    }
+    s_bin_bcast = 0U;
 }
 
 /* ============================== 收帧分流 ============================== */
@@ -622,7 +687,7 @@ static void Wire_Byte(uint8_t b)
     }
 }
 
-/* 串口任务：排空接收队列 -> 分流执行 -> 半帧超时放弃 -> 驱动收尾(切波特率等) */
+/* 串口任务：排空接收队列 -> 分流执行 -> 半帧超时放弃 -> 广播延时应答 -> 驱动收尾(切波特率等) */
 void A_Uart_Process(void)
 {
     uint8_t b, received = 0U;
@@ -630,6 +695,7 @@ void A_Uart_Process(void)
     while (D_UART1_Rx_Get(&b))
     {
         received = 1U;
+        Bcast_Cancel();   /* 总线来新数据：作废尚未发出的广播应答，避免回旧包撞新令 */
         if (!IAP_UpgradePending()) Wire_Byte(b);   /* 已应答进入升级：只清空队列，不再执行 */
     }
     if (received) s_wire_idle_ms = 0U;
@@ -641,6 +707,7 @@ void A_Uart_Process(void)
     }
     if (received) s_debug_rx_quiet_ms = 0U;
     else if (s_debug_rx_quiet_ms < 10U) s_debug_rx_quiet_ms++;
+    Bcast_Tick();
     D_UART_Service();
 }
 

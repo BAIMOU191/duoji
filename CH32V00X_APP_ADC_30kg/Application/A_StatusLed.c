@@ -1,7 +1,5 @@
-/* A_StatusLed.c —— 状态指示灯。
- * 仅读现有状态，不重读传感器、不清故障、不干预运动。
- * 面向用户保留六种灯效，故障优先：过温 > 过流 > 电源异常 > 设备异常。
- * 堵转后保持和自动脱困不单独设灯色，具体诊断仍由现有查询接口提供。
+/* A_StatusLed.c —— 状态指示灯，只读故障/工作状态，不干预运动。
+ * 故障优先：过温 > 过流 > 电源异常 > 设备异常；其余彩虹/蓝常亮。
  */
 #include "A_StatusLed.h"
 #include "A_Servo.h"
@@ -9,8 +7,7 @@
 #include "D_ws2812.h"
 #include <stdint.h>
 
-/* 50Hz刷新，每帧色阶前进5：红->黄->绿->青->蓝->紫->红，约6.12秒一轮。
- * 单帧沿用驱动约32us发送+60us锁存，不增加额外延时。 */
+/* 50Hz刷新、每帧步进5：红->黄->绿->青->蓝->紫->红，约6.12秒一轮 */
 #define STATE_LED_STEP        5U
 #define STATE_LED_CYCLE       (6U * 255U)
 
@@ -23,15 +20,14 @@ typedef enum {
     STATE_LED_STANDBY
 } StateLedMode_t;
 
-/* RGB + 半个闪烁周期的20ms拍数：0=常亮，25=慢闪(500ms亮/灭)。
- * 表项顺序对应 StateLedMode_t；正常运行的RGB由渐变算法生成。 */
+/* 每项 {R,G,B,半闪烁拍数(20ms拍,0=常亮)}；正常运行RGB由渐变生成 */
 static const uint8_t s_state_led_patterns[][4] = {
-    {  0U,   0U,   0U,  0U}, /* 正常：彩虹渐变 */
+    {  0U,   0U,   0U,  0U}, /* 正常：彩虹 */
     {255U,  80U,   0U,  0U}, /* 过温：橙常亮 */
     {255U,   0U, 255U,  0U}, /* 过流：紫常亮 */
-    {255U,   0U,   0U, 25U}, /* 电源异常(过压/欠压/电压无效)：红慢闪 */
-    {  0U, 255U,   0U, 25U}, /* 设备异常(位置反馈/未分类故障)：绿慢闪 */
-    {  0U,   0U, 255U,  0U}  /* 暂停或卸力：蓝常亮 */
+    {255U,   0U,   0U, 25U}, /* 电源异常：红慢闪 */
+    {  0U, 255U,   0U, 25U}, /* 设备异常：绿慢闪 */
+    {  0U,   0U, 255U,  0U}  /* 暂停/卸力：蓝常亮 */
 };
 
 static StateLedMode_t StateLed_Select(void)
@@ -60,7 +56,7 @@ static void StateLed_Rainbow(uint16_t phase, uint8_t *r, uint8_t *g, uint8_t *b)
 {
     uint8_t level = (uint8_t)(phase % 255U);
 
-    /* 六段线性插值，全整数运算；首尾衔接，不插入熄灭帧。 */
+    /* 六段线性插值全整数，首尾衔接无熄灭帧 */
     switch (phase / 255U)
     {
     case 0U: *r = 255U; *g = level; break;
@@ -86,7 +82,7 @@ void A_StatusLed_Task(void)
     if ((uint8_t)mode != previous_mode)
     {
         previous_mode = (uint8_t)mode;
-        blink_tick = 0U; /* 切换后从亮相开始，不等待旧模式的闪烁周期结束。 */
+        blink_tick = 0U; /* 切换后从亮相开始 */
     }
     if (mode == STATE_LED_RAINBOW)
     {

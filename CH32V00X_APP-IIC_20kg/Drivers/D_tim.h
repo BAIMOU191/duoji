@@ -3,10 +3,8 @@
 
 #include "ch32v00X.h"
 
-/* 定时器：TIM1、TIM2 都是 48MHz / 2400 = 20kHz 向上计数，TIM2 由 TIM1 更新复位，两者计数同相。
- *   TIM1_CH1 -> PD2  电机PWM一路         TIM1_CH2 <- PA1  舵机PWM输入捕获      TIM1更新中断：捕获时间戳、1ms时基
- *   TIM2_CH2 -> PD3  电机PWM另一路       TIM2_CH4 不出引脚：每周期一次ADC触发(OC4REF上升沿经TRGO)
- * 比较值都预装载，在周期边界同时生效；占空比和电流采样点由 D_motor 设置。 */
+/* 定时器：TIM1/TIM2 均 48MHz/2400=20kHz 向上计数，TIM2 由 TIM1 更新复位，计数同相；比较值预装载，周期边界同时生效。
+ * TIM1_CH1 -> PD2、TIM2_CH2 -> PD3 电机PWM；TIM1_CH2 <- PA1 舵机捕获；TIM2_CH4 不出引脚，经TRGO每周期触发一次ADC */
 #define TIM_PWM_RESOLUTION  2400                      /* PWM周期计数 */
 #define TIM_TRIG_PARK       (TIM_PWM_RESOLUTION / 2)  /* ADC触发停放点：周期中间，电流不可测时采零点 */
 

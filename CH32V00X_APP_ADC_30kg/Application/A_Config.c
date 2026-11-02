@@ -14,7 +14,7 @@ static const uint8_t k_version[3] = {
     SERVO_VERSION_MAJOR, SERVO_VERSION_MINOR, SERVO_VERSION_PATCH
 };
 
-/* 设置与上报共用同一硬件扭矩来源，防止型号信息与固件默认值不一致。 */
+/* 设置与上报共用硬件扭矩来源，防止型号信息与固件默认值不一致。 */
 uint16_t A_Config_TorqueMax(void)
 {
     IAP_HwInfo_t hw;
@@ -32,9 +32,9 @@ typedef char guard_config_tail_padding
 typedef char guard_config_exceeds_flash_payload
     [(sizeof(Config_t) <= CONFIG_PAYLOAD_MAX) ? 1 : -1];
 
-/* 固件镜像指纹：对整个固件镜像(向量表、代码、常量、.data 初值)做 FNV-1a 散列。 */
+/* 固件镜像指纹：对从地址0起的镜像做 FNV-1a 散列。 */
 #ifndef CONFIG_IMAGE_TAG
-extern const uint8_t _data_lma[], _data_vma[], _edata[]; /* 链接脚本：.data 初值在 flash 里的位置与长度 */
+extern const uint8_t _data_lma[], _data_vma[], _edata[]; /* 链接脚本：.data 初值位置与长度 */
 
 static uint32_t Config_ImageTag(void)
 {
@@ -49,9 +49,9 @@ static uint32_t Config_ImageTag(void)
 #define CONFIG_IMAGE_TAG() Config_ImageTag()
 #endif
 
-static uint32_t s_image_tag;           /** 当前固件的镜像指纹，A_Config_Init 里算一次 */
-static uint8_t  s_dirty;               /** 1=内存里的参数比Flash新，待保存 */
-static volatile uint8_t *s_save_event; /** 指向保存任务的就绪标志，置1即触发调度 */
+static uint32_t s_image_tag;           /** 当前固件镜像指纹 */
+static uint8_t  s_dirty;               /** 1=内存比Flash新，待保存 */
+static volatile uint8_t *s_save_event; /** 保存任务就绪标志，置1触发调度 */
 
 /* 把出厂值填进 g_config，不登记保存 */
 static void Config_FillDefaults(void)
@@ -62,7 +62,7 @@ static void Config_FillDefaults(void)
     g_config.boot_mode            = SERVO_BOOT_GOTO_START;
     g_config.torque_limit_ckgcm         = A_Config_TorqueMax();
     g_config.startup_pwm          = SERVO_PWM_MID;
-    g_config.pulse_lo             = SERVO_PWM_MIN;     /* 脉冲边界回到整个协议量程 */
+    g_config.pulse_lo             = SERVO_PWM_MIN;     /* 脉冲边界回到协议量程 */
     g_config.pulse_hi             = SERVO_PWM_MAX;
     g_config.traj_amax_dps2       = CFG_DEF_AMAX_DPS2;
     g_config.traj_dmax_dps2       = CFG_DEF_DMAX_DPS2;
@@ -76,12 +76,14 @@ static void Config_FillDefaults(void)
     g_config.prot_stall_act_cdeg  = PROT_STALL_ACT_DEFAULT_CDEG;
     g_config.prot_stall_trip      = PROT_STALL_TRIP_DEFAULT;
     g_config.hold_kp              = CFG_DEF_HOLD_KP;
+    g_config.load_ratio_x10       = CFG_DEF_LOAD_RATIO_X10;
+    g_config.load_learn           = CFG_DEF_LOAD_LEARN;
     g_config.hold_ki              = CFG_DEF_HOLD_KI;
     g_config.position_resolution_cdeg = CFG_DEF_RESOLUTION_CDEG;
     g_config.protect_enable       = PROT_ENABLE_DEFAULT;
     g_config.voltage_min_dv       = PROT_VOLTAGE_MIN_DEFAULT_DV;
     g_config.voltage_max_dv       = PROT_VOLTAGE_MAX_DEFAULT_DV;
-    g_config.image_tag            = s_image_tag;       /* 出厂值属于当前这份固件 */
+    g_config.image_tag            = s_image_tag;       /* 出厂值属于当前固件 */
 }
 
 void A_Config_ReloadRuntime(uint8_t reset_transient)
@@ -94,7 +96,7 @@ void A_Config_ReloadRuntime(uint8_t reset_transient)
     COPY(prot_temp_limit_dC) COPY(prot_temp_time_ms)
     COPY(prot_stall_act_cdeg) COPY(prot_stall_trip)
     COPY(hold_kp) COPY(hold_ki) COPY(protect_enable)
-    COPY(position_resolution_cdeg)
+    COPY(position_resolution_cdeg) COPY(load_ratio_x10) COPY(load_learn)
     COPY(voltage_min_dv) COPY(voltage_max_dv) COPY(min_start_torque_ckgcm)
 #undef COPY
     if (reset_transient)
@@ -104,8 +106,8 @@ void A_Config_ReloadRuntime(uint8_t reset_transient)
     }
 }
 
-/* 用户恢复默认：keep_id=1仅保留ID，=0连ID也恢复；波特率一律回出厂值。
- * IAP换固件保留ID与波特率的规则独立在A_Config_Init中处理。 */
+/* 用户恢复默认：keep_id=1仅保留ID；波特率一律回出厂值。
+ * IAP换固件保留ID与波特率的规则在A_Config_Init处理。 */
 void A_Config_Default(uint8_t keep_id)
 {
     uint8_t id = g_config.servo_id;
@@ -117,9 +119,8 @@ void A_Config_Default(uint8_t keep_id)
     A_Config_MarkDirty();
 }
 
-/* 全部取值规则只写这一处：非法字段或字段组修回出厂值(调用时 g_config 里放的是出厂值)；
- * 合法的配置原样不动，所以"修完与原来不同"就是"原来有非法字段"。CRC正确不代表内容有意义。
- * 相互关联的坐标和限位必须一起修复，避免非法行程保留了不匹配的标定锚点。 */
+/* 非法字段修回出厂值(g_config此时是出厂值)；"修完与原来不同"即原配置非法。
+ * 坐标与限位必须一起修，避免不匹配的标定锚点残留。 */
 static void Config_Repair(Config_t *c)
 {
 #define REPAIR(field, valid) do { if (!(valid)) c->field = g_config.field; } while (0)
@@ -154,6 +155,8 @@ static void Config_Repair(Config_t *c)
     REPAIR(prot_stall_trip, c->prot_stall_trip >= PROT_STALL_TRIP_MIN && c->prot_stall_trip <= PROT_STALL_TRIP_MAX);
     REPAIR(hold_kp, c->hold_kp <= CFG_HOLD_KP_MAX);
     REPAIR(hold_ki, c->hold_ki <= CFG_HOLD_KI_MAX);
+    REPAIR(load_ratio_x10, c->load_ratio_x10 <= CFG_LOAD_RATIO_MAX_X10);
+    REPAIR(load_learn, c->load_learn <= 1U);
     REPAIR(protect_enable, (c->protect_enable & (uint8_t)~PROT_ENABLE_IMPLEMENTED) == 0U);
     REPAIR(position_resolution_cdeg, c->position_resolution_cdeg >= CFG_RESOLUTION_MIN_CDEG
                                      && c->position_resolution_cdeg <= CFG_RESOLUTION_MAX_CDEG);
@@ -176,13 +179,13 @@ void A_Config_Init(void)
     stored = g_config;
     loaded = FLASH_Config_Load(&stored, sizeof(stored), stored_version) == sizeof(stored);
 
-    /* 配置版本与镜像指纹一致时沿用保存参数。 */
+    /* 版本与镜像指纹一致时沿用保存参数 */
     if (loaded && memcmp(stored_version, k_version, sizeof(k_version)) == 0
         && stored.image_tag == s_image_tag)
     {
-        Config_t raw;                    /* 修复前的原样(连填充字节)，比较出有没有非法字段 */
+        Config_t raw;                    /* 修复前原样，比较有无非法字段 */
         memcpy(&raw, &stored, sizeof(raw));
-        Config_Repair(&stored);          /* 此时 g_config 仍是出厂值，修复从它取 */
+        Config_Repair(&stored);          /* 此时 g_config 仍是出厂值 */
         if (memcmp(&raw, &stored, sizeof(raw)) != 0) s_dirty = 1U;
         g_config = stored;
     }
@@ -213,30 +216,29 @@ void A_Config_MarkDirty(void)
     if (s_save_event != 0) *s_save_event = 1U;
 }
 
-/* 绑定保存任务的就绪标志；初始化阶段攒下的dirty在此补触发 */
+/* 绑定保存任务就绪标志；初始化阶段攒下的dirty在此补触发 */
 void A_Config_BindSaveEvent(volatile uint8_t *event)
 {
     s_save_event = event;
     if (s_dirty && s_save_event != 0) *s_save_event = 1U;
 }
 
-/* 保存任务：参数变脏时写Flash，失败保持dirty下次重试 */
+/* 保存任务：变脏时写Flash，失败保持dirty下次重试 */
 uint8_t A_Config_SaveTask(void)
 {
     if (s_dirty && FLASH_Config_Save(&g_config, sizeof(g_config), k_version))
     {
         s_dirty = 0U;
     }
-    /* 调度器在调用前已消费事件；写入失败必须重新安排低优先级重试，
-     * 否则脏配置将一直得不到保存。 */
+    /* 写入失败必须重新安排低优先级重试，否则脏配置一直得不到保存 */
     if (s_dirty && s_save_event != 0) *s_save_event = 1U;
     return (uint8_t)!s_dirty;
 }
 
-/* 把配置里的波特率编号换算成实际波特率，编号越界时返回115200 */
+/* 波特率编号换算实际波特率，越界时返回115200 */
 uint32_t A_Config_Baudrate(void)
 {
-    /* 下标 = baud_code - 1，与协议的 BD1~BD8 一一对应 */
+    /* 下标 = baud_code - 1，对应协议 BD1~BD8 */
     static const uint32_t baud[] = {
         9600U, 19200U, 38400U, 57600U,
         115200U, 128000U, 256000U, 1000000U

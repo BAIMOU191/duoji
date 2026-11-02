@@ -2,9 +2,8 @@
 
 #include "D_opa.h"
 
-/* 初始化OPA1：8x增益并开PGA基准VB=VDD/4。
- * 检流压降只有几毫伏，VB关闭时近地端不线性(实测读数仅真值36%)；VB带来的零点台阶由上电零点标定扣除。
- * 不要用32x增益(已不线性)。 */
+/* 初始化OPA1：8x增益并开PGA基准VB=VDD/4。检流压降仅几毫伏，VB关闭时近地端不线性，
+ * 零点台阶由上电零点标定扣除；不要用32x增益(会不线性)。 */
 void D_OPA1_Init(void)
 {
     GPIO_InitTypeDef GPIO_InitStructure = {0};

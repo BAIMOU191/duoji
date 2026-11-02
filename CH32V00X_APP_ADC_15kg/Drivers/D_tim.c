@@ -2,8 +2,7 @@
 
 #include "D_tim.h"
 
-/* 输入捕获(48MHz计数)：脉宽 500~2500us，两端各放宽50us(带内夹回量程，信号源满杆常略超端点；带外整帧丢弃)，
- * 周期 20ms±2ms 才认 */
+/* 输入捕获(48MHz)：脉宽500~2500us两端各放宽50us，带内夹回量程、带外整帧丢弃；周期20ms±2ms才认 */
 #define TICKS_US        48U
 #define PULSE_MIN_US    500U
 #define PULSE_MAX_US    2500U
@@ -190,7 +189,7 @@ void D_TIM1_CC_ISR(void)
 
     cap = TIM_GetCapture2(TIM1);
     ts  = s_ovf * TIM_PWM_RESOLUTION + cap;
-    if ((flags & TIM_IT_Update) && cap < TIM_PWM_RESOLUTION / 2)   /* 溢出还没进中断计数 */
+    if ((flags & TIM_IT_Update) && cap < TIM_PWM_RESOLUTION / 2)   /* 溢出尚未计数，补一个周期 */
         ts += TIM_PWM_RESOLUTION;
     ticks = ts - s_ic.rise;
 

@@ -66,6 +66,8 @@ uint8_t  A_Servo_SetTravelEnd(uint8_t is_min);          /* AMI/AMX：行程一�
 uint8_t  A_Servo_SetPulseLimit(uint8_t is_min);         /* SMI/SMX：当前位置的脉宽设为可响应边界 */
 uint8_t  A_Servo_SaveStartup(void);                     /* 当前位置存为上电目标 */
 void     A_Servo_ApplyConfig(void);                     /* 让模式/校准参数立即生效 */
+void     A_Servo_FactoryReset(uint8_t keep_id);         /* 恢复出厂并复刻上电动作；非0仅保留ID */
+uint8_t  A_Servo_CanSave(void);                         /* 1=当前无运动，可安全写Flash(擦写冻结CPU数ms) */
 void     A_Servo_ApplyTrajConfig(void);                 /* V/A/D、平滑时间、最短运动时间：下一次规划生效 */
 uint8_t  A_Servo_TorqueOn(void);
 uint8_t  A_Servo_GetWorkState(void);                    /* ServoWorkState_t */
@@ -74,4 +76,4 @@ void     A_Servo_GetDebugTelemetry(ServoDebugTelemetry_t *out); /* 只读控制�
 uint16_t A_Servo_GetPositionPwm(void);                  /* 重读位置并换算为协议脉宽 */
 void     A_Servo_SetOutputLimit(int16_t limit);         /* 保护模块设PWM上限 */
 void     A_Servo_SampleMotion(ServoMotion_t *out);      /* 堵转采样，并把区间基准推到本拍 */
-void     A_Servo_HoldHere(void);                        /* 堵转：放弃当前动作就地保持 */
+void     A_Servo_HoldHere(void);                        /* 堵转：当前角度为目标，直接进保持；同普通到位，无积分托举力，限流0.1A */

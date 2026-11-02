@@ -1,17 +1,8 @@
-/* A_Debug.c —— VOFA+ FireWater 诊断输出: servo:ch0,ch1,...,ch17\r\n
- * 通道顺序(整数，避免浮点printf)：
- *  0 目标位置(cdeg)       1 轨迹参考位置(cdeg)  2 实测位置(cdeg)
- *  3 参考速度(cdeg/s)     4 观测器速度(cdeg/s)  5 实际PWM(物理方向，±2400)
- *  6 前馈(mV)            7 反馈(mV)            8 积分(mV)
- *  9 起转补偿(mV)       10 控制输出(mV)       11 扰动估计(mV)
- * 12 输出饱和(0/1)      13 控制器状态(0运动 1收尾 2保持 3没闭环)  14 有效标志(flags)
- * 15 保护故障位掩码     16 绕组电流(mA，与PWM同号=在出力；flags bit3=0 时测不到)
- * 17 电位器ADC原始均值(Q4计数，未换算)；卸力时 2/17 照常刷新，可手转扫描
- * 位置/速度以角度增大为正；PWM、电流以硬件方向为正，比较符号时注意MOTOR_SIGN。
- * bit0=闭环本拍更新，bit1=最近位置采样有效，bit2=观测器粘住预测，bit3=电流本块测得到。
- * USART1/PC0使用配置波特率(默认115200，8N1)，仅串口输入模式可输出；
- * PWM输入时驱动已释放共线PC0，本任务不会重新接管。半双工发送期间收不到命令，
- * 高频命令调试可增大周期或关闭打印。禁止直接printf，以免阻塞1ms控制任务。
+/* A_Debug.c —— VOFA+ FireWater 诊断输出帧 servo:ch0..ch17(整数)。
+ * 通道: 0目标 1参考 2实测位置(cdeg); 3参考 4观测速度(cdeg/s); 5 PWM(±2400);
+ * 6前馈 7反馈 8积分 9起转 10输出 11扰动(mV); 12饱和 13状态 14flags 15故障;
+ * 16电流(mA); 17电位器ADC均值(Q4计数)。位置/速度角增大为正; PWM/电流硬件方向为正。
+ * 仅串口输入模式可输出；半双工发送期间收不到命令；禁止直接printf以免阻塞1ms控制。
  */
 #include "A_Debug.h"
 
@@ -40,7 +31,7 @@ void A_Debug_Task(void)
         (int)data.out_mv, (long)data.dist_mv, (unsigned)data.saturated,
         (unsigned)data.state, (unsigned)data.flags, (unsigned)A_Protect_Fault(), (int)data.cur_ma,
         (unsigned)data.pot_q4);
-    /* 环形队列最多容纳127字节；超长/队列不足丢整帧，不能发截断的CSV。 */
+    /* 队列仅127字节；超长丢整帧，不发截断CSV */
     if (len > 0 && (unsigned)len < sizeof(frame))
         (void)D_UART1_Tx_Write((const uint8_t *)frame, (uint8_t)len);
 }

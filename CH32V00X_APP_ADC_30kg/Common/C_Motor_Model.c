@@ -1,4 +1,4 @@
-/* C_Motor_Model.c 电压域电机模型；除法只在初始化时做 */
+/* 电压域电机模型：除法只在初始化时做 */
 #include "C_Motor_Model.h"
 #include "C_Fixed.h"
 
