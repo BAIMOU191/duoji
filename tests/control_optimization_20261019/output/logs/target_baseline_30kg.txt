@@ -1,7 +1,0 @@
-baseline_30kg normal   40412	    128	   3444	  43984	   abd0	C:\Users\Admin\Desktop\duoji\tests\control_optimization_20261019\output\target_builds\baseline_30kg\CH32V00X_normal.elf
-baseline_30kg calibration   43156	    212	   4932	  48300	   bcac	C:\Users\Admin\Desktop\duoji\tests\control_optimization_20261019\output\target_builds\baseline_30kg\CH32V00X_calibration.elf
-Compiler diagnostics: baseline_30kg C:\Users\Admin\Desktop\duoji\tests\control_optimization_20261019\source\target\baseline_30kg\SRC\Debug\debug.c: In function '_write':
-C:\Users\Admin\Desktop\duoji\tests\control_optimization_20261019\source\target\baseline_30kg\SRC\Debug\debug.c:287:16: warning: unused parameter 'fd' [-Wunused-parameter]
-  287 | int _write(int fd, char *buf, int size)
-      |            ~~~~^~
-

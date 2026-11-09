@@ -6,38 +6,33 @@
 
 /* A_Protect.h —— 保护与功率限制，一个10ms任务内分频。 */
 
-/* 扭矩统一用0.01 kgf·cm；换算参数实测后在此调整。 */
-#define TORQUE_IDLE_CURRENT_MA   100U  /* 空载损耗电流(mA) */
-#define TORQUE_STALL_CURRENT_MA 2000U  /* 堵转参考电流(mA) */
-#define TORQUE_INVALID        0xFFFFU /* 无有效采样；不允许作为设置值 */
-#define TORQUE_SCALE            100U  /* 1 kgf·cm=100个协议单位 */
+/* 扭矩统一用百分比(0-100)，分母是额定堵转电流：100% 就是额定堵转电流对应的输出。
+ * 不引入 kgf·cm 换算系数，也不扣减空载电流（与 Dynamixel Max Torque、Feetech Torque Limit 同法）。
+ * 电流超过额定堵转电流时按 100% 上报，不做线性外推；过流另有过流保护与原始电流上报。 */
+#define TORQUE_STALL_CURRENT_MA 2000U  /* 额定堵转电流(mA)，百分比分母，也是满PWM对应的电流 */
+#define TORQUE_MAX_PERCENT        100U  /* 扭矩百分比满量程，也是可设置上限 */
+#define TORQUE_INVALID        0xFFFFU  /* 无有效采样；不允许作为设置值 */
 
-_Static_assert(TORQUE_STALL_CURRENT_MA > TORQUE_IDLE_CURRENT_MA
-               && TORQUE_STALL_CURRENT_MA <= UINT16_MAX,
-               "堵转电流必须大于空载电流，且不超过电流字段量程");
+_Static_assert(TORQUE_STALL_CURRENT_MA > 0U && TORQUE_STALL_CURRENT_MA <= UINT16_MAX,
+               "额定堵转电流必须落在电流字段量程内");
 
-/* 电流估算扭矩，四舍五入；超参考电流继续线性，仅在字段量程处饱和。 */
-static inline uint16_t A_Torque_Estimate(uint16_t current_ma, uint8_t valid,
-                                      uint16_t rated_ckgcm)
+/* 电流换算扭矩百分比，四舍五入；超额定堵转电流钳位到满量程。 */
+static inline uint16_t A_Torque_Estimate(uint16_t current_ma, uint8_t valid)
 {
-    const uint32_t span = TORQUE_STALL_CURRENT_MA - TORQUE_IDLE_CURRENT_MA;
-    uint32_t torque;
-    if (!valid || rated_ckgcm == 0U) return TORQUE_INVALID;
-    if (current_ma <= TORQUE_IDLE_CURRENT_MA) return 0U;
-    torque = ((uint32_t)rated_ckgcm * (current_ma - TORQUE_IDLE_CURRENT_MA)
-             + span / 2U) / span;
-    return (uint16_t)((torque >= TORQUE_INVALID) ? TORQUE_INVALID - 1U : torque);
+    uint32_t pct;
+    if (!valid) return TORQUE_INVALID;
+    pct = ((uint32_t)current_ma * TORQUE_MAX_PERCENT
+           + TORQUE_STALL_CURRENT_MA / 2U) / TORQUE_STALL_CURRENT_MA;
+    return (uint16_t)((pct > TORQUE_MAX_PERCENT) ? TORQUE_MAX_PERCENT : pct);
 }
 
-/* 目标扭矩反算限流值；零扭矩禁止驱动，不能反算为空载电流后继续供电。 */
-static inline uint16_t A_Torque_CurrentLimit(uint16_t torque_ckgcm,
-                                          uint16_t rated_ckgcm)
+/* 目标扭矩百分比反算限流值；0%禁止驱动，直接返回0而不是留一段电流继续供电。 */
+static inline uint16_t A_Torque_CurrentLimit(uint16_t torque_pct)
 {
-    const uint32_t span = TORQUE_STALL_CURRENT_MA - TORQUE_IDLE_CURRENT_MA;
-    if (torque_ckgcm == 0U || rated_ckgcm == 0U) return 0U;
-    if (torque_ckgcm > rated_ckgcm) torque_ckgcm = rated_ckgcm;
-    return (uint16_t)(TORQUE_IDLE_CURRENT_MA
-           + ((uint32_t)torque_ckgcm * span + rated_ckgcm / 2U) / rated_ckgcm);
+    if (torque_pct == 0U) return 0U;
+    if (torque_pct > TORQUE_MAX_PERCENT) torque_pct = TORQUE_MAX_PERCENT;
+    return (uint16_t)(((uint32_t)torque_pct * TORQUE_STALL_CURRENT_MA
+                       + TORQUE_MAX_PERCENT / 2U) / TORQUE_MAX_PERCENT);
 }
 
 #define PROT_TEMP_SAMPLE_MS       250U  /** 温度检测周期(ms) */
@@ -113,8 +108,8 @@ static inline uint8_t A_Protect_VoltageRangeValid(uint16_t lo, uint16_t hi)
 
 void    A_Protect_Init(void);                 /* 须在电机输出入口初始化后调用 */
 void    A_Protect_Task(void);                 /* 10ms任务入口 */
-uint8_t A_Protect_SetTorque(uint16_t torque_ckgcm); /* 设扭矩上限并落盘，0.01 kgf·cm */
-uint16_t A_Protect_GetTorque(void);          /* 读已生效扭矩上限，0.01 kgf·cm */
+uint8_t A_Protect_SetTorque(uint16_t torque_pct); /* 设扭矩上限并落盘，百分比0-100 */
+uint16_t A_Protect_GetTorque(void);          /* 读已生效扭矩上限，百分比0-100 */
 uint16_t A_Protect_Fault(void);               /* 读故障位掩码，供诊断 */
 uint8_t A_Protect_Stalled(void);              /* 1=最近动作以堵转收场，供诊断 */
 void    A_Protect_EnterStallHold(void);       /* 堵转保持：限流到 PROT_STALL_HOLD_LIMIT_MA */

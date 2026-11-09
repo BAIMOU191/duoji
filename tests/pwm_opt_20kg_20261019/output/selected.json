@@ -1,8 +1,0 @@
-{
-  "profile": "m1_r0",
-  "checks_passed": true,
-  "matrix": 351,
-  "retarget": 486,
-  "extended": 50,
-  "pwm_cases": 40
-}

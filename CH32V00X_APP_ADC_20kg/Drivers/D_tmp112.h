@@ -9,7 +9,7 @@
 
 #define TMP112_REG_TEMP     0x00    /* 温度寄存器(只读，2字节) */
 #define TMP112_REG_CONFIG   0x01    /* 配置寄存器(读写，2字节) */
-#define TMP112_CFG_DEFAULT  0x60A0     /* 默认配置：12位，连续，1Hz */
+#define TMP112_CFG_DEFAULT  0x60A0     /* 默认配置：12位(EM=0)，连续转换；D_TMP112_Read_Temp 的 >>4 依赖 12 位模式 */
 
 uint8_t D_TMP112_Init(void);                            /* 初始化并写入默认配置 */
 int16_t D_TMP112_Read_Temp(void);                        /* 读取温度，0.1°C单位，-32768=失败 */

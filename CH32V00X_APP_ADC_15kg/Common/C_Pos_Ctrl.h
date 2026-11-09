@@ -47,6 +47,7 @@ void    C_PosCtrl_StallHold(void);              /* 堵转保持：清托举力�
 int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int32_t limit_mv, PosCtrlDbg_t *dbg);
 uint8_t C_PosCtrl_Reached(void);                /* 1=已到位并在保持 */
 uint8_t C_PosCtrl_ArrivalQualified(void);       /* 本条运动满足过到位条件；未必已进 HOLD */
+void    C_PosCtrl_SetMoveSpan(int32_t span_cdeg); /* 新指令的运动距离：运动段增益按距离在 ×1~上限 间取 */
 void    C_PosCtrl_BeginMotion(void);            /* 新规划清到位资格，保留积分及交接状态 */
 void    C_PosCtrl_SetLoadLearn(uint8_t enable); /* 位置负载自学习开关；关闭时模型并入积分后清零，输出不跳 */
 void    C_PosCtrl_LoadLearnReset(void);         /* 坐标变化(切模式/校准)：清掉学到的模型 */

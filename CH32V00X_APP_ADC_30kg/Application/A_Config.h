@@ -12,7 +12,7 @@
 #define FW_SERVO_TYPE 1U        /** 舵机类型：1=电位器ADC版 */
 #define FW_HW_VERSION 10U       /** 硬件版本 v1.0 */
 #define FW_VOLTAGE    8U        /** 电压型号 8V */
-#define FW_TORQUE     30U       /** 扭力型号 30kg */
+#define FW_TORQUE     30U       /** 扭力型号 30kg；仅作型号标识，不参与扭矩换算 */
 
 /* ==================== 2. 电机标定（标定固件打印，整节替换） ====================
  * 电压域模型 U = kv·ω + ka·α + fc·sgn(ω)，静止且 |U| < fs 时粘住；参数与母线电压无关，
@@ -142,13 +142,13 @@ typedef enum {
     SERVO_BOOT_RELEASE         /* 上电小阻力释放，首条控制指令恢复 */
 } ServoBootMode_t;
 
-/* Flash掉电保存参数：2.x起扭矩字段改为16位物理量；升级沿用重置并保留ID/波特率的规则。 */
+/* Flash掉电保存参数：扭矩字段用百分比0-100；升级沿用重置并保留ID/波特率的规则。 */
 typedef struct {
     uint8_t  servo_id;             /** 总线ID，0~254 */
     uint8_t  baud_code;            /** 1~8，默认5=115200 */
     uint8_t  servo_mode;           /** 工作模式，见ServoMode_t，1~11 */
     uint8_t  boot_mode;            /** 上电动作，见ServoBootMode_t，1~3 */
-    uint16_t torque_limit_ckgcm;   /** 扭矩上限，0.01 kgf·cm，最大为本机硬件扭矩 */
+    uint16_t torque_limit_pct;     /** 扭矩上限，百分比0-100；分母是额定堵转电流 */
     uint8_t  custom_reverse;       /** 自定义模式方向(未经 CFG_DIR_INVERT 翻转的原始值) */
     uint8_t  cal_kind;             /** ServoCalKind_t，0=未校准 */
     uint16_t startup_pwm;          /** 上电目标脉宽，500~2500 */
@@ -178,14 +178,14 @@ typedef struct {
     uint8_t  voltage_min_dv;       /** 最低工作电压，0.1V */
     uint8_t  voltage_max_dv;       /** 最高工作电压，0.1V */
     uint8_t  load_ratio_x10;       /** 负载惯量比 J负载/J电机×10，0~CFG_LOAD_RATIO_MAX_X10；0=扰动前馈关闭 */
-    uint16_t min_start_torque_ckgcm; /** 最小启动扭矩，0.01 kgf·cm；0=关闭门槛 */
+    uint16_t min_start_torque_pct;   /** 最小启动扭矩，百分比0-100；0=关闭门槛 */
     uint32_t image_tag;            /** 写入这份参数的固件镜像指纹；与当前不同=刚换过固件 */
 } Config_t;
 
 /* SRAM 实时参数：前半由Flash上电复制，运行中可改不落盘；
  * torque_mode/damping_percent 只有SRAM值，掉电恢复1/100。 */
 typedef struct {
-    uint16_t torque_limit_ckgcm;   /* 扭矩上限，0.01 kgf·cm */
+    uint16_t torque_limit_pct;     /* 扭矩上限，百分比0-100 */
     uint32_t traj_amax_dps2;
     uint32_t traj_dmax_dps2;
     uint16_t traj_vmax_dps;
@@ -202,7 +202,7 @@ typedef struct {
     uint8_t  protect_enable;
     uint8_t  voltage_min_dv;
     uint8_t  voltage_max_dv;
-    uint16_t min_start_torque_ckgcm; /* 最小启动扭矩，0.01 kgf·cm */
+    uint16_t min_start_torque_pct; /* 最小启动扭矩，百分比0-100 */
     uint8_t  torque_mode;          /** 0=自由释放，1=正常，2=自定义阻尼 */
     uint8_t  damping_percent;      /** 自定义阻尼占空比，0~100 */
     uint16_t position_resolution_cdeg;
@@ -213,7 +213,6 @@ typedef struct {
 extern Config_t        g_config;         /** Flash 参数实例，修改后须 MarkDirty */
 extern RuntimeConfig_t g_runtime_config; /** SRAM 实时参数实例，不自动保存 */
 
-uint16_t A_Config_TorqueMax(void); /* 硬件扭矩上限，0.01 kgf·cm；无有效硬件页时按FW_TORQUE */
 void     A_Config_Init(void);                             /* 上电加载；同固件非法字段修复，换固件或坏页回默认并保留ID/波特率 */
 void     A_Config_Default(uint8_t keep_id);                /* 恢复默认：非0仅保留ID；0全部恢复；波特率回115200 */
 void     A_Config_MarkDirty(void);                        /* 登记改动，唤醒保存任务，不在指令路径写Flash */

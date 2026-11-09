@@ -1,7 +1,0 @@
-CH32V00X_APP_ADC_15kg normal   41052	    128	   3460	  44640	   ae60	C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\output\target\CH32V00X_APP_ADC_15kg\CH32V00X_normal.elf
-CH32V00X_APP_ADC_15kg calibration   43180	    212	   4940	  48332	   bccc	C:\Users\Admin\Desktop\duoji\tests\control_15kg_impl_20261019\output\target\CH32V00X_APP_ADC_15kg\CH32V00X_calibration.elf
-Compiler diagnostics: CH32V00X_APP_ADC_15kg C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\SRC\Debug\debug.c: In function '_write':
-C:\Users\Admin\Desktop\duoji\CH32V00X_APP_ADC_15kg\SRC\Debug\debug.c:287:16: warning: unused parameter 'fd' [-Wunused-parameter]
-  287 | int _write(int fd, char *buf, int size)
-      |            ~~~~^~
-

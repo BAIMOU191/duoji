@@ -2,7 +2,8 @@
  *   明文   #IIIP<指令>!            见 Text_*
  *   二进制 AA 66 ID CMD LEN DATA CRC8 66 AA   见 Bin_*
  *   升级   AA 55 ...               交给 iap.c
- * 广播(ID=255/FF)的应答统一延时 100ms+本机ID×2ms 发出；新帧到达作废未发应答。 */
+ * 广播(ID=255/FF)的应答延时 100ms+本机ID×2ms 发出，总线上有别的舵机在应答就排队顺延；发给本机的新帧作废未发应答。
+ * 广播不能改ID(含会把ID清零的全部恢复出厂)，其余指令明文、二进制都允许。 */
 
 #include "A_UartCmd.h"
 #include "A_Config.h"
@@ -32,6 +33,7 @@ static uint8_t s_debug_rx_quiet_ms;
 /* 广播延时应答：100ms + 本机ID×2ms，多机错开避免半双工撞车；新帧到达则作废未发出的应答 */
 #define BCAST_REPLY_BASE_MS  100U
 #define BCAST_REPLY_ID_MS      2U
+#define BCAST_QUIET_MS         2U   /* 总线静下来这么久(再加 ID×2ms)才轮到本机发 */
 
 /* 应答状态码 */
 #define BIN_ST_OK 0U
@@ -142,6 +144,15 @@ static struct {
 static void Bcast_Cancel(void)
 {
     s_bcast.pending = 0U;
+    if (s_bcast_baud) { s_bcast_baud = 0U; D_UART_SetBaud_Deferred(A_Config_Baudrate()); }   /* 应答作废，欠着的波特率切换照常生效 */
+}
+
+/* 总线上有别人的数据(其它舵机的应答等)：等线静下来再发；静默时间按ID递增，多机依次排队不撞车 */
+static void Bcast_Yield(void)
+{
+    uint16_t quiet = (uint16_t)(BCAST_QUIET_MS + (uint16_t)g_config.servo_id * BCAST_REPLY_ID_MS);
+
+    if (s_bcast.pending && s_bcast.wait_ms < quiet) s_bcast.wait_ms = quiet;
 }
 
 /* 广播应答错开 100+id*2 ms 再发；帧内容当场拼好 */
@@ -192,7 +203,7 @@ enum { T_VER, T_ID, T_ID_SET, T_ULK, T_ULM, T_ULR, T_MOD, T_MOD_SET, T_RAD, T_DP
 static const struct { char key[5]; uint8_t digits; uint8_t code; } k_text[] = {
     {"VER", 0, T_VER}, {"ID", 0, T_ID}, {"ID", 3, T_ID_SET}, {"ULK", 0, T_ULK}, {"ULM", 0, T_ULM}, {"ULR", 0, T_ULR},
     {"MOD", 0, T_MOD}, {"MOD", 1, T_MOD_SET}, {"MOD", 2, T_MOD_SET}, {"RAD", 0, T_RAD}, {"DPT", 0, T_DPT},
-    {"DCT", 0, T_DCT}, {"DST", 0, T_DST}, {"BD", 0, T_BD}, {"BD", 1, T_BD_SET}, {"SP", 0, T_SP}, {"SP", 5, T_SP_SET},
+    {"DCT", 0, T_DCT}, {"DST", 0, T_DST}, {"BD", 0, T_BD}, {"BD", 1, T_BD_SET}, {"SP", 0, T_SP}, {"SP", 3, T_SP_SET},
     {"AMI", 0, T_AMI}, {"AMX", 0, T_AMX}, {"SMI", 0, T_SMI}, {"SMX", 0, T_SMX}, {"SCK", 0, T_SCK}, {"SCZ", 0, T_SCZ},
     {"RIV", 0, T_RIV}, {"CSD", 0, T_CSD}, {"CSM", 0, T_CSM}, {"CSM", 1, T_CSM_SET}, {"CLE0", 0, T_CLE0},
     {"CLE", 0, T_CLE}, {"RTV", 0, T_RTV},
@@ -258,7 +269,7 @@ static void Text_Execute(uint8_t code, uint16_t arg)
     case T_CSM: Reply_Value("CSM", g_config.boot_mode, 0U); return;
     case T_BD:  Reply_Value("BAUD", A_Config_Baudrate(), 0U); return;
     case T_RAD: Reply_Value("", A_Servo_GetPositionPwm(), 4U); return;
-    case T_SP:  Reply_Value("SP", A_Protect_GetTorque(), 5U); return;
+    case T_SP:  Reply_Value("SP", A_Protect_GetTorque(), 3U); return;
     case T_DST: A_Servo_Stop(); return;
     case T_RIV:   /* I+4位毫安 + V+一位小数，例 #000PI0103V7.0! */
         Reply_Begin(); Reply_Char('I'); Reply_UInt(A_Protect_GetCurrent(), 4U); Reply_Volt(); Reply_Send();
@@ -310,6 +321,7 @@ static void Text_Frame(const uint8_t *f, uint8_t len)
 
     if (len < 7U || f[0] != '#' || f[4] != 'P' || f[len - 1U] != '!' || !Text_Digits(f + 1, 3U, &id)
         || (id != g_config.servo_id && id != 255U)) return;   /* 255=广播 */
+    Bcast_Cancel();   /* 发给本机的新帧：作废尚未发出的广播应答 */
     if (n == 11U && body[4] == 'N' && body[6] == 'T'
         && Text_Digits(body, 4U, &pwm) && Text_Digits(body + 5, 1U, &turns)
         && Text_Digits(body + 7, 4U, &arg))
@@ -329,10 +341,11 @@ static void Text_Frame(const uint8_t *f, uint8_t len)
             || (k_text[i].digits && !Text_Digits(body + k, k_text[i].digits, &arg))) continue;
         switch (k_text[i].code)
         {
-        case T_ID_SET:  if (arg > 254U) return; break;
+        case T_ID_SET:  if (arg > 254U || id == 255U) return; break;   /* 广播不能改ID */
+        case T_CLE:     if (id == 255U) return; break;                 /* 全部恢复会把ID清零 */
         case T_MOD_SET: if (!SERVO_MODE_IS_SUPPORTED(arg) || arg > SERVO_MODE_TIMED_CCW) return; break;
         case T_BD_SET:  if (arg < 1U || arg > 8U) return; break;
-        case T_SP_SET:  if (arg > A_Config_TorqueMax()) return; break;   /* 5位数，0.01 kgf·cm */
+        case T_SP_SET:  if (arg > TORQUE_MAX_PERCENT) return; break;   /* 3位数，百分比0-100 */
         case T_CSM_SET: if (arg < SERVO_BOOT_GOTO_START || arg > SERVO_BOOT_RELEASE) return; break;
         default: break;
         }
@@ -390,7 +403,7 @@ static void Bin_Telemetry(uint8_t *out)
     A_Protect_GetTelemetry(&p);
     Bin_Put16(out, s.target_pwm);
     Bin_Put16(out + 2, s.position_pwm);
-    Bin_Put16(out + 4, A_Torque_Estimate(p.current_ma, p.current_valid, A_Config_TorqueMax()));
+    Bin_Put16(out + 4, A_Torque_Estimate(p.current_ma, p.current_valid));
     Bin_Put32(out + 6, (uint32_t)s.speed_cdps);
     Bin_Put16(out + 10, p.current_ma);
     Bin_Put16(out + 12, (uint16_t)p.temperature_dc);
@@ -402,7 +415,7 @@ static void Bin_Telemetry(uint8_t *out)
 #define PF_NONE 0xFFFFU   /* 没有这一份存放 */
 #define PF_TRAJ 0x01U     /* 写后让轨迹参数生效 */
 #define PF_BAUD 0x02U     /* 写后切波特率 */
-#define PF_TMAX 0x04U     /* 上限取本机硬件扭矩 */
+#define PF_TMAX 0x04U     /* 上限取扭矩百分比满量程 */
 #define PF_ZMIN 0x08U     /* 0 另外允许(表示关闭)，其余须在 [min,max] */
 #define PCFG(f) ((uint16_t)offsetof(Config_t, f))
 #define PRT(f)  ((uint16_t)offsetof(RuntimeConfig_t, f))
@@ -416,7 +429,7 @@ static const struct {
     { PARAM_BAUD_CODE,    1, PF_BAUD, PCFG(baud_code),          PF_NONE, 1U, 8U },
     { PARAM_SERVO_MODE,   1, 0,       PCFG(servo_mode),         PF_NONE, 0U, 0U },
     { PARAM_BOOT_MODE,    1, 0,       PCFG(boot_mode),          PF_NONE, SERVO_BOOT_GOTO_START, SERVO_BOOT_RELEASE },
-    { PARAM_TORQUE_LIMIT, 2, 0,       PCFG(torque_limit_ckgcm), PF_NONE, 0U, 0U },
+    { PARAM_TORQUE_LIMIT, 2, 0,       PCFG(torque_limit_pct), PF_NONE, 0U, 0U },
     { PARAM_STARTUP_PWM,  2, 0,       PCFG(startup_pwm),        PF_NONE, SERVO_PWM_MIN, SERVO_PWM_MAX },
     { PARAM_TRAJ_VMAX,    2, PF_TRAJ, PCFG(traj_vmax_dps),      PRT(traj_vmax_dps),    0U, CFG_TRAJ_VMAX_MAX_DPS },
     { PARAM_TRAJ_AMAX,    4, PF_TRAJ, PCFG(traj_amax_dps2),     PRT(traj_amax_dps2),   0U, CFG_TRAJ_AMAX_MAX_DPS2 },
@@ -441,12 +454,12 @@ static const struct {
     { PARAM_PROT_ENABLE,        1, 0, PCFG(protect_enable),        PRT(protect_enable), 0U, PROT_ENABLE_IMPLEMENTED },
     { PARAM_VOLTAGE_MIN,        1, 0, PCFG(voltage_min_dv),        PF_NONE, 0U, 0U },
     { PARAM_VOLTAGE_MAX,        1, 0, PCFG(voltage_max_dv),        PF_NONE, 0U, 0U },
-    { PARAM_MIN_START_TORQUE,   2, PF_TMAX, PCFG(min_start_torque_ckgcm), PRT(min_start_torque_ckgcm), 0U, 0U },
+    { PARAM_MIN_START_TORQUE,   2, PF_TMAX, PCFG(min_start_torque_pct), PRT(min_start_torque_pct), 0U, 0U },
     { PARAM_LOAD_RATIO,         1, 0, PCFG(load_ratio_x10),        PRT(load_ratio_x10), 0U, CFG_LOAD_RATIO_MAX_X10 },
     { PARAM_LOAD_LEARN,         2, 0, PCFG(load_learn),            PRT(load_learn),     0U, 1U },
     { PARAM_TORQUE_MODE,    1, 0,       PF_NONE, PRT(torque_mode),        0U, 0U },
     { PARAM_DAMPING,        1, 0,       PF_NONE, PRT(damping_percent),    0U, 0U },
-    { PARAM_RT_TORQUE_LIMIT, 2, PF_TMAX, PF_NONE, PRT(torque_limit_ckgcm), 0U, 0U },
+    { PARAM_RT_TORQUE_LIMIT, 2, PF_TMAX, PF_NONE, PRT(torque_limit_pct), 0U, 0U },
     { PARAM_RT_TRAJ_VMAX,   2, PF_TRAJ, PF_NONE, PRT(traj_vmax_dps),      0U, CFG_TRAJ_VMAX_MAX_DPS },
     { PARAM_RT_TRAJ_AMAX,   4, PF_TRAJ, PF_NONE, PRT(traj_amax_dps2),     0U, CFG_TRAJ_AMAX_MAX_DPS2 },
     { PARAM_RT_TRAJ_DMAX,   4, PF_TRAJ, PF_NONE, PRT(traj_dmax_dps2),     0U, CFG_TRAJ_DMAX_MAX_DPS2 },
@@ -596,7 +609,7 @@ static uint8_t Bin_ParamWrite(uint8_t id, const uint8_t *data, uint8_t len, uint
     }
     if ((t = Param_Find(id)) < 0) return (id < 0x20U || id >= 0x80U) ? BIN_ST_READONLY : BIN_ST_VALUE;
     if (len != k_params[t].size) return BIN_ST_LENGTH;
-    max = (k_params[t].flags & PF_TMAX) ? A_Config_TorqueMax() : k_params[t].max;
+    max = (k_params[t].flags & PF_TMAX) ? TORQUE_MAX_PERCENT : k_params[t].max;
     if ((value < k_params[t].min && !((k_params[t].flags & PF_ZMIN) && value == 0U)) || value > max) return BIN_ST_VALUE;
     if (k_params[t].cfg != PF_NONE) Param_Store((uint8_t *)&g_config + k_params[t].cfg, k_params[t].size, value);
     if (k_params[t].rt != PF_NONE)  Param_Store((uint8_t *)&g_runtime_config + k_params[t].rt, k_params[t].size, value);
@@ -606,7 +619,10 @@ static uint8_t Bin_ParamWrite(uint8_t id, const uint8_t *data, uint8_t len, uint
     return BIN_ST_OK;
 }
 
-/* 一帧二进制：校验、滤ID、执行应答；广播只允许实时运动控制写入，应答延时 100+id*2 ms */
+/* 广播写入里会改ID的：写ID参数、系统动作3(全部恢复出厂) */
+#define BCAST_SETS_ID(d, n) ((d)[0] == PARAM_SERVO_ID || ((d)[0] == PARAM_SYSTEM_ACTION && (n) >= 2U && (d)[1] == 3U))
+
+/* 一帧二进制：校验、滤ID、执行应答；广播不能改ID(含全部恢复出厂)，应答延时排队发出 */
 static void Bin_Frame(const uint8_t *f, uint8_t len)
 {
     uint8_t out[BIN_TELEMETRY_BYTES + 1U] = {0U}, out_len = 0U, st = BIN_ST_OK, baud = 0U;
@@ -614,8 +630,8 @@ static void Bin_Frame(const uint8_t *f, uint8_t len)
     const uint8_t *data = f + 5;
 
     if (len != 8U + n || f[6U + n] != BIN_TAIL1 || f[7U + n] != BIN_TAIL2 || f[5U + n] != Bin_Crc8(f + 2, (uint8_t)(3U + n))
-        || (id != g_config.servo_id && id != BIN_BROADCAST) || (cmd & 0x80U)   /* 别的设备的应答帧 */
-        || (id == BIN_BROADCAST && cmd != BIN_CMD_WRITE)) return;
+        || (id != g_config.servo_id && id != BIN_BROADCAST) || (cmd & 0x80U)) return;   /* 别的设备的应答帧 */
+    Bcast_Cancel();
     s_bin_bcast = (uint8_t)(id == BIN_BROADCAST);
     switch (cmd)
     {
@@ -628,13 +644,13 @@ static void Bin_Frame(const uint8_t *f, uint8_t len)
         break;
     case BIN_CMD_WRITE:
         if (n < 2U) st = BIN_ST_LENGTH;
-        else if (id == BIN_BROADCAST && data[0] != PARAM_MOTION_REQUEST && data[0] != PARAM_MOTION_ACTION
-                 && data[0] != PARAM_TORQUE_MODE && data[0] != PARAM_DAMPING) st = BIN_ST_STATE;
+        else if (s_bin_bcast && BCAST_SETS_ID(data, n)) st = BIN_ST_STATE;
         else st = Bin_ParamWrite(data[0], data + 1, (uint8_t)(n - 1U), &baud);
         break;
     case BIN_CMD_RESET_KEEP:   /* 07仅保留ID；08全部恢复；二者均恢复默认波特率，并按上电动作走一次 */
     case BIN_CMD_RESET_ALL:
         if (n != 0U) { st = BIN_ST_LENGTH; break; }
+        if (s_bin_bcast && cmd == BIN_CMD_RESET_ALL) { st = BIN_ST_STATE; break; }   /* 全部恢复会把ID清零 */
         A_Servo_FactoryReset((uint8_t)(cmd == BIN_CMD_RESET_KEEP));
         baud = 1U;
         break;
@@ -695,7 +711,7 @@ void A_Uart_Process(void)
     while (D_UART1_Rx_Get(&b))
     {
         received = 1U;
-        Bcast_Cancel();   /* 总线来新数据：作废尚未发出的广播应答，避免回旧包撞新令 */
+        Bcast_Yield();    /* 总线有人在发：广播应答等线空了再排队发出 */
         if (!IAP_UpgradePending()) Wire_Byte(b);   /* 已应答进入升级：只清空队列，不再执行 */
     }
     if (received) s_wire_idle_ms = 0U;

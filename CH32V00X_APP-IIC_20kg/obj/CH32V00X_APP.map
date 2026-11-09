@@ -53,121 +53,121 @@ d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components
 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libnosys.a(read.o)
                               d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-readr.o) (_read)
 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_ashldi3.o)
-                              C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o (__ashldi3)
+                              C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o (__ashldi3)
 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_ashrdi3.o)
-                              C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o (__ashrdi3)
+                              C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o (__ashrdi3)
 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_divdi3.o)
-                              C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o (__divdi3)
+                              C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o (__divdi3)
 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_udivdi3.o)
-                              C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o (__udivdi3)
+                              C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o (__udivdi3)
 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(save-restore.o)
-                              C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o (__riscv_save_2)
+                              C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o (__riscv_save_2)
 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(div.o)
-                              C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o (__divsi3)
+                              C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o (__divsi3)
 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_clz.o)
                               d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_divdi3.o) (__clz_tab)
 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-memcmp.o)
-                              C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o (memcmp)
+                              C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o (memcmp)
 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-memcpy-asm.o)
-                              C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o (memcpy)
+                              C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o (memcpy)
 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-strlen.o)
-                              C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o (strlen)
+                              C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o (strlen)
 
 Discarded input sections
 
- .text          0x0000000000000000        0x0 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .data          0x0000000000000000        0x0 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss           0x0000000000000000        0x0 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text._write   0x0000000000000000       0x3a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text._sbrk    0x0000000000000000       0x2e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+ .text          0x0000000000000000        0x0 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .data          0x0000000000000000        0x0 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss           0x0000000000000000        0x0 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text._write   0x0000000000000000       0x3a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text._sbrk    0x0000000000000000       0x2e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .data.curbrk.0
-                0x0000000000000000        0x4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccxUEoKA.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc8aM8f8.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccZbVfaG.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccO7Zl8d.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccdO3DSL.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccUtqEHj.debug.temp.o
- .debug_info    0x0000000000000000      0x129 C:\Users\Admin\AppData\Local\Temp\ccfUWOuR.debug.temp.o
- .debug_abbrev  0x0000000000000000       0xbe C:\Users\Admin\AppData\Local\Temp\ccfUWOuR.debug.temp.o
- .debug_line    0x0000000000000000       0x55 C:\Users\Admin\AppData\Local\Temp\ccfUWOuR.debug.temp.o
- .debug_str     0x0000000000000000      0x220 C:\Users\Admin\AppData\Local\Temp\ccfUWOuR.debug.temp.o
+                0x0000000000000000        0x4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cchFM2rO.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc8GA34q.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccDj3AA3.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccgWdmfF.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccJPNuYg.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccMxsnuS.debug.temp.o
+ .debug_info    0x0000000000000000      0x129 C:\Users\Admin\AppData\Local\Temp\ccTTuW4t.debug.temp.o
+ .debug_abbrev  0x0000000000000000       0xbe C:\Users\Admin\AppData\Local\Temp\ccTTuW4t.debug.temp.o
+ .debug_line    0x0000000000000000       0x55 C:\Users\Admin\AppData\Local\Temp\ccTTuW4t.debug.temp.o
+ .debug_str     0x0000000000000000      0x220 C:\Users\Admin\AppData\Local\Temp\ccTTuW4t.debug.temp.o
  .debug_line_str
-                0x0000000000000000      0x1dd C:\Users\Admin\AppData\Local\Temp\ccfUWOuR.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccfUWOuR.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccQqoFuo.debug.temp.o
- .debug_info    0x0000000000000000      0x2ba C:\Users\Admin\AppData\Local\Temp\cc70U8yV.debug.temp.o
- .debug_abbrev  0x0000000000000000       0xf8 C:\Users\Admin\AppData\Local\Temp\cc70U8yV.debug.temp.o
- .debug_line    0x0000000000000000       0x63 C:\Users\Admin\AppData\Local\Temp\cc70U8yV.debug.temp.o
- .debug_str     0x0000000000000000      0x369 C:\Users\Admin\AppData\Local\Temp\cc70U8yV.debug.temp.o
+                0x0000000000000000      0x20d C:\Users\Admin\AppData\Local\Temp\ccTTuW4t.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccTTuW4t.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccskwr85.debug.temp.o
+ .debug_info    0x0000000000000000      0x2ba C:\Users\Admin\AppData\Local\Temp\ccFhQEZH.debug.temp.o
+ .debug_abbrev  0x0000000000000000       0xf8 C:\Users\Admin\AppData\Local\Temp\ccFhQEZH.debug.temp.o
+ .debug_line    0x0000000000000000       0x63 C:\Users\Admin\AppData\Local\Temp\ccFhQEZH.debug.temp.o
+ .debug_str     0x0000000000000000      0x369 C:\Users\Admin\AppData\Local\Temp\ccFhQEZH.debug.temp.o
  .debug_line_str
-                0x0000000000000000      0x20a C:\Users\Admin\AppData\Local\Temp\cc70U8yV.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc70U8yV.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc4iXaos.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccDywPhZ.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cckGfkyw.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccFmmRT3.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccKomD4A.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccZvKji8.debug.temp.o
- .debug_info    0x0000000000000000      0x4aa C:\Users\Admin\AppData\Local\Temp\ccGBSdpJ.debug.temp.o
- .debug_abbrev  0x0000000000000000      0x192 C:\Users\Admin\AppData\Local\Temp\ccGBSdpJ.debug.temp.o
- .debug_line    0x0000000000000000       0x63 C:\Users\Admin\AppData\Local\Temp\ccGBSdpJ.debug.temp.o
- .debug_str     0x0000000000000000      0x3e3 C:\Users\Admin\AppData\Local\Temp\ccGBSdpJ.debug.temp.o
+                0x0000000000000000      0x26a C:\Users\Admin\AppData\Local\Temp\ccFhQEZH.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccFhQEZH.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccKEZ4Vj.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc5pNdJZ.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccYmOszF.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccDctOel.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccucQlX0.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc9rqA1G.debug.temp.o
+ .debug_info    0x0000000000000000      0x4aa C:\Users\Admin\AppData\Local\Temp\ccut8rZm.debug.temp.o
+ .debug_abbrev  0x0000000000000000      0x192 C:\Users\Admin\AppData\Local\Temp\ccut8rZm.debug.temp.o
+ .debug_line    0x0000000000000000       0x63 C:\Users\Admin\AppData\Local\Temp\ccut8rZm.debug.temp.o
+ .debug_str     0x0000000000000000      0x3e3 C:\Users\Admin\AppData\Local\Temp\ccut8rZm.debug.temp.o
  .debug_line_str
-                0x0000000000000000      0x207 C:\Users\Admin\AppData\Local\Temp\ccGBSdpJ.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccGBSdpJ.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc5DR7uk.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccIRMWDV.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cctBwKCw.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccSJodF7.debug.temp.o
- .debug_info    0x0000000000000000      0x1c6 C:\Users\Admin\AppData\Local\Temp\ccVe6NGI.debug.temp.o
- .debug_abbrev  0x0000000000000000      0x10d C:\Users\Admin\AppData\Local\Temp\ccVe6NGI.debug.temp.o
- .debug_line    0x0000000000000000       0x63 C:\Users\Admin\AppData\Local\Temp\ccVe6NGI.debug.temp.o
- .debug_str     0x0000000000000000      0x29d C:\Users\Admin\AppData\Local\Temp\ccVe6NGI.debug.temp.o
+                0x0000000000000000      0x267 C:\Users\Admin\AppData\Local\Temp\ccut8rZm.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccut8rZm.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccvCLeY2.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc8gpUcI.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccvrXYun.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccw0BFz2.debug.temp.o
+ .debug_info    0x0000000000000000      0x1c6 C:\Users\Admin\AppData\Local\Temp\ccfyqTHH.debug.temp.o
+ .debug_abbrev  0x0000000000000000      0x10d C:\Users\Admin\AppData\Local\Temp\ccfyqTHH.debug.temp.o
+ .debug_line    0x0000000000000000       0x63 C:\Users\Admin\AppData\Local\Temp\ccfyqTHH.debug.temp.o
+ .debug_str     0x0000000000000000      0x29d C:\Users\Admin\AppData\Local\Temp\ccfyqTHH.debug.temp.o
  .debug_line_str
-                0x0000000000000000      0x209 C:\Users\Admin\AppData\Local\Temp\ccVe6NGI.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccVe6NGI.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc8iXt6j.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccd7RQzV.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccij7f2w.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccp6Gym8.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccO6y5TI.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccNJfLtj.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccsG7WOT.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccfj5xiu.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccAhxF74.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccHeifVF.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccSRtMNg.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccJghqrR.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc252rbs.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cczC1gU2.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cckcELPC.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccBsMLOc.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc2zbYBM.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccZNdJnm.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccSNLDcW.debug.temp.o
- .debug_info    0x0000000000000000     0x17fd C:\Users\Admin\AppData\Local\Temp\ccZeWYrw.debug.temp.o
- .debug_abbrev  0x0000000000000000      0x351 C:\Users\Admin\AppData\Local\Temp\ccZeWYrw.debug.temp.o
- .debug_line    0x0000000000000000       0xa1 C:\Users\Admin\AppData\Local\Temp\ccZeWYrw.debug.temp.o
- .debug_str     0x0000000000000000      0xb2f C:\Users\Admin\AppData\Local\Temp\ccZeWYrw.debug.temp.o
+                0x0000000000000000      0x269 C:\Users\Admin\AppData\Local\Temp\ccfyqTHH.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccfyqTHH.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccGAFwPm.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cchQwdi2.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc0RmSPH.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccpFkahn.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccQNEwR1.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccbxvplG.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc2CDjUk.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccnkZuNZ.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccKqpYNE.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccbRGkzj.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccqjOpnY.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccFV4InC.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccIj3Osg.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccxQNXkU.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccybZwhy.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccR9d6Ac.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccYBdsOQ.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc78w51u.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccwSs38c.debug.temp.o
+ .debug_info    0x0000000000000000     0x17fd C:\Users\Admin\AppData\Local\Temp\ccvyHUkV.debug.temp.o
+ .debug_abbrev  0x0000000000000000      0x351 C:\Users\Admin\AppData\Local\Temp\ccvyHUkV.debug.temp.o
+ .debug_line    0x0000000000000000       0xa1 C:\Users\Admin\AppData\Local\Temp\ccvyHUkV.debug.temp.o
+ .debug_str     0x0000000000000000      0xb2f C:\Users\Admin\AppData\Local\Temp\ccvyHUkV.debug.temp.o
  .debug_line_str
-                0x0000000000000000      0x36e C:\Users\Admin\AppData\Local\Temp\ccZeWYrw.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccZeWYrw.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cck5naM6.debug.temp.o
- .debug_info    0x0000000000000000       0x1e C:\Users\Admin\AppData\Local\Temp\ccBdQASG.debug.temp.o
- .debug_abbrev  0x0000000000000000       0x10 C:\Users\Admin\AppData\Local\Temp\ccBdQASG.debug.temp.o
- .debug_line    0x0000000000000000       0x31 C:\Users\Admin\AppData\Local\Temp\ccBdQASG.debug.temp.o
- .debug_str     0x0000000000000000       0xe3 C:\Users\Admin\AppData\Local\Temp\ccBdQASG.debug.temp.o
+                0x0000000000000000      0x3fe C:\Users\Admin\AppData\Local\Temp\ccvyHUkV.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccvyHUkV.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccspuaqD.debug.temp.o
+ .debug_info    0x0000000000000000       0x1e C:\Users\Admin\AppData\Local\Temp\ccZ2mZPl.debug.temp.o
+ .debug_abbrev  0x0000000000000000       0x10 C:\Users\Admin\AppData\Local\Temp\ccZ2mZPl.debug.temp.o
+ .debug_line    0x0000000000000000       0x31 C:\Users\Admin\AppData\Local\Temp\ccZ2mZPl.debug.temp.o
+ .debug_str     0x0000000000000000       0xe3 C:\Users\Admin\AppData\Local\Temp\ccZ2mZPl.debug.temp.o
  .debug_line_str
-                0x0000000000000000       0x50 C:\Users\Admin\AppData\Local\Temp\ccBdQASG.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccBdQASG.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccM2tT1g.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cczVrenQ.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccOIROOp.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccVLPb3Y.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc8LAbky.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccDtvJY7.debug.temp.o
- .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccGgeiBH.debug.temp.o
+                0x0000000000000000       0x50 C:\Users\Admin\AppData\Local\Temp\ccZ2mZPl.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccZ2mZPl.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\cc4xsD73.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccB9LEoM.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccQzaXWt.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccxORFAb.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccCJYdYS.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccBDI7qA.debug.temp.o
+ .comment       0x0000000000000000       0x32 C:\Users\Admin\AppData\Local\Temp\ccsvTGgi.debug.temp.o
  .text          0x0000000000000000        0x0 ./SRC/Startup/startup_ch32v00X.o
  .data          0x0000000000000000        0x0 ./SRC/Startup/startup_ch32v00X.o
  .bss           0x0000000000000000        0x0 ./SRC/Startup/startup_ch32v00X.o
@@ -502,57 +502,57 @@ RAM              0x0000000020000000 0x0000000000002000 xrw
 Linker script and memory map
 
 LOAD ./User/ch32v00X_it.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccxUEoKA.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cc8aM8f8.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccZbVfaG.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccO7Zl8d.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccdO3DSL.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccUtqEHj.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccfUWOuR.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccQqoFuo.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cc70U8yV.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cc4iXaos.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccDywPhZ.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cckGfkyw.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccFmmRT3.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccKomD4A.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccZvKji8.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccGBSdpJ.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cc5DR7uk.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccIRMWDV.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cctBwKCw.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccSJodF7.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccVe6NGI.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cc8iXt6j.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccd7RQzV.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccij7f2w.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccp6Gym8.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccO6y5TI.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccNJfLtj.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccsG7WOT.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccfj5xiu.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccAhxF74.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccHeifVF.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccSRtMNg.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccJghqrR.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cc252rbs.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cczC1gU2.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cckcELPC.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccBsMLOc.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cc2zbYBM.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccZNdJnm.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccSNLDcW.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccZeWYrw.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cck5naM6.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccBdQASG.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccM2tT1g.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cczVrenQ.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccOIROOp.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccVLPb3Y.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\cc8LAbky.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccDtvJY7.debug.temp.o
-LOAD C:\Users\Admin\AppData\Local\Temp\ccGgeiBH.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+LOAD C:\Users\Admin\AppData\Local\Temp\cchFM2rO.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\cc8GA34q.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccDj3AA3.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccgWdmfF.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccJPNuYg.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccMxsnuS.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccTTuW4t.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccskwr85.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccFhQEZH.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccKEZ4Vj.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\cc5pNdJZ.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccYmOszF.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccDctOel.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccucQlX0.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\cc9rqA1G.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccut8rZm.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccvCLeY2.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\cc8gpUcI.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccvrXYun.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccw0BFz2.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccfyqTHH.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccGAFwPm.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\cchQwdi2.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\cc0RmSPH.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccpFkahn.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccQNEwR1.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccbxvplG.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\cc2CDjUk.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccnkZuNZ.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccKqpYNE.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccbRGkzj.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccqjOpnY.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccFV4InC.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccIj3Osg.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccxQNXkU.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccybZwhy.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccR9d6Ac.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccYBdsOQ.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\cc78w51u.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccwSs38c.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccvyHUkV.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccspuaqD.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccZ2mZPl.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\cc4xsD73.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccB9LEoM.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccQzaXWt.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccxORFAb.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccCJYdYS.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccBDI7qA.debug.temp.o
+LOAD C:\Users\Admin\AppData\Local\Temp\ccsvTGgi.debug.temp.o
 LOAD ./User/main.o
 LOAD ./System/flash.o
 LOAD ./System/iap.o
@@ -633,10 +633,10 @@ END GROUP
 
 .fw_info        0x0000000000000100       0x10
  *(.fw_info)
- .fw_info       0x0000000000000100       0x10 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+ .fw_info       0x0000000000000100       0x10 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
                 0x0000000000000100                IAP_FW_INFO
 
-.text           0x0000000000000110     0x8838
+.text           0x0000000000000110     0x88c8
                 0x0000000000000110                . = ALIGN (0x4)
  *(.text)
  .text          0x0000000000000110       0x10 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-memset.o)
@@ -659,400 +659,402 @@ END GROUP
                 0x00000000000001a4                __modsi3
  *(.text.*)
  .text.Flash_Get32
-                0x00000000000001ca       0x16 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000001ca       0x16 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Iap_Crc32
-                0x00000000000001e0       0x34 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000001e0       0x34 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.ROM_ERASE
-                0x0000000000000214       0xae C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000214       0xae C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.GPIO_Init
-                0x00000000000002c2       0x76 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000002c2       0x76 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.RCC_GetClocksFreq
-                0x0000000000000338       0x9c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000338       0x9c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Delay_Us
-                0x00000000000003d4       0x2e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000003d4       0x2e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Delay_Ms
-                0x0000000000000402       0x2e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000402       0x2e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Voltage_Take
-                0x0000000000000430       0x4e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000430       0x4e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.D_ADC_Current_Phase
-                0x000000000000047e       0x12 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000047e       0x12 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.I2C_BusDelay
-                0x0000000000000490       0x1c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000490       0x1c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.I2C_ConfigPins
-                0x00000000000004ac       0x22 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000004ac       0x22 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.IC_Reset
-                0x00000000000004ce       0x2a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Tim_OC   0x00000000000004f8       0x1c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000004ce       0x2a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Tim_OC   0x00000000000004f8       0x1c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.D_PWM_Input_Enable
-                0x0000000000000514       0x9c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000514       0x9c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Uart_ApplyParams
-                0x00000000000005b0       0xa4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000005b0       0xa4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Uart_TxDone
-                0x0000000000000654       0x1e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000654       0x1e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.D_UART_Enable
-                0x0000000000000672       0xae C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000672       0xae C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.D_UART_Tx_Idle
-                0x0000000000000720       0x32 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000720       0x32 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.WS2812_Encode
-                0x0000000000000752       0x2a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000752       0x2a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.D_WS2812_Send
-                0x000000000000077c       0x86 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000077c       0x86 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Fx_MulShift.lto_priv.0
-                0x0000000000000802       0x58 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000802       0x58 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Fx_Deadband
-                0x000000000000085a       0x1a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000085a       0x1a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.PosCtrl_HoldGains
-                0x0000000000000874       0x60 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000874       0x60 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.PosCtrl_HoldLaw
-                0x00000000000008d4       0x32 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000008d4       0x32 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.PosCtrl_SinQ14
-                0x0000000000000906       0xc6 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000906       0xc6 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.PosCtrl_LoadModel
-                0x00000000000009cc       0x60 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000009cc       0x60 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.PosCtrl_DistFF
-                0x0000000000000a2c       0x34 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000a2c       0x34 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.PosCtrl_IntegralAdd
-                0x0000000000000a60       0x58 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000a60       0x58 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.C_Task_Tick_Update
-                0x0000000000000ab8       0x3a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000ab8       0x3a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.C_Traj_SetLimits
-                0x0000000000000af2       0xf6 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.C_Traj_Command
-                0x0000000000000be8      0x114 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000af2       0xf6 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.C_Traj_GetPos
+                0x0000000000000be8       0x10 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Traj_BrakeCap
-                0x0000000000000cfc       0xfe C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000bf8       0xfe C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Config_ReloadRuntime
-                0x0000000000000dfa       0x58 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000cf6       0x58 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Config_MarkDirty
-                0x0000000000000e52       0x10 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000d4e       0x10 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Config_Baudrate
-                0x0000000000000e62       0x22 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000d5e       0x22 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Protect_CanDrive
-                0x0000000000000e84       0x1e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000d80       0x1e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Voltage_Read
-                0x0000000000000ea2       0x1a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Servo_PlanMultiTurn
-                0x0000000000000ebc       0xa2 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000d9e       0x1a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_IsPosition
-                0x0000000000000f5e       0x14 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000db8       0x14 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_GetWorkState
-                0x0000000000000f72       0x44 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000dcc       0x44 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Servo_WrapAngle
-                0x0000000000000fb6       0x28 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000e10       0x28 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Servo_Unwrap
-                0x0000000000000fde       0x32 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000e38       0x32 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_SetMode
-                0x0000000000001010       0xf4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000e6a       0xf4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_PulseToAngle
-                0x0000000000001104       0x58 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000f5e       0x58 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_AngleToPwm
-                0x000000000000115c       0x44 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000fb6       0x44 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Loop_CapOf
-                0x00000000000011a0       0x62 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000ffa       0x62 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_ApplyTrajConfig
-                0x0000000000001202       0xe2 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000105c       0xe2 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Loop_ObsConfigure
-                0x00000000000012e4      0x1a8 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000113e      0x1a8 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.A_ServoCtrl_Command
+                0x00000000000012e6      0x15e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Servo_PlanMultiTurn
+                0x0000000000001444       0x94 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Geom_Fold
-                0x000000000000148c       0x30 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000014d8       0x34 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Out_UpdateLimitMv
-                0x00000000000014bc       0x1a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Out_VbusUpdate
-                0x00000000000014d6       0x52 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.A_ServoCtrl_Output
-                0x0000000000001528      0x3f4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Servo_Drive
-                0x000000000000191c        0xe C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.A_Servo_Pause
-                0x000000000000192a       0xce C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.A_ServoCtrl_Release
-                0x00000000000019f8       0x48 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Servo_ApplyTorqueOutput
-                0x0000000000001a40       0x20 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Task_State
-                0x0000000000001a60      0x1b6 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Reply_Char
-                0x0000000000001c16       0x22 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Reply_Text
-                0x0000000000001c38       0x1a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Reply_UInt
-                0x0000000000001c52       0x96 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Reply_Begin
-                0x0000000000001ce8       0x20 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Reply_Volt
-                0x0000000000001d08       0x46 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Bin_PutN
-                0x0000000000001d4e       0x22 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Bin_Crc8
-                0x0000000000001d70       0x36 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Text_Digits.part.0
-                0x0000000000001da6       0x36 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Flash_Crc16.constprop.0
-                0x0000000000001ddc       0x3c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Flash_PageValid
-                0x0000000000001e18       0x30 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.FLASH_ROM_ERASE.part.0.constprop.0
-                0x0000000000001e48       0x40 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.FLASH_ROM_WRITE.part.0.constprop.0
-                0x0000000000001e88       0xa6 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.I2C_GetFlagStatus.constprop.0
-                0x0000000000001f2e       0x3c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.I2C_CheckEvent.constprop.0
-                0x0000000000001f6a       0x1e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.I2C_WaitStar1.constprop.0
-                0x0000000000001f88       0x2a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.I2C_ApplyConfig.constprop.0
-                0x0000000000001fb2       0xcc C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.I2C_SoftReset.constprop.0
-                0x000000000000207e       0x94 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.D_UART1_Tx_Write.isra.0
-                0x0000000000002112       0xec C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Iap_Reply
-                0x00000000000021fe       0x74 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.IAP_HwInfoRead
-                0x0000000000002272       0xce C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.Iap_HwIdentityRead
-                0x0000000000002340       0x32 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.A_Config_TorqueMax
-                0x0000000000002372       0x30 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000150c       0x1a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Protect_ApplyTorqueSetting
-                0x00000000000023a2       0xc4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .text.A_Protect_ExitStallHold
-                0x0000000000002466       0x14 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000001526       0x9c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Protect_ApplyConfig
-                0x000000000000247a       0xa8 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000015c2       0xa6 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.A_Protect_ExitStallHold
+                0x0000000000001668       0x14 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Out_VbusUpdate
+                0x000000000000167c       0x52 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.A_ServoCtrl_Output
+                0x00000000000016ce      0x3fc C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Servo_Drive
+                0x0000000000001aca        0xe C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.A_Servo_Pause
+                0x0000000000001ad8       0xce C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.A_ServoCtrl_Release
+                0x0000000000001ba6       0x48 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Servo_ApplyTorqueOutput
+                0x0000000000001bee       0x20 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Task_State
+                0x0000000000001c0e      0x1b6 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Bcast_Cancel
+                0x0000000000001dc4       0x20 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Reply_Char
+                0x0000000000001de4       0x22 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Reply_Text
+                0x0000000000001e06       0x1a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Reply_UInt
+                0x0000000000001e20       0x96 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Reply_Begin
+                0x0000000000001eb6       0x20 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Reply_Volt
+                0x0000000000001ed6       0x46 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Bin_PutN
+                0x0000000000001f1c       0x22 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Bin_Crc8
+                0x0000000000001f3e       0x36 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Text_Digits.part.0
+                0x0000000000001f74       0x36 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Flash_Crc16.constprop.0
+                0x0000000000001faa       0x3c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Flash_PageValid
+                0x0000000000001fe6       0x30 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.FLASH_ROM_ERASE.part.0.constprop.0
+                0x0000000000002016       0x40 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.FLASH_ROM_WRITE.part.0.constprop.0
+                0x0000000000002056       0xa6 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.I2C_GetFlagStatus.constprop.0
+                0x00000000000020fc       0x3c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.I2C_CheckEvent.constprop.0
+                0x0000000000002138       0x1e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.I2C_WaitStar1.constprop.0
+                0x0000000000002156       0x2a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.I2C_ApplyConfig.constprop.0
+                0x0000000000002180       0xcc C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.I2C_SoftReset.constprop.0
+                0x000000000000224c       0x94 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.D_UART1_Tx_Write.isra.0
+                0x00000000000022e0       0xec C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Iap_Reply
+                0x00000000000023cc       0x74 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.IAP_HwInfoRead
+                0x0000000000002440       0xce C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .text.Iap_HwIdentityRead
+                0x000000000000250e       0x32 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.C_PosCtrl_Reset
-                0x0000000000002522       0x22 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002540       0x22 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.C_Traj_Hold
-                0x0000000000002544       0xbc C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002562       0xbc C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_UpdateRange
-                0x0000000000002600       0x4e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000261e       0x4e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_Begin
-                0x000000000000264e       0x34 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000266c       0x34 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.C_Traj_Step.constprop.0
-                0x0000000000002682      0x30e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000026a0      0x30e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Config_FillDefaults
-                0x0000000000002990       0x90 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000029ae       0x90 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Loop_ObsInit
-                0x0000000000002a20       0x32 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002a3e       0x32 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_Reset
-                0x0000000000002a52       0x14 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002a70       0x14 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_Rebase
-                0x0000000000002a66       0x2a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002a84       0x2a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.D_I2C_Read.constprop.0
-                0x0000000000002a90      0x18e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002aae      0x18e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.D_MT6701_Read_Angle
-                0x0000000000002c1e       0x42 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002c3c       0x42 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_ReadPosition
-                0x0000000000002c60       0x82 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002c7e       0x82 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Servo_ReadPosition
-                0x0000000000002ce2       0x12 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002d00       0x12 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_SetPulseLimit
-                0x0000000000002cf4       0x44 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002d12       0x44 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Cal_PulseMin
-                0x0000000000002d38        0x4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002d56        0x4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Cal_PulseMax
-                0x0000000000002d3c        0x4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002d5a        0x4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_SaveStartup
-                0x0000000000002d40       0x28 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002d5e       0x28 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_GetPositionPwm
-                0x0000000000002d68       0x18 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002d86       0x18 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_FoldTo
-                0x0000000000002d80       0x2c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002d9e       0x2c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Servo_MultiTurnAbort
-                0x0000000000002dac       0x34 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002dca       0x34 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Servo_Resync
-                0x0000000000002de0       0x3a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002dfe       0x3a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Servo_Move
-                0x0000000000002e1a       0x58 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002e38       0x58 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_Resume
-                0x0000000000002e72       0x30 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002e90       0x30 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Servo_ClearCommand
-                0x0000000000002ea2       0x2a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002ec0       0x2a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_Stop
-                0x0000000000002ecc       0x4a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002eea       0x4a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_SyncTorque
-                0x0000000000002f16       0x76 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002f34       0x76 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_RestoreTorque
-                0x0000000000002f8c       0x18 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002faa       0x18 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Servo_SubmitQ3
-                0x0000000000002fa4      0x19e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000002fc2      0x19e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_Submit
-                0x0000000000003142       0x3c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000003160       0x3c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_Release
-                0x000000000000317e       0x16 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000319c       0x16 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Servo_ApplyBootAction
-                0x0000000000003194       0x6e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000031b2       0x6e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Servo_Calibrate
-                0x0000000000003202       0xce C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000003220       0xce C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_CalibrateMid
-                0x00000000000032d0        0x6 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000032ee        0x6 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_CalibrateZero
-                0x00000000000032d6        0x6 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000032f4        0x6 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.D_TMP112_Read_Temp
-                0x00000000000032dc       0x42 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000032fa       0x42 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Task_Protect
-                0x000000000000331e      0x4de C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000333c      0x4de C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.IAP_Rx_Deal
-                0x00000000000037fc      0x16a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000381a      0x168 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_ServoCtrl_ApplyGains
-                0x0000000000003966      0x1a6 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000003982      0x1a6 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_ApplyConfig
-                0x0000000000003b0c       0x4a C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000003b28       0x4a C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_FactoryReset
-                0x0000000000003b56       0x32 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000003b72       0x32 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Servo_SetTravelEnd
-                0x0000000000003b88       0xba C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000003ba4       0xba C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Cal_TravelMin
-                0x0000000000003c42        0x6 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000003c5e        0x6 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Cal_TravelMax
-                0x0000000000003c48        0x6 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000003c64        0x6 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Loop_HoldParams
-                0x0000000000003c4e       0xb4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000003c6a       0xb4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Task_ServoControl
-                0x0000000000003d02     0x11bc C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000003d1e     0x11e2 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Iap_HwInfoCreate.isra.0
-                0x0000000000004ebe       0x92 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000004f00       0x92 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Flash_PageWrite
-                0x0000000000004f50       0x4c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000004f92       0x4c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.A_Config_SaveTask
-                0x0000000000004f9c       0xa8 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000004fde       0xa8 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Task_ConfigSave
-                0x0000000000005044       0x48 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000005086       0x48 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Bcast_Defer.part.0
-                0x000000000000508c       0x2c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000050ce       0x2c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Reply_Send
-                0x00000000000050b8       0x44 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000050fa       0x44 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Reply_Value
-                0x00000000000050fc       0x28 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000513e       0x28 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.Task_Uart
-                0x0000000000005124     0x10e2 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000005166     0x1162 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .text.NMI_Handler
-                0x0000000000006206       0x10 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
-                0x0000000000006206                NMI_Handler
+                0x00000000000062c8       0x10 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+                0x00000000000062c8                NMI_Handler
  .text.HardFault_Handler
-                0x0000000000006216       0x10 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
-                0x0000000000006216                HardFault_Handler
+                0x00000000000062d8       0x10 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+                0x00000000000062d8                HardFault_Handler
  .text.USART1_IRQHandler
-                0x0000000000006226      0x118 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
-                0x0000000000006226                USART1_IRQHandler
+                0x00000000000062e8      0x118 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+                0x00000000000062e8                USART1_IRQHandler
  .text.TIM1_CC_IRQHandler
-                0x000000000000633e      0x122 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
-                0x000000000000633e                TIM1_CC_IRQHandler
+                0x0000000000006400      0x122 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+                0x0000000000006400                TIM1_CC_IRQHandler
  .text.TIM1_UP_IRQHandler
-                0x0000000000006460       0x6e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
-                0x0000000000006460                TIM1_UP_IRQHandler
+                0x0000000000006522       0x6e C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+                0x0000000000006522                TIM1_UP_IRQHandler
  .text.DMA1_Channel1_IRQHandler
-                0x00000000000064ce      0x188 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
-                0x00000000000064ce                DMA1_Channel1_IRQHandler
+                0x0000000000006590      0x188 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+                0x0000000000006590                DMA1_Channel1_IRQHandler
  .text.startup.main
-                0x0000000000006656     0x1244 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
-                0x0000000000006656                main
+                0x0000000000006718     0x1244 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+                0x0000000000006718                main
  .text.SystemInit
-                0x000000000000789a      0x3c8 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
-                0x000000000000789a                SystemInit
+                0x000000000000795c      0x3c8 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+                0x000000000000795c                SystemInit
  .text.vector_handler
-                0x0000000000007c62        0x2 ./SRC/Startup/startup_ch32v00X.o
-                0x0000000000007c62                OPCM_IRQHandler
-                0x0000000000007c62                SysTick_Handler
-                0x0000000000007c62                PVD_IRQHandler
-                0x0000000000007c62                SPI1_IRQHandler
-                0x0000000000007c62                AWU_IRQHandler
-                0x0000000000007c62                EXTI7_0_IRQHandler
-                0x0000000000007c62                DMA1_Channel4_IRQHandler
-                0x0000000000007c62                ADC1_IRQHandler
-                0x0000000000007c62                DMA1_Channel7_IRQHandler
-                0x0000000000007c62                I2C1_EV_IRQHandler
-                0x0000000000007c62                DMA1_Channel6_IRQHandler
-                0x0000000000007c62                RCC_IRQHandler
-                0x0000000000007c62                TIM1_TRG_COM_IRQHandler
-                0x0000000000007c62                DMA1_Channel5_IRQHandler
-                0x0000000000007c62                DMA1_Channel3_IRQHandler
-                0x0000000000007c62                WWDG_IRQHandler
-                0x0000000000007c62                TIM2_IRQHandler
-                0x0000000000007c62                SW_Handler
-                0x0000000000007c62                TIM1_BRK_IRQHandler
-                0x0000000000007c62                USART2_IRQHandler
-                0x0000000000007c62                DMA1_Channel2_IRQHandler
-                0x0000000000007c62                FLASH_IRQHandler
-                0x0000000000007c62                I2C1_ER_IRQHandler
+                0x0000000000007d24        0x2 ./SRC/Startup/startup_ch32v00X.o
+                0x0000000000007d24                OPCM_IRQHandler
+                0x0000000000007d24                SysTick_Handler
+                0x0000000000007d24                PVD_IRQHandler
+                0x0000000000007d24                SPI1_IRQHandler
+                0x0000000000007d24                AWU_IRQHandler
+                0x0000000000007d24                EXTI7_0_IRQHandler
+                0x0000000000007d24                DMA1_Channel4_IRQHandler
+                0x0000000000007d24                ADC1_IRQHandler
+                0x0000000000007d24                DMA1_Channel7_IRQHandler
+                0x0000000000007d24                I2C1_EV_IRQHandler
+                0x0000000000007d24                DMA1_Channel6_IRQHandler
+                0x0000000000007d24                RCC_IRQHandler
+                0x0000000000007d24                TIM1_TRG_COM_IRQHandler
+                0x0000000000007d24                DMA1_Channel5_IRQHandler
+                0x0000000000007d24                DMA1_Channel3_IRQHandler
+                0x0000000000007d24                WWDG_IRQHandler
+                0x0000000000007d24                TIM2_IRQHandler
+                0x0000000000007d24                SW_Handler
+                0x0000000000007d24                TIM1_BRK_IRQHandler
+                0x0000000000007d24                USART2_IRQHandler
+                0x0000000000007d24                DMA1_Channel2_IRQHandler
+                0x0000000000007d24                FLASH_IRQHandler
+                0x0000000000007d24                I2C1_ER_IRQHandler
  .text.handle_reset
-                0x0000000000007c64       0x8a ./SRC/Startup/startup_ch32v00X.o
-                0x0000000000007c64                handle_reset
- .text.memcmp   0x0000000000007cee       0x24 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-memcmp.o)
-                0x0000000000007cee                memcmp
- .text.strlen   0x0000000000007d12       0x10 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-strlen.o)
-                0x0000000000007d12                strlen
+                0x0000000000007d26       0x8a ./SRC/Startup/startup_ch32v00X.o
+                0x0000000000007d26                handle_reset
+ .text.memcmp   0x0000000000007db0       0x24 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-memcmp.o)
+                0x0000000000007db0                memcmp
+ .text.strlen   0x0000000000007dd4       0x10 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-strlen.o)
+                0x0000000000007dd4                strlen
  .text.__ashldi3
-                0x0000000000007d22       0x26 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_ashldi3.o)
-                0x0000000000007d22                __ashldi3
+                0x0000000000007de4       0x26 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_ashldi3.o)
+                0x0000000000007de4                __ashldi3
  .text.__ashrdi3
-                0x0000000000007d48       0x2c d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_ashrdi3.o)
-                0x0000000000007d48                __ashrdi3
+                0x0000000000007e0a       0x2c d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_ashrdi3.o)
+                0x0000000000007e0a                __ashrdi3
  .text.__divdi3
-                0x0000000000007d74      0x4cc d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_divdi3.o)
-                0x0000000000007d74                __divdi3
+                0x0000000000007e36      0x4cc d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_divdi3.o)
+                0x0000000000007e36                __divdi3
  *(.rodata)
  *(.rodata*)
- *fill*         0x0000000000008240        0x0 
+ *fill*         0x0000000000008302        0x2 
  .rodata.Task_State
-                0x0000000000008240       0x14 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000008304       0x14 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .rodata.Task_Uart.str1.4
-                0x0000000000008254       0x23 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000008318       0x23 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
                                          0x27 (size before relaxing)
- *fill*         0x0000000000008277        0x1 
+ *fill*         0x000000000000833b        0x1 
  .rodata.Task_Uart
-                0x0000000000008278      0x170 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000833c      0x13c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .rodata.k_text
-                0x00000000000083e8       0xd2 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x00000000000084ba        0x2 
+                0x0000000000008478       0xd2 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x000000000000854a        0x2 
  .rodata.k_cal.0
-                0x00000000000084bc       0x1c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000000000854c       0x1c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .rodata.k_params
-                0x00000000000084d8      0x270 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000008568      0x270 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .rodata.baud.0
-                0x0000000000008748       0x20 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000087d8       0x20 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .rodata.k_sin_q14
-                0x0000000000008768       0xb6 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x000000000000881e        0x2 
+                0x00000000000087f8       0xb6 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x00000000000088ae        0x2 
  .rodata.k_version
-                0x0000000000008820        0x3 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x0000000000008823        0x1 
+                0x00000000000088b0        0x3 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x00000000000088b3        0x1 
  .rodata.fw_hw.0
-                0x0000000000008824        0x4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000088b4        0x4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .rodata.k_motor_cal
-                0x0000000000008828       0x20 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000000088b8       0x20 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .rodata.__clz_tab
-                0x0000000000008848      0x100 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_clz.o)
-                0x0000000000008848                __clz_tab
+                0x00000000000088d8      0x100 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_clz.o)
+                0x00000000000088d8                __clz_tab
  *(.gnu.linkonce.t.*)
-                0x0000000000008948                . = ALIGN (0x4)
+                0x00000000000089d8                . = ALIGN (0x4)
 
-.rela.dyn       0x0000000000008948        0x0
- .rela.init     0x0000000000008948        0x0 ./SRC/Startup/startup_ch32v00X.o
+.rela.dyn       0x00000000000089d8        0x0
+ .rela.init     0x00000000000089d8        0x0 ./SRC/Startup/startup_ch32v00X.o
  .rela.text.handle_reset
-                0x0000000000008948        0x0 ./SRC/Startup/startup_ch32v00X.o
+                0x00000000000089d8        0x0 ./SRC/Startup/startup_ch32v00X.o
  .rela.text.startup.main
-                0x0000000000008948        0x0 ./SRC/Startup/startup_ch32v00X.o
+                0x00000000000089d8        0x0 ./SRC/Startup/startup_ch32v00X.o
 
-.fini           0x0000000000008948        0x0
+.fini           0x00000000000089d8        0x0
  *(SORT_NONE(.fini))
-                0x0000000000008948                . = ALIGN (0x4)
+                0x00000000000089d8                . = ALIGN (0x4)
                 [!provide]                        PROVIDE (_etext = .)
                 [!provide]                        PROVIDE (_eitcm = .)
 
-.preinit_array  0x0000000000008948        0x0
+.preinit_array  0x00000000000089d8        0x0
                 [!provide]                        PROVIDE (__preinit_array_start = .)
  *(.preinit_array)
                 [!provide]                        PROVIDE (__preinit_array_end = .)
 
-.init_array     0x0000000000008948        0x0
+.init_array     0x00000000000089d8        0x0
                 [!provide]                        PROVIDE (__init_array_start = .)
  *(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*))
  *(.init_array EXCLUDE_FILE(*crtend?.o *crtend.o *crtbegin?.o *crtbegin.o) .ctors)
                 [!provide]                        PROVIDE (__init_array_end = .)
 
-.fini_array     0x0000000000008948        0x0
+.fini_array     0x00000000000089d8        0x0
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*))
  *(.fini_array EXCLUDE_FILE(*crtend?.o *crtend.o *crtbegin?.o *crtbegin.o) .dtors)
@@ -1072,32 +1074,32 @@ END GROUP
  *(SORT_BY_NAME(.dtors.*))
  *(.dtors)
 
-.dalign         0x0000000020000000        0x0 load address 0x0000000000008948
+.dalign         0x0000000020000000        0x0 load address 0x00000000000089d8
                 0x0000000020000000                . = ALIGN (0x4)
                 0x0000000020000000                PROVIDE (_data_vma = .)
 
-.dlalign        0x0000000000008948        0x0
-                0x0000000000008948                . = ALIGN (0x4)
-                0x0000000000008948                PROVIDE (_data_lma = .)
+.dlalign        0x00000000000089d8        0x0
+                0x00000000000089d8                . = ALIGN (0x4)
+                0x00000000000089d8                PROVIDE (_data_lma = .)
 
-.data           0x0000000020000000       0x78 load address 0x0000000000008948
+.data           0x0000000020000000       0x78 load address 0x00000000000089d8
                 0x0000000020000000                . = ALIGN (0x4)
  *(.gnu.linkonce.r.*)
  *(.data .data.*)
  .data.previous_mode.2
-                0x0000000020000000        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000020000000        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  *fill*         0x0000000020000001        0x1 
- .data.s_pwm    0x0000000020000002        0x2 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+ .data.s_pwm    0x0000000020000002        0x2 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .data.ADCPrescTable
-                0x0000000020000004       0x14 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000020000004       0x14 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .data.PBHBPrescTable
-                0x0000000020000018       0x10 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000020000018       0x10 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .data.HBPrescTable
-                0x0000000020000028       0x10 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000020000028       0x10 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .data.SystemCoreClock
-                0x0000000020000038        0x4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000020000038        0x4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .data.s_tasks.lto_priv.1
-                0x000000002000003c       0x3c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000002000003c       0x3c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  *(.gnu.linkonce.d.*)
                 0x0000000020000078                . = ALIGN (0x8)
                 0x0000000020000878                PROVIDE (__global_pointer$ = (. + 0x800))
@@ -1113,115 +1115,115 @@ END GROUP
                 0x0000000020000078                . = ALIGN (0x4)
                 0x0000000020000078                PROVIDE (_edata = .)
 
-.bss            0x0000000020000078      0x6f4 load address 0x00000000000089c0
+.bss            0x0000000020000078      0x6fc load address 0x0000000000008a50
                 0x0000000020000078                . = ALIGN (0x4)
                 0x0000000020000078                PROVIDE (_sbss = .)
  *(.sbss*)
  *(.gnu.linkonce.sb.*)
  *(.bss*)
- .bss.s_reply   0x0000000020000078       0x30 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+ .bss.s_reply   0x0000000020000078       0x30 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_reply_len
-                0x00000000200000a8        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000200000a8        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  *fill*         0x00000000200000a9        0x1 
  .bss.s_save_hold_ms
-                0x00000000200000aa        0x2 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.phase.0   0x00000000200000ac        0x2 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000200000aa        0x2 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.phase.0   0x00000000200000ac        0x2 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.blink_tick.1
-                0x00000000200000ae        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000200000ae        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_reply_bcast
-                0x00000000200000af        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000200000af        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_bin_bcast
-                0x00000000200000b0        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000200000b0        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  *fill*         0x00000000200000b1        0x3 
- .bss.s_bin     0x00000000200000b4       0x28 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+ .bss.s_bin     0x00000000200000b4       0x28 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_bin_len
-                0x00000000200000dc        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000200000dc        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  *fill*         0x00000000200000dd        0x3 
- .bss.s_text    0x00000000200000e0       0x20 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+ .bss.s_text    0x00000000200000e0       0x20 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_text_len
-                0x0000000020000100        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000020000100        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_bcast_baud
-                0x0000000020000101        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000020000101        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x0000000020000102        0x2 
+ .bss.s_bcast   0x0000000020000104       0x36 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_tx_stall_ms
-                0x0000000020000102        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000002000013a        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_tx_seen
-                0x0000000020000103        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_wire    0x0000000020000104        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000002000013b        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_wire    0x000000002000013c        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_debug_rx_quiet_ms
-                0x0000000020000105        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000002000013d        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_wire_idle_ms
-                0x0000000020000106        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x0000000020000107        0x1 
- .bss.s_bcast   0x0000000020000108       0x36 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x000000002000013e        0x2 
- .bss.s_cfg     0x0000000020000140       0x28 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_load    0x0000000020000168       0x10 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_ctrl    0x0000000020000178       0x38 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_frame   0x00000000200001b0       0x18 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000002000013e        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x000000002000013f        0x1 
+ .bss.s_cfg     0x0000000020000140       0x28 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_load    0x0000000020000168       0x10 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_ctrl    0x0000000020000178       0x40 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_frame   0x00000000200001b8       0x18 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_reset_pending
-                0x00000000200001c8        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_pos     0x00000000200001c9        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x00000000200001ca        0x2 
- .bss.s_rx      0x00000000200001cc       0x11 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x00000000200001dd        0x1 
- .bss.p_ms      0x00000000200001de        0x2 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.p_us      0x00000000200001e0        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x00000000200001e1        0x3 
- .bss.s_image_tag
-                0x00000000200001e4        0x4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_i2c_initialized
-                0x00000000200001e8        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000200001d0        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_pos     0x00000000200001d1        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x00000000200001d2        0x2 
+ .bss.s_rx      0x00000000200001d4       0x11 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x00000000200001e5        0x1 
+ .bss.p_ms      0x00000000200001e6        0x2 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.p_us      0x00000000200001e8        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  *fill*         0x00000000200001e9        0x3 
- .bss.s_pending_baud
-                0x00000000200001ec        0x4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_tx_busy
-                0x00000000200001f0        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+ .bss.s_image_tag
+                0x00000000200001ec        0x4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_i2c_initialized
+                0x00000000200001f0        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  *fill*         0x00000000200001f1        0x3 
+ .bss.s_pending_baud
+                0x00000000200001f4        0x4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_tx_busy
+                0x00000000200001f8        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x00000000200001f9        0x3 
  .bss.NVIC_Priority_Group
-                0x00000000200001f4        0x4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_model   0x00000000200001f8       0x28 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_gain    0x0000000020000220       0x4c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_tj      0x000000002000026c      0x200 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x00000000200001fc        0x4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_model   0x0000000020000200       0x28 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_gain    0x0000000020000228       0x4c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_tj      0x0000000020000274      0x200 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.g_runtime_config
-                0x000000002000046c       0x30 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_out     0x000000002000049c       0x30 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_loop    0x00000000200004cc       0x58 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_geom    0x0000000020000524       0x20 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.g_config  0x0000000020000544       0x44 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_servo   0x0000000020000588       0x3c C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_prot    0x00000000200005c4       0x36 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_dirty   0x00000000200005fa        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x00000000200005fb        0x1 
+                0x0000000020000474       0x30 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_out     0x00000000200004a4       0x30 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_loop    0x00000000200004d4       0x58 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_geom    0x000000002000052c       0x20 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.g_config  0x000000002000054c       0x44 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_servo   0x0000000020000590       0x3c C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_prot    0x00000000200005cc       0x36 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_dirty   0x0000000020000602        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x0000000020000603        0x1 
  .bss.s_save_event
-                0x00000000200005fc        0x4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000020000604        0x4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_task_count
-                0x0000000020000600        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x0000000020000601        0x3 
+                0x0000000020000608        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x0000000020000609        0x3 
  .bss.s_tasks.lto_priv.0
-                0x0000000020000604        0x4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_buf     0x0000000020000608       0x28 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s         0x0000000020000630       0x20 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000002000060c        0x4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_buf     0x0000000020000610       0x28 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s         0x0000000020000638       0x20 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_tick_periods
-                0x0000000020000650        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x0000000020000651        0x1 
+                0x0000000020000658        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x0000000020000659        0x1 
  .bss.s_pulse_us
-                0x0000000020000652        0x2 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_ic      0x0000000020000654        0x8 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .bss.s_ovf     0x000000002000065c        0x4 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x000000002000065a        0x2 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_ic      0x000000002000065c        0x8 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .bss.s_ovf     0x0000000020000664        0x4 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_tx_progress
-                0x0000000020000660        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x0000000020000661        0x3 
- .bss.s_tx_rb   0x0000000020000664       0x82 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- *fill*         0x00000000200006e6        0x2 
- .bss.s_rx_rb   0x00000000200006e8       0x82 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000020000668        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x0000000020000669        0x3 
+ .bss.s_tx_rb   0x000000002000066c       0x82 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ *fill*         0x00000000200006ee        0x2 
+ .bss.s_rx_rb   0x00000000200006f0       0x82 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .bss.s_enabled
-                0x000000002000076a        0x1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000020000772        0x1 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  *(.gnu.linkonce.b.*)
  *(COMMON*)
-                0x000000002000076c                . = ALIGN (0x4)
- *fill*         0x000000002000076b        0x1 
-                0x000000002000076c                PROVIDE (_ebss = .)
-                0x000000002000076c                PROVIDE (_end = _ebss)
+                0x0000000020000774                . = ALIGN (0x4)
+ *fill*         0x0000000020000773        0x1 
+                0x0000000020000774                PROVIDE (_ebss = .)
+                0x0000000020000774                PROVIDE (_end = _ebss)
                 [!provide]                        PROVIDE (end = .)
 
 .stack          0x0000000020001800      0x800
@@ -1233,447 +1235,447 @@ END GROUP
                 0x0000000020002000                PROVIDE (_eusrstack = .)
 OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
 
-.debug_info     0x0000000000000000    0x1d8c6
- .debug_info    0x0000000000000000     0xaaa6 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .debug_info    0x000000000000aaa6      0x61d C:\Users\Admin\AppData\Local\Temp\ccxUEoKA.debug.temp.o
-                0x000000000000aaa6                ch32v00X_it.c.ea9f5978
- .debug_info    0x000000000000b0c3      0x18a C:\Users\Admin\AppData\Local\Temp\cc8aM8f8.debug.temp.o
-                0x000000000000b0c3                main.c.3f925918
- .debug_info    0x000000000000b24d      0x37c C:\Users\Admin\AppData\Local\Temp\ccZbVfaG.debug.temp.o
-                0x000000000000b24d                flash.c.92f541f7
- .debug_info    0x000000000000b5c9      0xac3 C:\Users\Admin\AppData\Local\Temp\ccO7Zl8d.debug.temp.o
-                0x000000000000b5c9                iap.c.cff7e42a
- .debug_info    0x000000000000c08c      0x2b8 C:\Users\Admin\AppData\Local\Temp\ccdO3DSL.debug.temp.o
-                0x000000000000c08c                system_ch32v00X.c.5308102d
- .debug_info    0x000000000000c344      0xaa2 C:\Users\Admin\AppData\Local\Temp\ccUtqEHj.debug.temp.o
-                0x000000000000c344                ch32v00X_adc.c.139e3ce3
- .debug_info    0x000000000000cde6      0x392 C:\Users\Admin\AppData\Local\Temp\ccQqoFuo.debug.temp.o
-                0x000000000000cde6                ch32v00X_dma.c.c6fea60d
- .debug_info    0x000000000000d178      0x674 C:\Users\Admin\AppData\Local\Temp\cc4iXaos.debug.temp.o
-                0x000000000000d178                ch32v00X_flash.c.8c4eda69
- .debug_info    0x000000000000d7ec      0x52d C:\Users\Admin\AppData\Local\Temp\ccDywPhZ.debug.temp.o
-                0x000000000000d7ec                ch32v00X_gpio.c.6c237c7c
- .debug_info    0x000000000000dd19      0x86d C:\Users\Admin\AppData\Local\Temp\cckGfkyw.debug.temp.o
-                0x000000000000dd19                ch32v00X_i2c.c.4c2e79e1
- .debug_info    0x000000000000e586      0x224 C:\Users\Admin\AppData\Local\Temp\ccFmmRT3.debug.temp.o
-                0x000000000000e586                ch32v00X_iwdg.c.194fe73f
- .debug_info    0x000000000000e7aa      0x480 C:\Users\Admin\AppData\Local\Temp\ccKomD4A.debug.temp.o
-                0x000000000000e7aa                ch32v00X_misc.c.d471edcd
- .debug_info    0x000000000000ec2a      0xa86 C:\Users\Admin\AppData\Local\Temp\ccZvKji8.debug.temp.o
-                0x000000000000ec2a                ch32v00X_opa.c.382cfd44
- .debug_info    0x000000000000f6b0      0x6be C:\Users\Admin\AppData\Local\Temp\cc5DR7uk.debug.temp.o
-                0x000000000000f6b0                ch32v00X_rcc.c.8394d138
- .debug_info    0x000000000000fd6e      0x5d5 C:\Users\Admin\AppData\Local\Temp\ccIRMWDV.debug.temp.o
-                0x000000000000fd6e                ch32v00X_spi.c.596f098e
- .debug_info    0x0000000000010343     0x1639 C:\Users\Admin\AppData\Local\Temp\cctBwKCw.debug.temp.o
-                0x0000000000010343                ch32v00X_tim.c.96d70709
- .debug_info    0x000000000001197c      0x66a C:\Users\Admin\AppData\Local\Temp\ccSJodF7.debug.temp.o
-                0x000000000001197c                ch32v00X_usart.c.2c93f269
- .debug_info    0x0000000000011fe6      0x590 C:\Users\Admin\AppData\Local\Temp\cc8iXt6j.debug.temp.o
-                0x0000000000011fe6                debug.c.b8692e34
- .debug_info    0x0000000000012576      0x217 C:\Users\Admin\AppData\Local\Temp\ccd7RQzV.debug.temp.o
-                0x0000000000012576                core_riscv.c.32c25e5d
- .debug_info    0x000000000001278d      0xb62 C:\Users\Admin\AppData\Local\Temp\ccij7f2w.debug.temp.o
-                0x000000000001278d                D_adc.c.a8f63fad
- .debug_info    0x00000000000132ef      0x70f C:\Users\Admin\AppData\Local\Temp\ccp6Gym8.debug.temp.o
-                0x00000000000132ef                D_i2c.c.44f4b907
- .debug_info    0x00000000000139fe      0x181 C:\Users\Admin\AppData\Local\Temp\ccO6y5TI.debug.temp.o
-                0x00000000000139fe                D_iwdg.c.f3b376d8
- .debug_info    0x0000000000013b7f      0x424 C:\Users\Admin\AppData\Local\Temp\ccNJfLtj.debug.temp.o
-                0x0000000000013b7f                D_motor.c.dd9a43e3
- .debug_info    0x0000000000013fa3      0x146 C:\Users\Admin\AppData\Local\Temp\ccsG7WOT.debug.temp.o
-                0x0000000000013fa3                D_mt6701.c.7a1b68f5
- .debug_info    0x00000000000140e9      0x6de C:\Users\Admin\AppData\Local\Temp\ccfj5xiu.debug.temp.o
-                0x00000000000140e9                D_opa.c.96c9c0a9
- .debug_info    0x00000000000147c7      0x4ad C:\Users\Admin\AppData\Local\Temp\ccAhxF74.debug.temp.o
-                0x00000000000147c7                D_spi.c.fcd0bd76
- .debug_info    0x0000000000014c74      0xdc2 C:\Users\Admin\AppData\Local\Temp\ccHeifVF.debug.temp.o
-                0x0000000000014c74                D_tim.c.8b3374d2
- .debug_info    0x0000000000015a36      0x1c7 C:\Users\Admin\AppData\Local\Temp\ccSRtMNg.debug.temp.o
-                0x0000000000015a36                D_tmp112.c.ab3feac7
- .debug_info    0x0000000000015bfd      0xa6c C:\Users\Admin\AppData\Local\Temp\ccJghqrR.debug.temp.o
-                0x0000000000015bfd                D_uart.c.497a43d3
- .debug_info    0x0000000000016669      0x15b C:\Users\Admin\AppData\Local\Temp\cc252rbs.debug.temp.o
-                0x0000000000016669                D_ws2812.c.8e8497ae
- .debug_info    0x00000000000167c4      0x29a C:\Users\Admin\AppData\Local\Temp\cczC1gU2.debug.temp.o
-                0x00000000000167c4                C_Motor_Model.c.4509697a
- .debug_info    0x0000000000016a5e      0xcda C:\Users\Admin\AppData\Local\Temp\cckcELPC.debug.temp.o
-                0x0000000000016a5e                C_Pos_Ctrl.c.bbe13ec7
- .debug_info    0x0000000000017738      0x177 C:\Users\Admin\AppData\Local\Temp\ccBsMLOc.debug.temp.o
-                0x0000000000017738                C_Ring_Buf.c.d43b7e3e
- .debug_info    0x00000000000178af      0x5ea C:\Users\Admin\AppData\Local\Temp\cc2zbYBM.debug.temp.o
-                0x00000000000178af                C_Speed_Observer.c.05ffcfc0
- .debug_info    0x0000000000017e99      0x1fa C:\Users\Admin\AppData\Local\Temp\ccZNdJnm.debug.temp.o
-                0x0000000000017e99                C_Task_Scheduler.c.9dda55e9
- .debug_info    0x0000000000018093      0x71c C:\Users\Admin\AppData\Local\Temp\ccSNLDcW.debug.temp.o
-                0x0000000000018093                C_Traj_Planner.c.04a3ad35
- .debug_info    0x00000000000187af      0x7d8 C:\Users\Admin\AppData\Local\Temp\cck5naM6.debug.temp.o
-                0x00000000000187af                A_Config.c.20814f75
- .debug_info    0x0000000000018f87      0x967 C:\Users\Admin\AppData\Local\Temp\ccM2tT1g.debug.temp.o
-                0x0000000000018f87                A_Protect.c.e65b7f1f
- .debug_info    0x00000000000198ee      0x1b8 C:\Users\Admin\AppData\Local\Temp\cczVrenQ.debug.temp.o
-                0x00000000000198ee                A_Sensor.c.c78b03a6
- .debug_info    0x0000000000019aa6     0x1384 C:\Users\Admin\AppData\Local\Temp\ccOIROOp.debug.temp.o
-                0x0000000000019aa6                A_Servo.c.2e248e07
- .debug_info    0x000000000001ae2a     0x14ba C:\Users\Admin\AppData\Local\Temp\ccVLPb3Y.debug.temp.o
-                0x000000000001ae2a                A_Servo_Ctrl.c.fbf2a174
- .debug_info    0x000000000001c2e4      0x225 C:\Users\Admin\AppData\Local\Temp\cc8LAbky.debug.temp.o
-                0x000000000001c2e4                A_StatusLed.c.9ad133a4
- .debug_info    0x000000000001c509      0x1e1 C:\Users\Admin\AppData\Local\Temp\ccDtvJY7.debug.temp.o
-                0x000000000001c509                A_Tasks.c.f14ce7f2
- .debug_info    0x000000000001c6ea     0x11b9 C:\Users\Admin\AppData\Local\Temp\ccGgeiBH.debug.temp.o
-                0x000000000001c6ea                A_UartCmd.c.7d8ac633
- .debug_info    0x000000000001d8a3       0x23 ./SRC/Startup/startup_ch32v00X.o
+.debug_info     0x0000000000000000    0x1d7f3
+ .debug_info    0x0000000000000000     0xaae7 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .debug_info    0x000000000000aae7      0x61d C:\Users\Admin\AppData\Local\Temp\cchFM2rO.debug.temp.o
+                0x000000000000aae7                ch32v00X_it.c.8c45a6cf
+ .debug_info    0x000000000000b104      0x18a C:\Users\Admin\AppData\Local\Temp\cc8GA34q.debug.temp.o
+                0x000000000000b104                main.c.2b53a696
+ .debug_info    0x000000000000b28e      0x37c C:\Users\Admin\AppData\Local\Temp\ccDj3AA3.debug.temp.o
+                0x000000000000b28e                flash.c.edd795cc
+ .debug_info    0x000000000000b60a      0xac3 C:\Users\Admin\AppData\Local\Temp\ccgWdmfF.debug.temp.o
+                0x000000000000b60a                iap.c.08eb177e
+ .debug_info    0x000000000000c0cd      0x2b8 C:\Users\Admin\AppData\Local\Temp\ccJPNuYg.debug.temp.o
+                0x000000000000c0cd                system_ch32v00X.c.366f9da7
+ .debug_info    0x000000000000c385      0xaa2 C:\Users\Admin\AppData\Local\Temp\ccMxsnuS.debug.temp.o
+                0x000000000000c385                ch32v00X_adc.c.88818666
+ .debug_info    0x000000000000ce27      0x392 C:\Users\Admin\AppData\Local\Temp\ccskwr85.debug.temp.o
+                0x000000000000ce27                ch32v00X_dma.c.b3b69f09
+ .debug_info    0x000000000000d1b9      0x674 C:\Users\Admin\AppData\Local\Temp\ccKEZ4Vj.debug.temp.o
+                0x000000000000d1b9                ch32v00X_flash.c.810ffa6e
+ .debug_info    0x000000000000d82d      0x52d C:\Users\Admin\AppData\Local\Temp\cc5pNdJZ.debug.temp.o
+                0x000000000000d82d                ch32v00X_gpio.c.395295c7
+ .debug_info    0x000000000000dd5a      0x86d C:\Users\Admin\AppData\Local\Temp\ccYmOszF.debug.temp.o
+                0x000000000000dd5a                ch32v00X_i2c.c.2446726a
+ .debug_info    0x000000000000e5c7      0x224 C:\Users\Admin\AppData\Local\Temp\ccDctOel.debug.temp.o
+                0x000000000000e5c7                ch32v00X_iwdg.c.d4ed773f
+ .debug_info    0x000000000000e7eb      0x480 C:\Users\Admin\AppData\Local\Temp\ccucQlX0.debug.temp.o
+                0x000000000000e7eb                ch32v00X_misc.c.0f23a02b
+ .debug_info    0x000000000000ec6b      0xa86 C:\Users\Admin\AppData\Local\Temp\cc9rqA1G.debug.temp.o
+                0x000000000000ec6b                ch32v00X_opa.c.0cb67aff
+ .debug_info    0x000000000000f6f1      0x6be C:\Users\Admin\AppData\Local\Temp\ccvCLeY2.debug.temp.o
+                0x000000000000f6f1                ch32v00X_rcc.c.1cd81f1e
+ .debug_info    0x000000000000fdaf      0x5d5 C:\Users\Admin\AppData\Local\Temp\cc8gpUcI.debug.temp.o
+                0x000000000000fdaf                ch32v00X_spi.c.1a2953d7
+ .debug_info    0x0000000000010384     0x1639 C:\Users\Admin\AppData\Local\Temp\ccvrXYun.debug.temp.o
+                0x0000000000010384                ch32v00X_tim.c.ffbb4ab6
+ .debug_info    0x00000000000119bd      0x66a C:\Users\Admin\AppData\Local\Temp\ccw0BFz2.debug.temp.o
+                0x00000000000119bd                ch32v00X_usart.c.f1c83ee8
+ .debug_info    0x0000000000012027      0x590 C:\Users\Admin\AppData\Local\Temp\ccGAFwPm.debug.temp.o
+                0x0000000000012027                debug.c.a0381062
+ .debug_info    0x00000000000125b7      0x217 C:\Users\Admin\AppData\Local\Temp\cchQwdi2.debug.temp.o
+                0x00000000000125b7                core_riscv.c.b3264772
+ .debug_info    0x00000000000127ce      0xb62 C:\Users\Admin\AppData\Local\Temp\cc0RmSPH.debug.temp.o
+                0x00000000000127ce                D_adc.c.b179e975
+ .debug_info    0x0000000000013330      0x70f C:\Users\Admin\AppData\Local\Temp\ccpFkahn.debug.temp.o
+                0x0000000000013330                D_i2c.c.6622d749
+ .debug_info    0x0000000000013a3f      0x181 C:\Users\Admin\AppData\Local\Temp\ccQNEwR1.debug.temp.o
+                0x0000000000013a3f                D_iwdg.c.30858bce
+ .debug_info    0x0000000000013bc0      0x424 C:\Users\Admin\AppData\Local\Temp\ccbxvplG.debug.temp.o
+                0x0000000000013bc0                D_motor.c.7ab1b6c8
+ .debug_info    0x0000000000013fe4      0x146 C:\Users\Admin\AppData\Local\Temp\cc2CDjUk.debug.temp.o
+                0x0000000000013fe4                D_mt6701.c.fc500f21
+ .debug_info    0x000000000001412a      0x6de C:\Users\Admin\AppData\Local\Temp\ccnkZuNZ.debug.temp.o
+                0x000000000001412a                D_opa.c.0b99344c
+ .debug_info    0x0000000000014808      0x4ad C:\Users\Admin\AppData\Local\Temp\ccKqpYNE.debug.temp.o
+                0x0000000000014808                D_spi.c.b911777c
+ .debug_info    0x0000000000014cb5      0xdc2 C:\Users\Admin\AppData\Local\Temp\ccbRGkzj.debug.temp.o
+                0x0000000000014cb5                D_tim.c.98eb6fbb
+ .debug_info    0x0000000000015a77      0x1c7 C:\Users\Admin\AppData\Local\Temp\ccqjOpnY.debug.temp.o
+                0x0000000000015a77                D_tmp112.c.efdda150
+ .debug_info    0x0000000000015c3e      0xa6c C:\Users\Admin\AppData\Local\Temp\ccFV4InC.debug.temp.o
+                0x0000000000015c3e                D_uart.c.3e50388e
+ .debug_info    0x00000000000166aa      0x15b C:\Users\Admin\AppData\Local\Temp\ccIj3Osg.debug.temp.o
+                0x00000000000166aa                D_ws2812.c.1f39874b
+ .debug_info    0x0000000000016805      0x29a C:\Users\Admin\AppData\Local\Temp\ccxQNXkU.debug.temp.o
+                0x0000000000016805                C_Motor_Model.c.7f1eef4c
+ .debug_info    0x0000000000016a9f      0xd15 C:\Users\Admin\AppData\Local\Temp\ccybZwhy.debug.temp.o
+                0x0000000000016a9f                C_Pos_Ctrl.c.b66b1302
+ .debug_info    0x00000000000177b4      0x177 C:\Users\Admin\AppData\Local\Temp\ccR9d6Ac.debug.temp.o
+                0x00000000000177b4                C_Ring_Buf.c.b376952e
+ .debug_info    0x000000000001792b      0x5ea C:\Users\Admin\AppData\Local\Temp\ccYBdsOQ.debug.temp.o
+                0x000000000001792b                C_Speed_Observer.c.2bb3659e
+ .debug_info    0x0000000000017f15      0x1fa C:\Users\Admin\AppData\Local\Temp\cc78w51u.debug.temp.o
+                0x0000000000017f15                C_Task_Scheduler.c.3ea52383
+ .debug_info    0x000000000001810f      0x71c C:\Users\Admin\AppData\Local\Temp\ccwSs38c.debug.temp.o
+                0x000000000001810f                C_Traj_Planner.c.e032adb9
+ .debug_info    0x000000000001882b      0x6d2 C:\Users\Admin\AppData\Local\Temp\ccspuaqD.debug.temp.o
+                0x000000000001882b                A_Config.c.5bc2c72a
+ .debug_info    0x0000000000018efd      0x928 C:\Users\Admin\AppData\Local\Temp\cc4xsD73.debug.temp.o
+                0x0000000000018efd                A_Protect.c.491dac8b
+ .debug_info    0x0000000000019825      0x1b8 C:\Users\Admin\AppData\Local\Temp\ccB9LEoM.debug.temp.o
+                0x0000000000019825                A_Sensor.c.b71e2a62
+ .debug_info    0x00000000000199dd     0x1384 C:\Users\Admin\AppData\Local\Temp\ccQzaXWt.debug.temp.o
+                0x00000000000199dd                A_Servo.c.cc5f527d
+ .debug_info    0x000000000001ad61     0x14cc C:\Users\Admin\AppData\Local\Temp\ccxORFAb.debug.temp.o
+                0x000000000001ad61                A_Servo_Ctrl.c.f5d98c81
+ .debug_info    0x000000000001c22d      0x225 C:\Users\Admin\AppData\Local\Temp\ccCJYdYS.debug.temp.o
+                0x000000000001c22d                A_StatusLed.c.81248a61
+ .debug_info    0x000000000001c452      0x1e1 C:\Users\Admin\AppData\Local\Temp\ccBDI7qA.debug.temp.o
+                0x000000000001c452                A_Tasks.c.e005249a
+ .debug_info    0x000000000001c633     0x119d C:\Users\Admin\AppData\Local\Temp\ccsvTGgi.debug.temp.o
+                0x000000000001c633                A_UartCmd.c.3c58a532
+ .debug_info    0x000000000001d7d0       0x23 ./SRC/Startup/startup_ch32v00X.o
 
-.debug_abbrev   0x0000000000000000     0x4413
- .debug_abbrev  0x0000000000000000      0x252 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .debug_abbrev  0x0000000000000252      0x1c8 C:\Users\Admin\AppData\Local\Temp\ccxUEoKA.debug.temp.o
- .debug_abbrev  0x000000000000041a       0x8c C:\Users\Admin\AppData\Local\Temp\cc8aM8f8.debug.temp.o
- .debug_abbrev  0x00000000000004a6      0x12c C:\Users\Admin\AppData\Local\Temp\ccZbVfaG.debug.temp.o
- .debug_abbrev  0x00000000000005d2      0x288 C:\Users\Admin\AppData\Local\Temp\ccO7Zl8d.debug.temp.o
- .debug_abbrev  0x000000000000085a      0x124 C:\Users\Admin\AppData\Local\Temp\ccdO3DSL.debug.temp.o
- .debug_abbrev  0x000000000000097e      0x14e C:\Users\Admin\AppData\Local\Temp\ccUtqEHj.debug.temp.o
- .debug_abbrev  0x0000000000000acc      0x135 C:\Users\Admin\AppData\Local\Temp\ccQqoFuo.debug.temp.o
- .debug_abbrev  0x0000000000000c01      0x1e3 C:\Users\Admin\AppData\Local\Temp\cc4iXaos.debug.temp.o
- .debug_abbrev  0x0000000000000de4      0x176 C:\Users\Admin\AppData\Local\Temp\ccDywPhZ.debug.temp.o
- .debug_abbrev  0x0000000000000f5a      0x14e C:\Users\Admin\AppData\Local\Temp\cckGfkyw.debug.temp.o
- .debug_abbrev  0x00000000000010a8       0xf1 C:\Users\Admin\AppData\Local\Temp\ccFmmRT3.debug.temp.o
- .debug_abbrev  0x0000000000001199      0x164 C:\Users\Admin\AppData\Local\Temp\ccKomD4A.debug.temp.o
- .debug_abbrev  0x00000000000012fd      0x17d C:\Users\Admin\AppData\Local\Temp\ccZvKji8.debug.temp.o
- .debug_abbrev  0x000000000000147a      0x1a5 C:\Users\Admin\AppData\Local\Temp\cc5DR7uk.debug.temp.o
- .debug_abbrev  0x000000000000161f      0x184 C:\Users\Admin\AppData\Local\Temp\ccIRMWDV.debug.temp.o
- .debug_abbrev  0x00000000000017a3      0x1d4 C:\Users\Admin\AppData\Local\Temp\cctBwKCw.debug.temp.o
- .debug_abbrev  0x0000000000001977      0x184 C:\Users\Admin\AppData\Local\Temp\ccSJodF7.debug.temp.o
- .debug_abbrev  0x0000000000001afb      0x223 C:\Users\Admin\AppData\Local\Temp\cc8iXt6j.debug.temp.o
- .debug_abbrev  0x0000000000001d1e       0xbb C:\Users\Admin\AppData\Local\Temp\ccd7RQzV.debug.temp.o
- .debug_abbrev  0x0000000000001dd9      0x1eb C:\Users\Admin\AppData\Local\Temp\ccij7f2w.debug.temp.o
- .debug_abbrev  0x0000000000001fc4      0x1b0 C:\Users\Admin\AppData\Local\Temp\ccp6Gym8.debug.temp.o
- .debug_abbrev  0x0000000000002174       0xd7 C:\Users\Admin\AppData\Local\Temp\ccO6y5TI.debug.temp.o
- .debug_abbrev  0x000000000000224b      0x14b C:\Users\Admin\AppData\Local\Temp\ccNJfLtj.debug.temp.o
- .debug_abbrev  0x0000000000002396       0xa8 C:\Users\Admin\AppData\Local\Temp\ccsG7WOT.debug.temp.o
- .debug_abbrev  0x000000000000243e      0x100 C:\Users\Admin\AppData\Local\Temp\ccfj5xiu.debug.temp.o
- .debug_abbrev  0x000000000000253e      0x163 C:\Users\Admin\AppData\Local\Temp\ccAhxF74.debug.temp.o
- .debug_abbrev  0x00000000000026a1      0x26f C:\Users\Admin\AppData\Local\Temp\ccHeifVF.debug.temp.o
- .debug_abbrev  0x0000000000002910       0xdf C:\Users\Admin\AppData\Local\Temp\ccSRtMNg.debug.temp.o
- .debug_abbrev  0x00000000000029ef      0x259 C:\Users\Admin\AppData\Local\Temp\ccJghqrR.debug.temp.o
- .debug_abbrev  0x0000000000002c48       0xdf C:\Users\Admin\AppData\Local\Temp\cc252rbs.debug.temp.o
- .debug_abbrev  0x0000000000002d27       0xf2 C:\Users\Admin\AppData\Local\Temp\cczC1gU2.debug.temp.o
- .debug_abbrev  0x0000000000002e19      0x271 C:\Users\Admin\AppData\Local\Temp\cckcELPC.debug.temp.o
- .debug_abbrev  0x000000000000308a       0xe1 C:\Users\Admin\AppData\Local\Temp\ccBsMLOc.debug.temp.o
- .debug_abbrev  0x000000000000316b      0x128 C:\Users\Admin\AppData\Local\Temp\cc2zbYBM.debug.temp.o
- .debug_abbrev  0x0000000000003293      0x118 C:\Users\Admin\AppData\Local\Temp\ccZNdJnm.debug.temp.o
- .debug_abbrev  0x00000000000033ab      0x181 C:\Users\Admin\AppData\Local\Temp\ccSNLDcW.debug.temp.o
- .debug_abbrev  0x000000000000352c      0x1ca C:\Users\Admin\AppData\Local\Temp\cck5naM6.debug.temp.o
- .debug_abbrev  0x00000000000036f6      0x222 C:\Users\Admin\AppData\Local\Temp\ccM2tT1g.debug.temp.o
- .debug_abbrev  0x0000000000003918       0xbe C:\Users\Admin\AppData\Local\Temp\cczVrenQ.debug.temp.o
- .debug_abbrev  0x00000000000039d6      0x2ac C:\Users\Admin\AppData\Local\Temp\ccOIROOp.debug.temp.o
- .debug_abbrev  0x0000000000003c82      0x2bb C:\Users\Admin\AppData\Local\Temp\ccVLPb3Y.debug.temp.o
- .debug_abbrev  0x0000000000003f3d      0x11e C:\Users\Admin\AppData\Local\Temp\cc8LAbky.debug.temp.o
- .debug_abbrev  0x000000000000405b      0x11f C:\Users\Admin\AppData\Local\Temp\ccDtvJY7.debug.temp.o
- .debug_abbrev  0x000000000000417a      0x287 C:\Users\Admin\AppData\Local\Temp\ccGgeiBH.debug.temp.o
- .debug_abbrev  0x0000000000004401       0x12 ./SRC/Startup/startup_ch32v00X.o
+.debug_abbrev   0x0000000000000000     0x440e
+ .debug_abbrev  0x0000000000000000      0x252 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .debug_abbrev  0x0000000000000252      0x1c8 C:\Users\Admin\AppData\Local\Temp\cchFM2rO.debug.temp.o
+ .debug_abbrev  0x000000000000041a       0x8c C:\Users\Admin\AppData\Local\Temp\cc8GA34q.debug.temp.o
+ .debug_abbrev  0x00000000000004a6      0x12c C:\Users\Admin\AppData\Local\Temp\ccDj3AA3.debug.temp.o
+ .debug_abbrev  0x00000000000005d2      0x288 C:\Users\Admin\AppData\Local\Temp\ccgWdmfF.debug.temp.o
+ .debug_abbrev  0x000000000000085a      0x124 C:\Users\Admin\AppData\Local\Temp\ccJPNuYg.debug.temp.o
+ .debug_abbrev  0x000000000000097e      0x14e C:\Users\Admin\AppData\Local\Temp\ccMxsnuS.debug.temp.o
+ .debug_abbrev  0x0000000000000acc      0x135 C:\Users\Admin\AppData\Local\Temp\ccskwr85.debug.temp.o
+ .debug_abbrev  0x0000000000000c01      0x1e3 C:\Users\Admin\AppData\Local\Temp\ccKEZ4Vj.debug.temp.o
+ .debug_abbrev  0x0000000000000de4      0x176 C:\Users\Admin\AppData\Local\Temp\cc5pNdJZ.debug.temp.o
+ .debug_abbrev  0x0000000000000f5a      0x14e C:\Users\Admin\AppData\Local\Temp\ccYmOszF.debug.temp.o
+ .debug_abbrev  0x00000000000010a8       0xf1 C:\Users\Admin\AppData\Local\Temp\ccDctOel.debug.temp.o
+ .debug_abbrev  0x0000000000001199      0x164 C:\Users\Admin\AppData\Local\Temp\ccucQlX0.debug.temp.o
+ .debug_abbrev  0x00000000000012fd      0x17d C:\Users\Admin\AppData\Local\Temp\cc9rqA1G.debug.temp.o
+ .debug_abbrev  0x000000000000147a      0x1a5 C:\Users\Admin\AppData\Local\Temp\ccvCLeY2.debug.temp.o
+ .debug_abbrev  0x000000000000161f      0x184 C:\Users\Admin\AppData\Local\Temp\cc8gpUcI.debug.temp.o
+ .debug_abbrev  0x00000000000017a3      0x1d4 C:\Users\Admin\AppData\Local\Temp\ccvrXYun.debug.temp.o
+ .debug_abbrev  0x0000000000001977      0x184 C:\Users\Admin\AppData\Local\Temp\ccw0BFz2.debug.temp.o
+ .debug_abbrev  0x0000000000001afb      0x223 C:\Users\Admin\AppData\Local\Temp\ccGAFwPm.debug.temp.o
+ .debug_abbrev  0x0000000000001d1e       0xbb C:\Users\Admin\AppData\Local\Temp\cchQwdi2.debug.temp.o
+ .debug_abbrev  0x0000000000001dd9      0x1eb C:\Users\Admin\AppData\Local\Temp\cc0RmSPH.debug.temp.o
+ .debug_abbrev  0x0000000000001fc4      0x1b0 C:\Users\Admin\AppData\Local\Temp\ccpFkahn.debug.temp.o
+ .debug_abbrev  0x0000000000002174       0xd7 C:\Users\Admin\AppData\Local\Temp\ccQNEwR1.debug.temp.o
+ .debug_abbrev  0x000000000000224b      0x14b C:\Users\Admin\AppData\Local\Temp\ccbxvplG.debug.temp.o
+ .debug_abbrev  0x0000000000002396       0xa8 C:\Users\Admin\AppData\Local\Temp\cc2CDjUk.debug.temp.o
+ .debug_abbrev  0x000000000000243e      0x100 C:\Users\Admin\AppData\Local\Temp\ccnkZuNZ.debug.temp.o
+ .debug_abbrev  0x000000000000253e      0x163 C:\Users\Admin\AppData\Local\Temp\ccKqpYNE.debug.temp.o
+ .debug_abbrev  0x00000000000026a1      0x26f C:\Users\Admin\AppData\Local\Temp\ccbRGkzj.debug.temp.o
+ .debug_abbrev  0x0000000000002910       0xdf C:\Users\Admin\AppData\Local\Temp\ccqjOpnY.debug.temp.o
+ .debug_abbrev  0x00000000000029ef      0x259 C:\Users\Admin\AppData\Local\Temp\ccFV4InC.debug.temp.o
+ .debug_abbrev  0x0000000000002c48       0xdf C:\Users\Admin\AppData\Local\Temp\ccIj3Osg.debug.temp.o
+ .debug_abbrev  0x0000000000002d27       0xf2 C:\Users\Admin\AppData\Local\Temp\ccxQNXkU.debug.temp.o
+ .debug_abbrev  0x0000000000002e19      0x271 C:\Users\Admin\AppData\Local\Temp\ccybZwhy.debug.temp.o
+ .debug_abbrev  0x000000000000308a       0xe1 C:\Users\Admin\AppData\Local\Temp\ccR9d6Ac.debug.temp.o
+ .debug_abbrev  0x000000000000316b      0x128 C:\Users\Admin\AppData\Local\Temp\ccYBdsOQ.debug.temp.o
+ .debug_abbrev  0x0000000000003293      0x118 C:\Users\Admin\AppData\Local\Temp\cc78w51u.debug.temp.o
+ .debug_abbrev  0x00000000000033ab      0x181 C:\Users\Admin\AppData\Local\Temp\ccwSs38c.debug.temp.o
+ .debug_abbrev  0x000000000000352c      0x1ca C:\Users\Admin\AppData\Local\Temp\ccspuaqD.debug.temp.o
+ .debug_abbrev  0x00000000000036f6      0x21d C:\Users\Admin\AppData\Local\Temp\cc4xsD73.debug.temp.o
+ .debug_abbrev  0x0000000000003913       0xbe C:\Users\Admin\AppData\Local\Temp\ccB9LEoM.debug.temp.o
+ .debug_abbrev  0x00000000000039d1      0x2ac C:\Users\Admin\AppData\Local\Temp\ccQzaXWt.debug.temp.o
+ .debug_abbrev  0x0000000000003c7d      0x2bb C:\Users\Admin\AppData\Local\Temp\ccxORFAb.debug.temp.o
+ .debug_abbrev  0x0000000000003f38      0x11e C:\Users\Admin\AppData\Local\Temp\ccCJYdYS.debug.temp.o
+ .debug_abbrev  0x0000000000004056      0x11f C:\Users\Admin\AppData\Local\Temp\ccBDI7qA.debug.temp.o
+ .debug_abbrev  0x0000000000004175      0x287 C:\Users\Admin\AppData\Local\Temp\ccsvTGgi.debug.temp.o
+ .debug_abbrev  0x00000000000043fc       0x12 ./SRC/Startup/startup_ch32v00X.o
 
 .debug_loclists
-                0x0000000000000000     0x9b2e
+                0x0000000000000000     0x99ae
  .debug_loclists
-                0x0000000000000000     0x9b2e C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000000     0x99ae C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
 
-.debug_aranges  0x0000000000000000      0x4d0
+.debug_aranges  0x0000000000000000      0x4d8
  .debug_aranges
-                0x0000000000000000      0x4a0 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000000      0x4a8 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .debug_aranges
-                0x00000000000004a0       0x30 ./SRC/Startup/startup_ch32v00X.o
+                0x00000000000004a8       0x30 ./SRC/Startup/startup_ch32v00X.o
 
 .debug_rnglists
-                0x0000000000000000     0x2602
+                0x0000000000000000     0x2671
  .debug_rnglists
-                0x0000000000000000     0x25e1 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000000     0x2650 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .debug_rnglists
-                0x00000000000025e1       0x21 ./SRC/Startup/startup_ch32v00X.o
+                0x0000000000002650       0x21 ./SRC/Startup/startup_ch32v00X.o
 
-.debug_line     0x0000000000000000    0x1494b
- .debug_line    0x0000000000000000    0x13568 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
- .debug_line    0x0000000000013568       0x7f C:\Users\Admin\AppData\Local\Temp\ccxUEoKA.debug.temp.o
- .debug_line    0x00000000000135e7       0xc8 C:\Users\Admin\AppData\Local\Temp\cc8aM8f8.debug.temp.o
- .debug_line    0x00000000000136af       0x67 C:\Users\Admin\AppData\Local\Temp\ccZbVfaG.debug.temp.o
- .debug_line    0x0000000000013716       0x91 C:\Users\Admin\AppData\Local\Temp\ccO7Zl8d.debug.temp.o
- .debug_line    0x00000000000137a7       0x5f C:\Users\Admin\AppData\Local\Temp\ccdO3DSL.debug.temp.o
- .debug_line    0x0000000000013806       0x68 C:\Users\Admin\AppData\Local\Temp\ccUtqEHj.debug.temp.o
- .debug_line    0x000000000001386e       0x63 C:\Users\Admin\AppData\Local\Temp\ccQqoFuo.debug.temp.o
- .debug_line    0x00000000000138d1       0x63 C:\Users\Admin\AppData\Local\Temp\cc4iXaos.debug.temp.o
- .debug_line    0x0000000000013934       0x68 C:\Users\Admin\AppData\Local\Temp\ccDywPhZ.debug.temp.o
- .debug_line    0x000000000001399c       0x68 C:\Users\Admin\AppData\Local\Temp\cckGfkyw.debug.temp.o
- .debug_line    0x0000000000013a04       0x5e C:\Users\Admin\AppData\Local\Temp\ccFmmRT3.debug.temp.o
- .debug_line    0x0000000000013a62       0x63 C:\Users\Admin\AppData\Local\Temp\ccKomD4A.debug.temp.o
- .debug_line    0x0000000000013ac5       0x63 C:\Users\Admin\AppData\Local\Temp\ccZvKji8.debug.temp.o
- .debug_line    0x0000000000013b28       0x63 C:\Users\Admin\AppData\Local\Temp\cc5DR7uk.debug.temp.o
- .debug_line    0x0000000000013b8b       0x68 C:\Users\Admin\AppData\Local\Temp\ccIRMWDV.debug.temp.o
- .debug_line    0x0000000000013bf3       0x68 C:\Users\Admin\AppData\Local\Temp\cctBwKCw.debug.temp.o
- .debug_line    0x0000000000013c5b       0x68 C:\Users\Admin\AppData\Local\Temp\ccSJodF7.debug.temp.o
- .debug_line    0x0000000000013cc3       0x7f C:\Users\Admin\AppData\Local\Temp\cc8iXt6j.debug.temp.o
- .debug_line    0x0000000000013d42       0x4c C:\Users\Admin\AppData\Local\Temp\ccd7RQzV.debug.temp.o
- .debug_line    0x0000000000013d8e       0x80 C:\Users\Admin\AppData\Local\Temp\ccij7f2w.debug.temp.o
- .debug_line    0x0000000000013e0e       0x6d C:\Users\Admin\AppData\Local\Temp\ccp6Gym8.debug.temp.o
- .debug_line    0x0000000000013e7b       0x63 C:\Users\Admin\AppData\Local\Temp\ccO6y5TI.debug.temp.o
- .debug_line    0x0000000000013ede       0x5f C:\Users\Admin\AppData\Local\Temp\ccNJfLtj.debug.temp.o
- .debug_line    0x0000000000013f3d       0x51 C:\Users\Admin\AppData\Local\Temp\ccsG7WOT.debug.temp.o
- .debug_line    0x0000000000013f8e       0x6d C:\Users\Admin\AppData\Local\Temp\ccfj5xiu.debug.temp.o
- .debug_line    0x0000000000013ffb       0x6d C:\Users\Admin\AppData\Local\Temp\ccAhxF74.debug.temp.o
- .debug_line    0x0000000000014068       0x72 C:\Users\Admin\AppData\Local\Temp\ccHeifVF.debug.temp.o
- .debug_line    0x00000000000140da       0x51 C:\Users\Admin\AppData\Local\Temp\ccSRtMNg.debug.temp.o
- .debug_line    0x000000000001412b       0x7b C:\Users\Admin\AppData\Local\Temp\ccJghqrR.debug.temp.o
- .debug_line    0x00000000000141a6       0x5a C:\Users\Admin\AppData\Local\Temp\cc252rbs.debug.temp.o
- .debug_line    0x0000000000014200       0x56 C:\Users\Admin\AppData\Local\Temp\cczC1gU2.debug.temp.o
- .debug_line    0x0000000000014256       0x72 C:\Users\Admin\AppData\Local\Temp\cckcELPC.debug.temp.o
- .debug_line    0x00000000000142c8       0x51 C:\Users\Admin\AppData\Local\Temp\ccBsMLOc.debug.temp.o
- .debug_line    0x0000000000014319       0x6d C:\Users\Admin\AppData\Local\Temp\cc2zbYBM.debug.temp.o
- .debug_line    0x0000000000014386       0x5a C:\Users\Admin\AppData\Local\Temp\ccZNdJnm.debug.temp.o
- .debug_line    0x00000000000143e0       0x68 C:\Users\Admin\AppData\Local\Temp\ccSNLDcW.debug.temp.o
- .debug_line    0x0000000000014448       0x76 C:\Users\Admin\AppData\Local\Temp\cck5naM6.debug.temp.o
- .debug_line    0x00000000000144be       0x7b C:\Users\Admin\AppData\Local\Temp\ccM2tT1g.debug.temp.o
- .debug_line    0x0000000000014539       0x5f C:\Users\Admin\AppData\Local\Temp\cczVrenQ.debug.temp.o
- .debug_line    0x0000000000014598       0xa6 C:\Users\Admin\AppData\Local\Temp\ccOIROOp.debug.temp.o
- .debug_line    0x000000000001463e       0x9c C:\Users\Admin\AppData\Local\Temp\ccVLPb3Y.debug.temp.o
- .debug_line    0x00000000000146da       0x5f C:\Users\Admin\AppData\Local\Temp\cc8LAbky.debug.temp.o
- .debug_line    0x0000000000014739       0x80 C:\Users\Admin\AppData\Local\Temp\ccDtvJY7.debug.temp.o
- .debug_line    0x00000000000147b9       0x84 C:\Users\Admin\AppData\Local\Temp\ccGgeiBH.debug.temp.o
- .debug_line    0x000000000001483d      0x10e ./SRC/Startup/startup_ch32v00X.o
+.debug_line     0x0000000000000000    0x14a7a
+ .debug_line    0x0000000000000000    0x13693 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+ .debug_line    0x0000000000013693       0x7f C:\Users\Admin\AppData\Local\Temp\cchFM2rO.debug.temp.o
+ .debug_line    0x0000000000013712       0xc8 C:\Users\Admin\AppData\Local\Temp\cc8GA34q.debug.temp.o
+ .debug_line    0x00000000000137da       0x67 C:\Users\Admin\AppData\Local\Temp\ccDj3AA3.debug.temp.o
+ .debug_line    0x0000000000013841       0x91 C:\Users\Admin\AppData\Local\Temp\ccgWdmfF.debug.temp.o
+ .debug_line    0x00000000000138d2       0x63 C:\Users\Admin\AppData\Local\Temp\ccJPNuYg.debug.temp.o
+ .debug_line    0x0000000000013935       0x68 C:\Users\Admin\AppData\Local\Temp\ccMxsnuS.debug.temp.o
+ .debug_line    0x000000000001399d       0x63 C:\Users\Admin\AppData\Local\Temp\ccskwr85.debug.temp.o
+ .debug_line    0x0000000000013a00       0x63 C:\Users\Admin\AppData\Local\Temp\ccKEZ4Vj.debug.temp.o
+ .debug_line    0x0000000000013a63       0x68 C:\Users\Admin\AppData\Local\Temp\cc5pNdJZ.debug.temp.o
+ .debug_line    0x0000000000013acb       0x68 C:\Users\Admin\AppData\Local\Temp\ccYmOszF.debug.temp.o
+ .debug_line    0x0000000000013b33       0x5e C:\Users\Admin\AppData\Local\Temp\ccDctOel.debug.temp.o
+ .debug_line    0x0000000000013b91       0x63 C:\Users\Admin\AppData\Local\Temp\ccucQlX0.debug.temp.o
+ .debug_line    0x0000000000013bf4       0x63 C:\Users\Admin\AppData\Local\Temp\cc9rqA1G.debug.temp.o
+ .debug_line    0x0000000000013c57       0x63 C:\Users\Admin\AppData\Local\Temp\ccvCLeY2.debug.temp.o
+ .debug_line    0x0000000000013cba       0x68 C:\Users\Admin\AppData\Local\Temp\cc8gpUcI.debug.temp.o
+ .debug_line    0x0000000000013d22       0x68 C:\Users\Admin\AppData\Local\Temp\ccvrXYun.debug.temp.o
+ .debug_line    0x0000000000013d8a       0x68 C:\Users\Admin\AppData\Local\Temp\ccw0BFz2.debug.temp.o
+ .debug_line    0x0000000000013df2       0x7f C:\Users\Admin\AppData\Local\Temp\ccGAFwPm.debug.temp.o
+ .debug_line    0x0000000000013e71       0x4c C:\Users\Admin\AppData\Local\Temp\cchQwdi2.debug.temp.o
+ .debug_line    0x0000000000013ebd       0x80 C:\Users\Admin\AppData\Local\Temp\cc0RmSPH.debug.temp.o
+ .debug_line    0x0000000000013f3d       0x6d C:\Users\Admin\AppData\Local\Temp\ccpFkahn.debug.temp.o
+ .debug_line    0x0000000000013faa       0x63 C:\Users\Admin\AppData\Local\Temp\ccQNEwR1.debug.temp.o
+ .debug_line    0x000000000001400d       0x5f C:\Users\Admin\AppData\Local\Temp\ccbxvplG.debug.temp.o
+ .debug_line    0x000000000001406c       0x51 C:\Users\Admin\AppData\Local\Temp\cc2CDjUk.debug.temp.o
+ .debug_line    0x00000000000140bd       0x6d C:\Users\Admin\AppData\Local\Temp\ccnkZuNZ.debug.temp.o
+ .debug_line    0x000000000001412a       0x6d C:\Users\Admin\AppData\Local\Temp\ccKqpYNE.debug.temp.o
+ .debug_line    0x0000000000014197       0x72 C:\Users\Admin\AppData\Local\Temp\ccbRGkzj.debug.temp.o
+ .debug_line    0x0000000000014209       0x51 C:\Users\Admin\AppData\Local\Temp\ccqjOpnY.debug.temp.o
+ .debug_line    0x000000000001425a       0x7b C:\Users\Admin\AppData\Local\Temp\ccFV4InC.debug.temp.o
+ .debug_line    0x00000000000142d5       0x5a C:\Users\Admin\AppData\Local\Temp\ccIj3Osg.debug.temp.o
+ .debug_line    0x000000000001432f       0x56 C:\Users\Admin\AppData\Local\Temp\ccxQNXkU.debug.temp.o
+ .debug_line    0x0000000000014385       0x72 C:\Users\Admin\AppData\Local\Temp\ccybZwhy.debug.temp.o
+ .debug_line    0x00000000000143f7       0x51 C:\Users\Admin\AppData\Local\Temp\ccR9d6Ac.debug.temp.o
+ .debug_line    0x0000000000014448       0x6d C:\Users\Admin\AppData\Local\Temp\ccYBdsOQ.debug.temp.o
+ .debug_line    0x00000000000144b5       0x5a C:\Users\Admin\AppData\Local\Temp\cc78w51u.debug.temp.o
+ .debug_line    0x000000000001450f       0x68 C:\Users\Admin\AppData\Local\Temp\ccwSs38c.debug.temp.o
+ .debug_line    0x0000000000014577       0x76 C:\Users\Admin\AppData\Local\Temp\ccspuaqD.debug.temp.o
+ .debug_line    0x00000000000145ed       0x7b C:\Users\Admin\AppData\Local\Temp\cc4xsD73.debug.temp.o
+ .debug_line    0x0000000000014668       0x5f C:\Users\Admin\AppData\Local\Temp\ccB9LEoM.debug.temp.o
+ .debug_line    0x00000000000146c7       0xa6 C:\Users\Admin\AppData\Local\Temp\ccQzaXWt.debug.temp.o
+ .debug_line    0x000000000001476d       0x9c C:\Users\Admin\AppData\Local\Temp\ccxORFAb.debug.temp.o
+ .debug_line    0x0000000000014809       0x5f C:\Users\Admin\AppData\Local\Temp\ccCJYdYS.debug.temp.o
+ .debug_line    0x0000000000014868       0x80 C:\Users\Admin\AppData\Local\Temp\ccBDI7qA.debug.temp.o
+ .debug_line    0x00000000000148e8       0x84 C:\Users\Admin\AppData\Local\Temp\ccsvTGgi.debug.temp.o
+ .debug_line    0x000000000001496c      0x10e ./SRC/Startup/startup_ch32v00X.o
 
-.debug_str      0x0000000000000000     0x681b
- .debug_str     0x0000000000000000      0x1ce C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+.debug_str      0x0000000000000000     0x6839
+ .debug_str     0x0000000000000000      0x1ce C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
                                         0x1e9 (size before relaxing)
- .debug_str     0x00000000000001ce      0x3c9 C:\Users\Admin\AppData\Local\Temp\ccxUEoKA.debug.temp.o
+ .debug_str     0x00000000000001ce      0x3c9 C:\Users\Admin\AppData\Local\Temp\cchFM2rO.debug.temp.o
                                         0x492 (size before relaxing)
- .debug_str     0x0000000000000597      0x14f C:\Users\Admin\AppData\Local\Temp\cc8aM8f8.debug.temp.o
+ .debug_str     0x0000000000000597      0x14f C:\Users\Admin\AppData\Local\Temp\cc8GA34q.debug.temp.o
                                         0x2e1 (size before relaxing)
- .debug_str     0x00000000000006e6      0x195 C:\Users\Admin\AppData\Local\Temp\ccZbVfaG.debug.temp.o
+ .debug_str     0x00000000000006e6      0x195 C:\Users\Admin\AppData\Local\Temp\ccDj3AA3.debug.temp.o
                                         0x363 (size before relaxing)
- .debug_str     0x000000000000087b      0x449 C:\Users\Admin\AppData\Local\Temp\ccO7Zl8d.debug.temp.o
-                                        0x7f8 (size before relaxing)
- .debug_str     0x0000000000000cc4       0xfb C:\Users\Admin\AppData\Local\Temp\ccdO3DSL.debug.temp.o
+ .debug_str     0x000000000000087b      0x445 C:\Users\Admin\AppData\Local\Temp\ccgWdmfF.debug.temp.o
+                                        0x7f4 (size before relaxing)
+ .debug_str     0x0000000000000cc0       0xfb C:\Users\Admin\AppData\Local\Temp\ccJPNuYg.debug.temp.o
                                         0x2db (size before relaxing)
- .debug_str     0x0000000000000dbf      0x6cb C:\Users\Admin\AppData\Local\Temp\ccUtqEHj.debug.temp.o
+ .debug_str     0x0000000000000dbb      0x6cb C:\Users\Admin\AppData\Local\Temp\ccMxsnuS.debug.temp.o
                                         0x8bb (size before relaxing)
- .debug_str     0x000000000000148a      0x1d5 C:\Users\Admin\AppData\Local\Temp\ccQqoFuo.debug.temp.o
+ .debug_str     0x0000000000001486      0x1d5 C:\Users\Admin\AppData\Local\Temp\ccskwr85.debug.temp.o
                                         0x3d0 (size before relaxing)
- .debug_str     0x000000000000165f      0x34b C:\Users\Admin\AppData\Local\Temp\cc4iXaos.debug.temp.o
+ .debug_str     0x000000000000165b      0x34b C:\Users\Admin\AppData\Local\Temp\ccKEZ4Vj.debug.temp.o
                                         0x681 (size before relaxing)
- .debug_str     0x00000000000019aa      0x2c5 C:\Users\Admin\AppData\Local\Temp\ccDywPhZ.debug.temp.o
+ .debug_str     0x00000000000019a6      0x2c5 C:\Users\Admin\AppData\Local\Temp\cc5pNdJZ.debug.temp.o
                                         0x50f (size before relaxing)
- .debug_str     0x0000000000001c6f      0x403 C:\Users\Admin\AppData\Local\Temp\cckGfkyw.debug.temp.o
+ .debug_str     0x0000000000001c6b      0x403 C:\Users\Admin\AppData\Local\Temp\ccYmOszF.debug.temp.o
                                         0x68e (size before relaxing)
- .debug_str     0x0000000000002072       0xa8 C:\Users\Admin\AppData\Local\Temp\ccFmmRT3.debug.temp.o
+ .debug_str     0x000000000000206e       0xa8 C:\Users\Admin\AppData\Local\Temp\ccDctOel.debug.temp.o
                                         0x2d0 (size before relaxing)
- .debug_str     0x000000000000211a      0x288 C:\Users\Admin\AppData\Local\Temp\ccKomD4A.debug.temp.o
+ .debug_str     0x0000000000002116      0x288 C:\Users\Admin\AppData\Local\Temp\ccucQlX0.debug.temp.o
                                         0x503 (size before relaxing)
- .debug_str     0x00000000000023a2      0xa23 C:\Users\Admin\AppData\Local\Temp\ccZvKji8.debug.temp.o
+ .debug_str     0x000000000000239e      0xa23 C:\Users\Admin\AppData\Local\Temp\cc9rqA1G.debug.temp.o
                                         0xc43 (size before relaxing)
- .debug_str     0x0000000000002dc5      0x2a6 C:\Users\Admin\AppData\Local\Temp\cc5DR7uk.debug.temp.o
+ .debug_str     0x0000000000002dc1      0x2a6 C:\Users\Admin\AppData\Local\Temp\ccvCLeY2.debug.temp.o
                                         0x648 (size before relaxing)
- .debug_str     0x000000000000306b      0x274 C:\Users\Admin\AppData\Local\Temp\ccIRMWDV.debug.temp.o
+ .debug_str     0x0000000000003067      0x274 C:\Users\Admin\AppData\Local\Temp\cc8gpUcI.debug.temp.o
                                         0x523 (size before relaxing)
- .debug_str     0x00000000000032df      0xaa6 C:\Users\Admin\AppData\Local\Temp\cctBwKCw.debug.temp.o
+ .debug_str     0x00000000000032db      0xaa6 C:\Users\Admin\AppData\Local\Temp\ccvrXYun.debug.temp.o
                                         0xec9 (size before relaxing)
- .debug_str     0x0000000000003d85      0x2e3 C:\Users\Admin\AppData\Local\Temp\ccSJodF7.debug.temp.o
+ .debug_str     0x0000000000003d81      0x2e3 C:\Users\Admin\AppData\Local\Temp\ccw0BFz2.debug.temp.o
                                         0x5dd (size before relaxing)
- .debug_str     0x0000000000004068       0x93 C:\Users\Admin\AppData\Local\Temp\cc8iXt6j.debug.temp.o
+ .debug_str     0x0000000000004064       0x93 C:\Users\Admin\AppData\Local\Temp\ccGAFwPm.debug.temp.o
                                         0x51b (size before relaxing)
- .debug_str     0x00000000000040fb       0xda C:\Users\Admin\AppData\Local\Temp\ccd7RQzV.debug.temp.o
+ .debug_str     0x00000000000040f7       0xda C:\Users\Admin\AppData\Local\Temp\cchQwdi2.debug.temp.o
                                         0x262 (size before relaxing)
- .debug_str     0x00000000000041d5      0x135 C:\Users\Admin\AppData\Local\Temp\ccij7f2w.debug.temp.o
+ .debug_str     0x00000000000041d1      0x135 C:\Users\Admin\AppData\Local\Temp\cc0RmSPH.debug.temp.o
                                         0xa7d (size before relaxing)
- .debug_str     0x000000000000430a       0xca C:\Users\Admin\AppData\Local\Temp\ccp6Gym8.debug.temp.o
+ .debug_str     0x0000000000004306       0xca C:\Users\Admin\AppData\Local\Temp\ccpFkahn.debug.temp.o
                                         0x660 (size before relaxing)
- .debug_str     0x00000000000043d4        0xc C:\Users\Admin\AppData\Local\Temp\ccO6y5TI.debug.temp.o
+ .debug_str     0x00000000000043d0        0xc C:\Users\Admin\AppData\Local\Temp\ccQNEwR1.debug.temp.o
                                         0x267 (size before relaxing)
- .debug_str     0x00000000000043e0       0x42 C:\Users\Admin\AppData\Local\Temp\ccNJfLtj.debug.temp.o
+ .debug_str     0x00000000000043dc       0x42 C:\Users\Admin\AppData\Local\Temp\ccbxvplG.debug.temp.o
                                         0x3c8 (size before relaxing)
- .debug_str     0x0000000000004422       0x26 C:\Users\Admin\AppData\Local\Temp\ccsG7WOT.debug.temp.o
+ .debug_str     0x000000000000441e       0x26 C:\Users\Admin\AppData\Local\Temp\cc2CDjUk.debug.temp.o
                                         0x1e5 (size before relaxing)
- .debug_str     0x0000000000004448       0x12 C:\Users\Admin\AppData\Local\Temp\ccfj5xiu.debug.temp.o
+ .debug_str     0x0000000000004444       0x12 C:\Users\Admin\AppData\Local\Temp\ccnkZuNZ.debug.temp.o
                                         0x8c0 (size before relaxing)
- .debug_str     0x000000000000445a       0x2f C:\Users\Admin\AppData\Local\Temp\ccAhxF74.debug.temp.o
+ .debug_str     0x0000000000004456       0x2f C:\Users\Admin\AppData\Local\Temp\ccKqpYNE.debug.temp.o
                                         0x4bb (size before relaxing)
- .debug_str     0x0000000000004489       0x6f C:\Users\Admin\AppData\Local\Temp\ccHeifVF.debug.temp.o
+ .debug_str     0x0000000000004485       0x6f C:\Users\Admin\AppData\Local\Temp\ccbRGkzj.debug.temp.o
                                         0xb13 (size before relaxing)
- .debug_str     0x00000000000044f8       0x62 C:\Users\Admin\AppData\Local\Temp\ccSRtMNg.debug.temp.o
+ .debug_str     0x00000000000044f4       0x62 C:\Users\Admin\AppData\Local\Temp\ccqjOpnY.debug.temp.o
                                         0x244 (size before relaxing)
- .debug_str     0x000000000000455a      0x152 C:\Users\Admin\AppData\Local\Temp\ccJghqrR.debug.temp.o
+ .debug_str     0x0000000000004556      0x152 C:\Users\Admin\AppData\Local\Temp\ccFV4InC.debug.temp.o
                                         0x90b (size before relaxing)
- .debug_str     0x00000000000046ac       0x37 C:\Users\Admin\AppData\Local\Temp\cc252rbs.debug.temp.o
+ .debug_str     0x00000000000046a8       0x37 C:\Users\Admin\AppData\Local\Temp\ccIj3Osg.debug.temp.o
                                         0x204 (size before relaxing)
- .debug_str     0x00000000000046e3       0xf3 C:\Users\Admin\AppData\Local\Temp\cczC1gU2.debug.temp.o
+ .debug_str     0x00000000000046df       0xf3 C:\Users\Admin\AppData\Local\Temp\ccxQNXkU.debug.temp.o
                                         0x2d5 (size before relaxing)
- .debug_str     0x00000000000047d6      0x4c4 C:\Users\Admin\AppData\Local\Temp\cckcELPC.debug.temp.o
-                                        0x7d6 (size before relaxing)
- .debug_str     0x0000000000004c9a      0x1f4 C:\Users\Admin\AppData\Local\Temp\ccBsMLOc.debug.temp.o
- .debug_str     0x0000000000004c9a      0x13b C:\Users\Admin\AppData\Local\Temp\cc2zbYBM.debug.temp.o
+ .debug_str     0x00000000000047d2      0x4f3 C:\Users\Admin\AppData\Local\Temp\ccybZwhy.debug.temp.o
+                                        0x80f (size before relaxing)
+ .debug_str     0x0000000000004cc5      0x1f4 C:\Users\Admin\AppData\Local\Temp\ccR9d6Ac.debug.temp.o
+ .debug_str     0x0000000000004cc5      0x13b C:\Users\Admin\AppData\Local\Temp\ccYBdsOQ.debug.temp.o
                                         0x413 (size before relaxing)
- .debug_str     0x0000000000004dd5       0x5f C:\Users\Admin\AppData\Local\Temp\ccZNdJnm.debug.temp.o
+ .debug_str     0x0000000000004e00       0x5f C:\Users\Admin\AppData\Local\Temp\cc78w51u.debug.temp.o
                                         0x274 (size before relaxing)
- .debug_str     0x0000000000004e34      0x15f C:\Users\Admin\AppData\Local\Temp\ccSNLDcW.debug.temp.o
+ .debug_str     0x0000000000004e5f      0x15f C:\Users\Admin\AppData\Local\Temp\ccwSs38c.debug.temp.o
                                         0x3e6 (size before relaxing)
- .debug_str     0x0000000000004f93      0x2ad C:\Users\Admin\AppData\Local\Temp\cck5naM6.debug.temp.o
-                                        0x79e (size before relaxing)
- .debug_str     0x0000000000005240      0x39e C:\Users\Admin\AppData\Local\Temp\ccM2tT1g.debug.temp.o
-                                        0x8bc (size before relaxing)
- .debug_str     0x00000000000055de       0x36 C:\Users\Admin\AppData\Local\Temp\cczVrenQ.debug.temp.o
+ .debug_str     0x0000000000004fbe      0x29a C:\Users\Admin\AppData\Local\Temp\ccspuaqD.debug.temp.o
+                                        0x6fb (size before relaxing)
+ .debug_str     0x0000000000005258      0x38d C:\Users\Admin\AppData\Local\Temp\cc4xsD73.debug.temp.o
+                                        0x88c (size before relaxing)
+ .debug_str     0x00000000000055e5       0x36 C:\Users\Admin\AppData\Local\Temp\ccB9LEoM.debug.temp.o
                                         0x29b (size before relaxing)
- .debug_str     0x0000000000005614      0xa8a C:\Users\Admin\AppData\Local\Temp\ccOIROOp.debug.temp.o
-                                       0x12a4 (size before relaxing)
- .debug_str     0x000000000000609e      0x25d C:\Users\Admin\AppData\Local\Temp\ccVLPb3Y.debug.temp.o
-                                       0x1039 (size before relaxing)
- .debug_str     0x00000000000062fb       0xf4 C:\Users\Admin\AppData\Local\Temp\cc8LAbky.debug.temp.o
+ .debug_str     0x000000000000561b      0xa8a C:\Users\Admin\AppData\Local\Temp\ccQzaXWt.debug.temp.o
+                                       0x12a0 (size before relaxing)
+ .debug_str     0x00000000000060a5      0x262 C:\Users\Admin\AppData\Local\Temp\ccxORFAb.debug.temp.o
+                                       0x104b (size before relaxing)
+ .debug_str     0x0000000000006307       0xf4 C:\Users\Admin\AppData\Local\Temp\ccCJYdYS.debug.temp.o
                                         0x35b (size before relaxing)
- .debug_str     0x00000000000063ef       0x62 C:\Users\Admin\AppData\Local\Temp\ccDtvJY7.debug.temp.o
+ .debug_str     0x00000000000063fb       0x62 C:\Users\Admin\AppData\Local\Temp\ccBDI7qA.debug.temp.o
                                         0x2d1 (size before relaxing)
- .debug_str     0x0000000000006451      0x365 C:\Users\Admin\AppData\Local\Temp\ccGgeiBH.debug.temp.o
-                                        0xd5c (size before relaxing)
- .debug_str     0x00000000000067b6       0x65 ./SRC/Startup/startup_ch32v00X.o
+ .debug_str     0x000000000000645d      0x377 C:\Users\Admin\AppData\Local\Temp\ccsvTGgi.debug.temp.o
+                                        0xd46 (size before relaxing)
+ .debug_str     0x00000000000067d4       0x65 ./SRC/Startup/startup_ch32v00X.o
 
 .debug_line_str
-                0x0000000000000000      0xa1d
+                0x0000000000000000      0xbb4
  .debug_line_str
-                0x0000000000000000       0xa0 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
-                                        0x345 (size before relaxing)
+                0x0000000000000000      0x116 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
+                                        0x3c5 (size before relaxing)
  .debug_line_str
-                0x00000000000000a0      0x1a4 C:\Users\Admin\AppData\Local\Temp\ccxUEoKA.debug.temp.o
-                                        0x22a (size before relaxing)
+                0x0000000000000116      0x20f C:\Users\Admin\AppData\Local\Temp\cchFM2rO.debug.temp.o
+                                        0x2ea (size before relaxing)
  .debug_line_str
-                0x0000000000000244       0xaf C:\Users\Admin\AppData\Local\Temp\cc8aM8f8.debug.temp.o
-                                        0x2bb (size before relaxing)
+                0x0000000000000325      0x165 C:\Users\Admin\AppData\Local\Temp\cc8GA34q.debug.temp.o
+                                        0x3db (size before relaxing)
  .debug_line_str
-                0x00000000000002f3      0x15a C:\Users\Admin\AppData\Local\Temp\ccZbVfaG.debug.temp.o
-                                        0x2f6 (size before relaxing)
+                0x000000000000048a      0x15a C:\Users\Admin\AppData\Local\Temp\ccDj3AA3.debug.temp.o
+                                        0x326 (size before relaxing)
  .debug_line_str
-                0x000000000000044d       0x10 C:\Users\Admin\AppData\Local\Temp\ccO7Zl8d.debug.temp.o
-                                        0x358 (size before relaxing)
+                0x00000000000005e4       0x10 C:\Users\Admin\AppData\Local\Temp\ccgWdmfF.debug.temp.o
+                                        0x418 (size before relaxing)
  .debug_line_str
-                0x000000000000045d       0x2c C:\Users\Admin\AppData\Local\Temp\ccdO3DSL.debug.temp.o
-                                        0x1ef (size before relaxing)
+                0x00000000000005f4       0x2c C:\Users\Admin\AppData\Local\Temp\ccJPNuYg.debug.temp.o
+                                        0x259 (size before relaxing)
  .debug_line_str
-                0x0000000000000489       0x34 C:\Users\Admin\AppData\Local\Temp\ccUtqEHj.debug.temp.o
-                                        0x216 (size before relaxing)
+                0x0000000000000620       0x34 C:\Users\Admin\AppData\Local\Temp\ccMxsnuS.debug.temp.o
+                                        0x276 (size before relaxing)
  .debug_line_str
-                0x00000000000004bd       0x34 C:\Users\Admin\AppData\Local\Temp\ccQqoFuo.debug.temp.o
-                                        0x207 (size before relaxing)
+                0x0000000000000654       0x34 C:\Users\Admin\AppData\Local\Temp\ccskwr85.debug.temp.o
+                                        0x267 (size before relaxing)
  .debug_line_str
-                0x00000000000004f1       0x27 C:\Users\Admin\AppData\Local\Temp\cc4iXaos.debug.temp.o
-                                        0x20d (size before relaxing)
+                0x0000000000000688       0x27 C:\Users\Admin\AppData\Local\Temp\ccKEZ4Vj.debug.temp.o
+                                        0x26d (size before relaxing)
  .debug_line_str
-                0x0000000000000518       0x26 C:\Users\Admin\AppData\Local\Temp\ccDywPhZ.debug.temp.o
-                                        0x219 (size before relaxing)
+                0x00000000000006af       0x26 C:\Users\Admin\AppData\Local\Temp\cc5pNdJZ.debug.temp.o
+                                        0x279 (size before relaxing)
  .debug_line_str
-                0x000000000000053e       0x34 C:\Users\Admin\AppData\Local\Temp\cckGfkyw.debug.temp.o
-                                        0x216 (size before relaxing)
+                0x00000000000006d5       0x34 C:\Users\Admin\AppData\Local\Temp\ccYmOszF.debug.temp.o
+                                        0x276 (size before relaxing)
  .debug_line_str
-                0x0000000000000572       0x26 C:\Users\Admin\AppData\Local\Temp\ccFmmRT3.debug.temp.o
-                                        0x1fa (size before relaxing)
+                0x0000000000000709       0x26 C:\Users\Admin\AppData\Local\Temp\ccDctOel.debug.temp.o
+                                        0x25a (size before relaxing)
  .debug_line_str
-                0x0000000000000598       0x26 C:\Users\Admin\AppData\Local\Temp\ccKomD4A.debug.temp.o
-                                        0x20a (size before relaxing)
+                0x000000000000072f       0x26 C:\Users\Admin\AppData\Local\Temp\ccucQlX0.debug.temp.o
+                                        0x26a (size before relaxing)
  .debug_line_str
-                0x00000000000005be       0x34 C:\Users\Admin\AppData\Local\Temp\ccZvKji8.debug.temp.o
-                                        0x207 (size before relaxing)
+                0x0000000000000755       0x34 C:\Users\Admin\AppData\Local\Temp\cc9rqA1G.debug.temp.o
+                                        0x267 (size before relaxing)
  .debug_line_str
-                0x00000000000005f2       0x25 C:\Users\Admin\AppData\Local\Temp\cc5DR7uk.debug.temp.o
-                                        0x207 (size before relaxing)
+                0x0000000000000789       0x25 C:\Users\Admin\AppData\Local\Temp\ccvCLeY2.debug.temp.o
+                                        0x267 (size before relaxing)
  .debug_line_str
-                0x0000000000000617       0x34 C:\Users\Admin\AppData\Local\Temp\ccIRMWDV.debug.temp.o
-                                        0x216 (size before relaxing)
+                0x00000000000007ae       0x34 C:\Users\Admin\AppData\Local\Temp\cc8gpUcI.debug.temp.o
+                                        0x276 (size before relaxing)
  .debug_line_str
-                0x000000000000064b       0x25 C:\Users\Admin\AppData\Local\Temp\cctBwKCw.debug.temp.o
-                                        0x216 (size before relaxing)
+                0x00000000000007e2       0x25 C:\Users\Admin\AppData\Local\Temp\ccvrXYun.debug.temp.o
+                                        0x276 (size before relaxing)
  .debug_line_str
-                0x0000000000000670       0x38 C:\Users\Admin\AppData\Local\Temp\ccSJodF7.debug.temp.o
-                                        0x21c (size before relaxing)
+                0x0000000000000807       0x38 C:\Users\Admin\AppData\Local\Temp\ccw0BFz2.debug.temp.o
+                                        0x27c (size before relaxing)
  .debug_line_str
-                0x00000000000006a8       0x15 C:\Users\Admin\AppData\Local\Temp\cc8iXt6j.debug.temp.o
-                                        0x2c7 (size before relaxing)
+                0x000000000000083f       0x15 C:\Users\Admin\AppData\Local\Temp\ccGAFwPm.debug.temp.o
+                                        0x357 (size before relaxing)
  .debug_line_str
-                0x00000000000006bd       0x19 C:\Users\Admin\AppData\Local\Temp\ccd7RQzV.debug.temp.o
+                0x0000000000000854       0x19 C:\Users\Admin\AppData\Local\Temp\cchQwdi2.debug.temp.o
                                         0x1a6 (size before relaxing)
  .debug_line_str
-                0x00000000000006d6       0x13 C:\Users\Admin\AppData\Local\Temp\ccij7f2w.debug.temp.o
-                                        0x236 (size before relaxing)
+                0x000000000000086d       0x13 C:\Users\Admin\AppData\Local\Temp\cc0RmSPH.debug.temp.o
+                                        0x2c6 (size before relaxing)
  .debug_line_str
-                0x00000000000006e9       0x13 C:\Users\Admin\AppData\Local\Temp\ccp6Gym8.debug.temp.o
-                                        0x202 (size before relaxing)
+                0x0000000000000880       0x13 C:\Users\Admin\AppData\Local\Temp\ccpFkahn.debug.temp.o
+                                        0x262 (size before relaxing)
  .debug_line_str
-                0x00000000000006fc       0x24 C:\Users\Admin\AppData\Local\Temp\ccO6y5TI.debug.temp.o
-                                        0x1ea (size before relaxing)
+                0x0000000000000893       0x24 C:\Users\Admin\AppData\Local\Temp\ccQNEwR1.debug.temp.o
+                                        0x24a (size before relaxing)
  .debug_line_str
-                0x0000000000000720       0x15 C:\Users\Admin\AppData\Local\Temp\ccNJfLtj.debug.temp.o
-                                        0x1d6 (size before relaxing)
+                0x00000000000008b7       0x15 C:\Users\Admin\AppData\Local\Temp\ccbxvplG.debug.temp.o
+                                        0x206 (size before relaxing)
  .debug_line_str
-                0x0000000000000735       0x16 C:\Users\Admin\AppData\Local\Temp\ccsG7WOT.debug.temp.o
+                0x00000000000008cc       0x16 C:\Users\Admin\AppData\Local\Temp\cc2CDjUk.debug.temp.o
                                         0x1a8 (size before relaxing)
  .debug_line_str
-                0x000000000000074b       0x13 C:\Users\Admin\AppData\Local\Temp\ccfj5xiu.debug.temp.o
-                                        0x202 (size before relaxing)
+                0x00000000000008e2       0x13 C:\Users\Admin\AppData\Local\Temp\ccnkZuNZ.debug.temp.o
+                                        0x262 (size before relaxing)
  .debug_line_str
-                0x000000000000075e       0x13 C:\Users\Admin\AppData\Local\Temp\ccAhxF74.debug.temp.o
-                                        0x202 (size before relaxing)
+                0x00000000000008f5       0x13 C:\Users\Admin\AppData\Local\Temp\ccKqpYNE.debug.temp.o
+                                        0x262 (size before relaxing)
  .debug_line_str
-                0x0000000000000771       0x13 C:\Users\Admin\AppData\Local\Temp\ccHeifVF.debug.temp.o
-                                        0x212 (size before relaxing)
+                0x0000000000000908       0x13 C:\Users\Admin\AppData\Local\Temp\ccbRGkzj.debug.temp.o
+                                        0x272 (size before relaxing)
  .debug_line_str
-                0x0000000000000784       0x16 C:\Users\Admin\AppData\Local\Temp\ccSRtMNg.debug.temp.o
+                0x000000000000091b       0x16 C:\Users\Admin\AppData\Local\Temp\ccqjOpnY.debug.temp.o
                                         0x1a8 (size before relaxing)
  .debug_line_str
-                0x000000000000079a       0x21 C:\Users\Admin\AppData\Local\Temp\ccJghqrR.debug.temp.o
-                                        0x22d (size before relaxing)
+                0x0000000000000931       0x21 C:\Users\Admin\AppData\Local\Temp\ccFV4InC.debug.temp.o
+                                        0x2bd (size before relaxing)
  .debug_line_str
-                0x00000000000007bb       0x16 C:\Users\Admin\AppData\Local\Temp\cc252rbs.debug.temp.o
-                                        0x1bd (size before relaxing)
+                0x0000000000000952       0x16 C:\Users\Admin\AppData\Local\Temp\ccIj3Osg.debug.temp.o
+                                        0x1ed (size before relaxing)
  .debug_line_str
-                0x00000000000007d1       0x2a C:\Users\Admin\AppData\Local\Temp\cczC1gU2.debug.temp.o
+                0x0000000000000968       0x2a C:\Users\Admin\AppData\Local\Temp\ccxQNXkU.debug.temp.o
                                         0x1c2 (size before relaxing)
  .debug_line_str
-                0x00000000000007fb       0x35 C:\Users\Admin\AppData\Local\Temp\cckcELPC.debug.temp.o
+                0x0000000000000992       0x35 C:\Users\Admin\AppData\Local\Temp\ccybZwhy.debug.temp.o
                                         0x311 (size before relaxing)
  .debug_line_str
-                0x0000000000000830       0x17 C:\Users\Admin\AppData\Local\Temp\ccBsMLOc.debug.temp.o
+                0x00000000000009c7       0x17 C:\Users\Admin\AppData\Local\Temp\ccR9d6Ac.debug.temp.o
                                         0x1af (size before relaxing)
  .debug_line_str
-                0x0000000000000847       0x30 C:\Users\Admin\AppData\Local\Temp\cc2zbYBM.debug.temp.o
+                0x00000000000009de       0x30 C:\Users\Admin\AppData\Local\Temp\ccYBdsOQ.debug.temp.o
                                         0x312 (size before relaxing)
  .debug_line_str
-                0x0000000000000877       0x1d C:\Users\Admin\AppData\Local\Temp\ccZNdJnm.debug.temp.o
-                                        0x1da (size before relaxing)
+                0x0000000000000a0e       0x1d C:\Users\Admin\AppData\Local\Temp\cc78w51u.debug.temp.o
+                                        0x20a (size before relaxing)
  .debug_line_str
-                0x0000000000000894       0x1b C:\Users\Admin\AppData\Local\Temp\ccSNLDcW.debug.temp.o
+                0x0000000000000a2b       0x1b C:\Users\Admin\AppData\Local\Temp\ccwSs38c.debug.temp.o
                                         0x2fc (size before relaxing)
  .debug_line_str
-                0x00000000000008af       0x1a C:\Users\Admin\AppData\Local\Temp\cck5naM6.debug.temp.o
-                                        0x30e (size before relaxing)
+                0x0000000000000a46       0x1a C:\Users\Admin\AppData\Local\Temp\ccspuaqD.debug.temp.o
+                                        0x33e (size before relaxing)
  .debug_line_str
-                0x00000000000008c9       0x26 C:\Users\Admin\AppData\Local\Temp\ccM2tT1g.debug.temp.o
-                                        0x321 (size before relaxing)
+                0x0000000000000a60       0x26 C:\Users\Admin\AppData\Local\Temp\cc4xsD73.debug.temp.o
+                                        0x351 (size before relaxing)
  .debug_line_str
-                0x00000000000008ef       0x1a C:\Users\Admin\AppData\Local\Temp\cczVrenQ.debug.temp.o
-                                        0x1d1 (size before relaxing)
+                0x0000000000000a86       0x1a C:\Users\Admin\AppData\Local\Temp\ccB9LEoM.debug.temp.o
+                                        0x201 (size before relaxing)
  .debug_line_str
-                0x0000000000000909       0x28 C:\Users\Admin\AppData\Local\Temp\ccOIROOp.debug.temp.o
-                                        0x38e (size before relaxing)
+                0x0000000000000aa0       0x28 C:\Users\Admin\AppData\Local\Temp\ccQzaXWt.debug.temp.o
+                                        0x41e (size before relaxing)
  .debug_line_str
-                0x0000000000000931       0x28 C:\Users\Admin\AppData\Local\Temp\ccVLPb3Y.debug.temp.o
-                                        0x38b (size before relaxing)
+                0x0000000000000ac8       0x28 C:\Users\Admin\AppData\Local\Temp\ccxORFAb.debug.temp.o
+                                        0x41b (size before relaxing)
  .debug_line_str
-                0x0000000000000959       0x1d C:\Users\Admin\AppData\Local\Temp\cc8LAbky.debug.temp.o
-                                        0x1da (size before relaxing)
+                0x0000000000000af0       0x1d C:\Users\Admin\AppData\Local\Temp\ccCJYdYS.debug.temp.o
+                                        0x20a (size before relaxing)
  .debug_line_str
-                0x0000000000000976       0x33 C:\Users\Admin\AppData\Local\Temp\ccDtvJY7.debug.temp.o
-                                        0x222 (size before relaxing)
+                0x0000000000000b0d       0x33 C:\Users\Admin\AppData\Local\Temp\ccBDI7qA.debug.temp.o
+                                        0x2b2 (size before relaxing)
  .debug_line_str
-                0x00000000000009a9       0x1b C:\Users\Admin\AppData\Local\Temp\ccGgeiBH.debug.temp.o
-                                        0x331 (size before relaxing)
+                0x0000000000000b40       0x1b C:\Users\Admin\AppData\Local\Temp\ccsvTGgi.debug.temp.o
+                                        0x391 (size before relaxing)
  .debug_line_str
-                0x00000000000009c4       0x59 ./SRC/Startup/startup_ch32v00X.o
+                0x0000000000000b5b       0x59 ./SRC/Startup/startup_ch32v00X.o
                                          0x6c (size before relaxing)
 
 .comment        0x0000000000000000       0x31
- .comment       0x0000000000000000       0x31 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+ .comment       0x0000000000000000       0x31 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
                                          0x32 (size before relaxing)
  .comment       0x0000000000000031       0x32 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-memcmp.o)
  .comment       0x0000000000000031       0x32 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/../../../../riscv-wch-elf/lib/rv32ec_zmmul_xw/ilp32e\libg_nano.a(lib_a-strlen.o)
@@ -1685,7 +1687,7 @@ OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
 .riscv.attributes
                 0x0000000000000000       0x30
  .riscv.attributes
-                0x0000000000000000       0x30 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+                0x0000000000000000       0x30 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o
  .riscv.attributes
                 0x0000000000000030       0x2e ./SRC/Startup/startup_ch32v00X.o
  .riscv.attributes
@@ -1709,5 +1711,5 @@ OUTPUT(CH32V00X_APP.elf elf32-littleriscv)
  .riscv.attributes
                 0x0000000000000206       0x30 d:/software/mounriver/mounriver_studio3/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc12/bin/../lib/gcc/riscv-wch-elf/12.2.0/rv32ec_zmmul_xw/ilp32e\libgcc.a(_clz.o)
 
-.debug_frame    0x0000000000000000     0x1074
- .debug_frame   0x0000000000000000     0x1074 C:\Users\Admin\AppData\Local\Temp\ccxZKeGB.ltrans0.ltrans.o
+.debug_frame    0x0000000000000000     0x1090
+ .debug_frame   0x0000000000000000     0x1090 C:\Users\Admin\AppData\Local\Temp\ccZILTZF.ltrans0.ltrans.o

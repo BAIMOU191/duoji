@@ -1,6 +1,0 @@
-UNIT,emf_empty_intersection,kg=20,hard_limit=100,output_mv=433,observed_velocity=24575
-UNIT,dob_handoff,kg=20,hold_integral=3814,half_budget=3835,hold_output=3814,move_output=3814
-UNIT,reached_during_move,kg=20,state=0,reached=1
-UNIT,stop_during_reported_settle,kg=20,tick=169,old_ref=13595,actual=13584,ref_after_stop=13595
-UNIT,stop_probe_found,kg=20,found=1
-PASS: boundary probes executed; reported violations are candidate defects, not repair success

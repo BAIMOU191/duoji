@@ -382,7 +382,11 @@ void A_ServoCtrl_Begin(void)
 void A_ServoCtrl_StallHold(void) { C_PosCtrl_StallHold(); }
 
 /* 所有位置指令的唯一入口：从参考当前位置用 max(T, 最短运动时间) 到达；新目标从当前状态接着走 */
-void A_ServoCtrl_Command(uint16_t target, uint16_t time_ms) { C_Traj_Command(target, time_ms); }
+void A_ServoCtrl_Command(uint16_t target, uint16_t time_ms)
+{
+    C_PosCtrl_SetMoveSpan((int32_t)target - C_Traj_GetPos());   /* 从参考当前位置算本段距离 */
+    C_Traj_Command(target, time_ms);
+}
 
 void    A_ServoCtrl_Brake(void)    { C_Traj_Stop(); }
 uint8_t A_ServoCtrl_TrajDone(void) { return C_Traj_Is_Done(); }

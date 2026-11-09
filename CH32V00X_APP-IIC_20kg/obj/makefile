@@ -5,16 +5,16 @@
 -include ../makefile.init
 
 RM := rm -rf
-FLAGS_C :=  -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -I"../SRC/Core" -I"../SRC/Debug" -I"../SRC/Peripheral/inc" -I"../User" -I"../System" -I"../Drivers" -I"../Common" -I"../Application" -std=gnu99 -flto
+FLAGS_C :=  -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Core" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Debug" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Peripheral/inc" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/User" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/System" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Drivers" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Common" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/Application" -std=gnu99 -flto
 FLAGS_C_FILE := .compile_c_flags
 
 FLAGS_CPP :=  -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -std=gnu++11 -fabi-version=0
 FLAGS_CPP_FILE := .compile_cpp_flags
 
-FLAGS_ASM :=  -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -x assembler-with-cpp -I"../SRC/Startup"
+FLAGS_ASM :=  -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -x assembler-with-cpp -I"c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Startup"
 FLAGS_ASM_FILE := .compile_asm_flags
 
-FLAGS_LD:=  -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -T "..\SRC\Ld\Link.ld" -nostartfiles -Xlinker --gc-sections -Wl,-Map,"CH32V00X_APP.map" --specs=nano.specs --specs=nosys.specs -flto
+FLAGS_LD:=  -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -T "c:\Users\Admin\Desktop\duoji\CH32V00X_APP-IIC_20kg\SRC\Ld\Link.ld" -nostartfiles -Xlinker --gc-sections -Wl,-Map,"CH32V00X_APP.map" --specs=nano.specs --specs=nosys.specs -flto
 FLAGS_LD_FILE := .ld_flags
 
 $(FLAGS_C_FILE): FORCE
@@ -67,7 +67,7 @@ $(SOURCES_LIST): FORCE
 	@cmp -s $@.tmp $@ || mv $@.tmp $@
 	@rm -f $@.tmp
 
-LD_SCRIPTS := ../SRC/Ld/Link.ld
+LD_SCRIPTS := c:/Users/Admin/Desktop/duoji/CH32V00X_APP-IIC_20kg/SRC/Ld/Link.ld
 
 # Add inputs and outputs from these tool invocations to the build variables 
 SECONDARY_FLASH += \
@@ -93,7 +93,7 @@ post-build:
 
 # Tool invocations
 CH32V00X_APP.elf: $(OBJS) $(USER_OBJS_ESCAPE) $(SOURCES_LIST) $(FLAGS_LD_FILE) $(LD_SCRIPTS)
-	@	riscv-wch-elf-gcc -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -T "..\SRC\Ld\Link.ld" -nostartfiles -Xlinker --gc-sections -Wl,-Map,"CH32V00X_APP.map" --specs=nano.specs --specs=nosys.specs -flto -o "CH32V00X_APP.elf" $(OBJS) $(LIBS)
+	@	riscv-wch-elf-gcc -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -T "c:\Users\Admin\Desktop\duoji\CH32V00X_APP-IIC_20kg\SRC\Ld\Link.ld" -nostartfiles -Xlinker --gc-sections -Wl,-Map,"CH32V00X_APP.map" --specs=nano.specs --specs=nosys.specs -flto -o "CH32V00X_APP.elf" $(OBJS) $(LIBS)
 CH32V00X_APP.bin: CH32V00X_APP.elf
 	@	riscv-wch-elf-objcopy -O binary "CH32V00X_APP.elf" "CH32V00X_APP.bin"
 CH32V00X_APP.hex: CH32V00X_APP.elf

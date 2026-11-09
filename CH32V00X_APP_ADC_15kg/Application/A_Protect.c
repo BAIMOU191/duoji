@@ -24,7 +24,7 @@
 
 /* 缓存名与实时配置名共用清单，变更检测不漏参数。 */
 #define PROTECT_SETTINGS(X) \
-    X(torque_ckgcm, torque_limit_ckgcm) \
+    X(torque_pct, torque_limit_pct) \
     X(current_limit_ma, prot_current_limit_ma) \
     X(current_time_ms, prot_current_time_ms) \
     X(temp_limit_dC, prot_temp_limit_dC) \
@@ -34,7 +34,7 @@
 
 typedef struct {
     uint16_t fault;      /** PROT_FAULT_* 位掩码 */
-    uint16_t torque_ckgcm; /** 已生效扭矩上限(0.01 kgf·cm) */
+    uint16_t torque_pct; /** 已生效扭矩上限(百分比0-100) */
     uint16_t cur_cnt;    /** 连续过流拍数 */
     uint16_t temp_cnt;   /** 连续过温采样数 */
     uint8_t  temp_div;   /** 过温检测分频计数 */
@@ -89,16 +89,15 @@ _Static_assert((PROT_STALL_HOLD_TICKS >= 1) && (PROT_STALL_HOLD_TICKS <= PROT_ST
 
 /* ============================ 扭矩上限设置 ============================ */
 
-/* 限流启用时按扭矩反算电流/PWM上限；关闭时用满量程，零扭矩仍禁止驱动。堵转保持限流优先。 */
+/* 限流启用时按扭矩百分比反算电流/PWM上限；0%仍禁止驱动。堵转保持限流优先。 */
 static void Protect_ApplyTorqueSetting(void)
 {
-    uint16_t rated = A_Config_TorqueMax();
-    uint16_t torque = g_runtime_config.torque_limit_ckgcm;
+    uint16_t torque = g_runtime_config.torque_limit_pct;
 
-    if (torque > rated) torque = rated;
-    if (s_prot.pwm_limit != 0 && s_prot.torque_ckgcm == torque) return;
-    s_prot.torque_ckgcm = torque;
-    s_prot.i_limit_ma = A_Torque_CurrentLimit(torque, rated);
+    if (torque > TORQUE_MAX_PERCENT) torque = TORQUE_MAX_PERCENT;
+    if (s_prot.pwm_limit != 0 && s_prot.torque_pct == torque) return;
+    s_prot.torque_pct = torque;
+    s_prot.i_limit_ma = A_Torque_CurrentLimit(torque);
 #if PROT_CURRENT_DERATING_ENABLE
     /* 改扭矩重建初始上限：避免零扭矩恢复后无有效采样而无法起转 */
     if (s_prot.hold_limit_ma != 0U)
@@ -126,13 +125,13 @@ static void Protect_ApplyConfig(void)
     if (g_runtime_config.prot_current_limit_ma > s_prot.current_limit_ma) s_prot.cur_cnt = 0U;
     if (g_runtime_config.prot_temp_limit_dC > s_prot.temp_limit_dC) s_prot.temp_cnt = 0U;
     if (g_runtime_config.prot_stall_act_cdeg != s_prot.stall_act_cdeg) s_prot.stall_cnt = 0U;
-    if (g_runtime_config.torque_limit_ckgcm != s_prot.torque_ckgcm || s_prot.pwm_limit == 0)
+    if (g_runtime_config.torque_limit_pct != s_prot.torque_pct || s_prot.pwm_limit == 0)
         Protect_ApplyTorqueSetting();
 #define APPLY(cache, config) s_prot.cache = g_runtime_config.config;
     PROTECT_SETTINGS(APPLY)
 #undef APPLY
     /* 扭矩缓存保持钳位后的生效值，不跟配置原样 */
-    if (s_prot.torque_ckgcm > A_Config_TorqueMax()) s_prot.torque_ckgcm = A_Config_TorqueMax();
+    if (s_prot.torque_pct > TORQUE_MAX_PERCENT) s_prot.torque_pct = TORQUE_MAX_PERCENT;
     s_prot.stall_ref_cdeg = (uint16_t)(s_prot.stall_act_cdeg * PROT_STALL_REF_RATIO);
     s_prot.current_trip_ticks = (uint16_t)((s_prot.current_time_ms + PROT_TICK_MS - 1U)
                                            / PROT_TICK_MS);
@@ -140,21 +139,21 @@ static void Protect_ApplyConfig(void)
                                           / PROT_TEMP_SAMPLE_MS);
 }
 
-/* 设扭矩上限并落盘；0=超过硬件上限 */
-uint8_t A_Protect_SetTorque(uint16_t torque_ckgcm)
+/* 设扭矩上限并落盘；超过百分比满量程视为非法 */
+uint8_t A_Protect_SetTorque(uint16_t torque_pct)
 {
-    if (torque_ckgcm > A_Config_TorqueMax()) return 0U;
+    if (torque_pct > TORQUE_MAX_PERCENT) return 0U;
 
-    g_config.torque_limit_ckgcm = torque_ckgcm;
-    g_runtime_config.torque_limit_ckgcm = torque_ckgcm;
+    g_config.torque_limit_pct = torque_pct;
+    g_runtime_config.torque_limit_pct = torque_pct;
     A_Config_MarkDirty();
     Protect_ApplyTorqueSetting();
     return 1U;
 }
 
-/* 读已生效扭矩上限，单位0.01 kgf·cm */
+/* 读已生效扭矩上限，百分比0-100 */
 uint16_t A_Protect_GetTorque(void)
-{ return s_prot.torque_ckgcm; }
+{ return s_prot.torque_pct; }
 
 /* 读故障位掩码，堵转不在其中 */
 uint16_t A_Protect_Fault(void)
@@ -185,9 +184,9 @@ uint8_t A_Protect_CanDrive(void)
 {
     uint16_t hard_fault = (uint16_t)(s_prot.fault & (uint16_t)~PROT_FAULT_STALL);
     if (hard_fault != PROT_FAULT_NONE) return 0U;
-    if (g_runtime_config.torque_limit_ckgcm == 0U) return 0U;
-    return (uint8_t)(g_runtime_config.min_start_torque_ckgcm == 0U
-                  || g_runtime_config.torque_limit_ckgcm >= g_runtime_config.min_start_torque_ckgcm);
+    if (g_runtime_config.torque_limit_pct == 0U) return 0U;
+    return (uint8_t)(g_runtime_config.min_start_torque_pct == 0U
+                  || g_runtime_config.torque_limit_pct >= g_runtime_config.min_start_torque_pct);
 }
 
 /* 1=最近动作以堵转收场(仅诊断)；只有机构真的动了才清除 */
@@ -219,7 +218,7 @@ static void Protect_PowerLimit(uint8_t valid, uint16_t ma)
     int32_t step;                     /* 降额步长 */
     uint16_t i_lim = (s_prot.hold_limit_ma != 0U) ? s_prot.hold_limit_ma : s_prot.i_limit_ma;
 
-    if (s_prot.torque_ckgcm == 0U)
+    if (s_prot.torque_pct == 0U)
     {
         /* 零扭矩不参与回升，保留最小限幅 */
         limit = PROT_LIMIT_MIN;

@@ -1,7 +1,0 @@
-[
-  "Application/A_Sensor.c",
-  "Application/A_Sensor.h",
-  "Application/A_Servo.c",
-  "Common/C_Traj_Planner.c",
-  "Common/C_Traj_Planner.h"
-]

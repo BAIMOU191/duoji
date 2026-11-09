@@ -26,13 +26,16 @@
 #define LOAD_LEARN_DIV    2000   /* 每拍把积分的 1/它 转存进位置负载模型(约 2s 转完) */
 #define HOLD_LEAK_MS  1000     /* 保持中窗内静止时积分退向0的速度：每这么多ms退一个 fs；轴一沉就补回 */
 #define SETTLE_LEARN_X  6      /* 收尾中学托举力的速度 = 运动积分零点×它(只在窗外且没朝目标走时学) */
-#define MOVE_POS_BW_X   2      /* 运动段位置带宽 = ω_p×它(≤ω_v/2)：过冲主要在运动段末形成；收尾仍用 ω_p */
+#define MOVE_POS_BW_X   2      /* 运动段位置带宽最多 = ω_p×它(≤ω_v/2)：过冲主要在大角度运动段末形成；收尾仍用 ω_p */
+#define MOVE_SPAN_MIN_CDEG  500    /* 本段运动距离 ≤5°：运动段增益 ×1(小角度加大增益显得冲) */
+#define MOVE_SPAN_FULL_CDEG 3000   /* ≥30°：加满到 MOVE_POS_BW_X 倍；中间按距离线性过渡 */
+#define MOVE_MIX_SLEW_Q8    5      /* 运动中改目标时增益每拍最多变 5/256 份(约50ms走完×1↔×2)，不阶跃 */
 
 static struct {
     int32_t kv_q16;          /* 速度反馈 Kv，mV/(厘度/s)，Q16 */
     int32_t kv_pos_q16;      /* 模型kv：位置修正速度对应的电压，Q16 */
     int32_t kp_q8;           /* 位置增益 ω_p，1/s，Q8 */
-    int32_t kp_move_q8;      /* 运动段位置增益，Q8：有速度前馈，位置环只修跟踪误差，可比收尾快 */
+    int32_t kp_move_q8;      /* 运动段位置增益上限，Q8：有速度前馈，位置环只修跟踪误差，可比收尾快 */
     int32_t ki_q20;          /* 积分每拍增益，mV/(厘度/s)，Q20 */
     int32_t kh_q16;          /* 保持刚度 mV/厘度，Q16 */
     int32_t kih_q20;         /* 保持积分每拍增益 mV/厘度，Q20 */
@@ -70,6 +73,8 @@ static struct {
     uint16_t bleed_ms;       /* 保持中托举力持续推走轴的时长 */
     uint8_t  braking;        /* 保持中处于短路制动(带回差) */
     uint8_t  stall_hold;     /* 堵转保持：清托举力后不再用/学积分，直到下一段运动 */
+    int32_t  move_mix_q8;    /* 运动段增益在 ω_p 与上限之间的份额(0~256)，跟随 move_mix_tgt 平滑变化 */
+    int32_t  move_mix_tgt;   /* 按本段运动距离算出的目标份额 */
 } s_ctrl;
 
 void C_PosCtrl_Init(const MotorCal_t *cal, int32_t vel_noise, uint16_t obs_bw_hz)
@@ -170,6 +175,12 @@ void C_PosCtrl_StallHold(void)
 
 uint8_t C_PosCtrl_Reached(void) { return (uint8_t)(s_ctrl.state == PC_HOLD); }
 uint8_t C_PosCtrl_ArrivalQualified(void) { return s_ctrl.qualified; }
+
+/* 新指令的运动距离(厘度)：≤MIN 用 ω_p，≥FULL 用上限，中间线性 */
+void C_PosCtrl_SetMoveSpan(int32_t span_cdeg)
+{
+    s_ctrl.move_mix_tgt = Fx_ClampRange((Fx_Abs32(span_cdeg) - MOVE_SPAN_MIN_CDEG) * 256 / (MOVE_SPAN_FULL_CDEG - MOVE_SPAN_MIN_CDEG), 0, 256);
+}
 
 void C_PosCtrl_BeginMotion(void)
 {
@@ -449,7 +460,13 @@ int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int3
     {
     case PC_MOVE:
     {
-        int32_t v_pos = Fx_MulShift(s_gain.kp_move_q8, Fx_Deadband(e, s_gain.noise), 8);
+        int32_t kp, v_pos;
+
+        /* 从静止起步直接取本段份额(误差≈0，不跳)；运动中改目标按斜率过渡 */
+        if (prev_state != PC_MOVE) s_ctrl.move_mix_q8 = s_ctrl.move_mix_tgt;
+        else s_ctrl.move_mix_q8 += Fx_Clamp32(s_ctrl.move_mix_tgt - s_ctrl.move_mix_q8, MOVE_MIX_SLEW_Q8);
+        kp = s_gain.kp_q8 + (((s_gain.kp_move_q8 - s_gain.kp_q8) * s_ctrl.move_mix_q8) >> 8);
+        v_pos = Fx_MulShift(kp, Fx_Deadband(e, s_gain.noise), 8);
         int32_t v_cmd = ref->vel + v_pos;
         int32_t frac = Fx_Clamp32(ref->vel * s_gain.fric_inv_q16, 65536);   /* 平滑符号，Q16 */
 

@@ -15,7 +15,7 @@
 #define SERVO_ENC_FAIL_MAX      5U    /* 连续读失败这么多次才判编码器失效 */
 #define SERVO_INPUT_DETECT_MS   60U   /* 上电嗅探PWM的时间窗，覆盖两个50Hz周期 */
 #define SERVO_MERGE_MS          4U    /* 更密的普通目标合并成一条(只留最新) */
-#define SERVO_BOOT_MOVE_MS      1500U /* 上电位置复位传给规划器的请求时间，ms */
+#define SERVO_BOOT_MOVE_MS      2000U /* 上电位置复位传给规划器的请求时间，ms */
 #define PWM_DB_Q3               Q3(2U) /* PWM输入回差死区：静止吸收±2us抖动，移动时连续跟随 */
 
 
@@ -226,7 +226,7 @@ void A_Servo_Init(void)
     s_servo.arrived  = 1U;
     s_servo.boot_pwm = Servo_DetectInput();
     enc_ok = A_ServoCtrl_Init((ServoMode_t)g_config.servo_mode);
-    s_servo.boot_value   = A_ServoCtrl_IsPosition() ? SERVO_BOOT_MOVE_MS : 0U; /* 首帧PWM上电目标同样按1.5s请求 */
+    s_servo.boot_value   = A_ServoCtrl_IsPosition() ? SERVO_BOOT_MOVE_MS : 0U; /* 首帧PWM上电目标同样按2s请求 */
     s_servo.target_angle = GEO->angle;   /* 目标基准=当前位置，否则上电第一条 P0500 可能被当成重复目标 */
     s_servo.move_age     = 0xFFFFU;
     s_servo.torque       = SERVO_TORQUE_ON;

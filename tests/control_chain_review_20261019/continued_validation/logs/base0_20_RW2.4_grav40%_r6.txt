@@ -1,2 +1,0 @@
-CAL,20kg,kv=343,ka=9997,fc=157,fs=463,delay=2024,tau=29.1ms,vel_noise=378,Kv_q16=0,kp=0,ki_q20=0,kh_q16=0,wv=120
-20kg,grav40%_r6,reverse400,track=2.94,stops=0,rev=4,sat=0.70,freeze=0.43,maxdu=4017,settle=-1,final=224.52,os=0.00,ring=0,vmean=0,vmin_r=0.00,ripple=0.00,refvmin_r=0.00,lag=0.00,stall=0,fault=2,arr=3

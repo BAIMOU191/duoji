@@ -14,16 +14,6 @@ static const uint8_t k_version[3] = {
     SERVO_VERSION_MAJOR, SERVO_VERSION_MINOR, SERVO_VERSION_PATCH
 };
 
-/* 设置与上报共用硬件扭矩来源，防止型号信息与固件默认值不一致。 */
-uint16_t A_Config_TorqueMax(void)
-{
-    IAP_HwInfo_t hw;
-    uint8_t torque = FW_TORQUE;
-    if (IAP_HwInfoRead(&hw) && hw.torque != 0U && hw.torque != 0xFFU)
-        torque = hw.torque;
-    return (uint16_t)((uint16_t)torque * TORQUE_SCALE);
-}
-
 typedef char guard_config_head
     [(offsetof(Config_t, servo_id) == 0U && offsetof(Config_t, baud_code) == 1U) ? 1 : -1];
 typedef char guard_config_tail_padding
@@ -60,7 +50,7 @@ static void Config_FillDefaults(void)
     g_config.baud_code            = 5U;                /* 5 = 115200 */
     g_config.servo_mode           = SERVO_MODE_270_CW;
     g_config.boot_mode            = SERVO_BOOT_GOTO_START;
-    g_config.torque_limit_ckgcm         = A_Config_TorqueMax();
+    g_config.torque_limit_pct           = TORQUE_MAX_PERCENT;
     g_config.startup_pwm          = SERVO_PWM_MID;
     g_config.pulse_lo             = SERVO_PWM_MIN;     /* 脉冲边界回到协议量程 */
     g_config.pulse_hi             = SERVO_PWM_MAX;
@@ -89,7 +79,7 @@ static void Config_FillDefaults(void)
 void A_Config_ReloadRuntime(uint8_t reset_transient)
 {
 #define COPY(field) g_runtime_config.field = g_config.field;
-    COPY(torque_limit_ckgcm)
+    COPY(torque_limit_pct)
     COPY(traj_amax_dps2) COPY(traj_dmax_dps2) COPY(traj_smooth_ms)
     COPY(traj_vmax_dps) COPY(traj_move_min_ms)
     COPY(prot_current_limit_ma) COPY(prot_current_time_ms)
@@ -97,7 +87,7 @@ void A_Config_ReloadRuntime(uint8_t reset_transient)
     COPY(prot_stall_act_cdeg) COPY(prot_stall_trip)
     COPY(hold_kp) COPY(hold_ki) COPY(protect_enable)
     COPY(position_resolution_cdeg) COPY(load_ratio_x10) COPY(load_learn)
-    COPY(voltage_min_dv) COPY(voltage_max_dv) COPY(min_start_torque_ckgcm)
+    COPY(voltage_min_dv) COPY(voltage_max_dv) COPY(min_start_torque_pct)
 #undef COPY
     if (reset_transient)
     {
@@ -129,7 +119,7 @@ static void Config_Repair(Config_t *c)
     REPAIR(servo_mode, SERVO_MODE_IS_SUPPORTED(c->servo_mode));
     REPAIR(boot_mode, c->boot_mode >= SERVO_BOOT_GOTO_START && c->boot_mode <= SERVO_BOOT_RELEASE);
     REPAIR(startup_pwm, c->startup_pwm >= SERVO_PWM_MIN && c->startup_pwm <= SERVO_PWM_MAX);
-    REPAIR(torque_limit_ckgcm, c->torque_limit_ckgcm <= A_Config_TorqueMax());
+    REPAIR(torque_limit_pct, c->torque_limit_pct <= TORQUE_MAX_PERCENT);
     if (c->pulse_lo < SERVO_PWM_MIN || c->pulse_hi > SERVO_PWM_MAX || c->pulse_lo >= c->pulse_hi)
     { c->pulse_lo = g_config.pulse_lo; c->pulse_hi = g_config.pulse_hi; }
     if (c->cal_kind > SERVO_CAL_ZERO || (c->cal_kind != SERVO_CAL_NONE && c->cal_anchor_cdeg > ENCODER_TRAVEL_HI))
@@ -162,7 +152,7 @@ static void Config_Repair(Config_t *c)
                                      && c->position_resolution_cdeg <= CFG_RESOLUTION_MAX_CDEG);
     if (!A_Protect_VoltageRangeValid(c->voltage_min_dv, c->voltage_max_dv))
     { c->voltage_min_dv = g_config.voltage_min_dv; c->voltage_max_dv = g_config.voltage_max_dv; }
-    REPAIR(min_start_torque_ckgcm, c->min_start_torque_ckgcm <= A_Config_TorqueMax());
+    REPAIR(min_start_torque_pct, c->min_start_torque_pct <= TORQUE_MAX_PERCENT);
 #undef REPAIR
 }
 
