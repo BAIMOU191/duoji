@@ -6,7 +6,7 @@ PROVIDE( _stack_size = __stack_size );
 
 MEMORY
 {
-	FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 3328
+	FLASH (rx) : ORIGIN = 0x00000000, LENGTH = 5K   /* 主 Flash 0~0x13FF，APP 从 0x1400 起(System/iap.h APP_BASE) */
 	RAM (xrw)  : ORIGIN = 0x20000000, LENGTH = 4K
 }
 

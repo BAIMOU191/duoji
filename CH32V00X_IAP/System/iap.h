@@ -3,7 +3,10 @@
 
 #include "ch32v00X.h"
 
-#define APP_SIZE_MAX       0xF400U
+/* 主 Flash 分区：[0, APP_BASE) Boot 5K；[APP_BASE, 0xF400) APP；0xF400 起参数/硬件信息/标志页。
+ * 下面的 CONFIG/HWINFO/FLAG 是 Flash 绝对偏移；FWINFO_OFFSET 和升级镜像里的偏移相对 APP_BASE */
+#define APP_BASE           0x1400U
+#define APP_SIZE_MAX       (0xF400U - APP_BASE)
 #define CONFIG_SLOT_A      0xF400U
 #define CONFIG_SLOT_B      0xF500U
 #define HWINFO_OFFSET      0xF600U

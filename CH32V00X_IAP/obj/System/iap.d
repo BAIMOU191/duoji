@@ -22,7 +22,7 @@ System/iap.o: ../System/iap.c ../System/iap.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/SRC/Peripheral/inc/ch32v00X_wwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/SRC/Peripheral/inc/ch32v00X_opa.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/SRC/Peripheral/inc/ch32v00X.h \
- ../System/flash.h
+ ../System/flash.h ../System/boot_config.h ../System/boot_key.h
 ../System/iap.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/SRC/Peripheral/inc/ch32v00X.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/SRC/Core/core_riscv.h:
@@ -48,3 +48,5 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/SRC/Peripheral/inc/ch32v00X_wwdg.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/SRC/Peripheral/inc/ch32v00X_opa.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/SRC/Peripheral/inc/ch32v00X.h:
 ../System/flash.h:
+../System/boot_config.h:
+../System/boot_key.h:

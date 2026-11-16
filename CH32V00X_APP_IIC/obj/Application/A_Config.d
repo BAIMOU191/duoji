@@ -1,0 +1,58 @@
+Application/A_Config.o: ../Application/A_Config.c \
+ ../Application/A_Config.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Traj_Planner.h \
+ ../Application/App_Model.h ../Application/A_Param.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/flash.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Core/core_riscv.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/system_ch32v00X.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/ch32v00X_conf.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_adc.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_dbgmcu.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_dma.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_exti.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_flash.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_gpio.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_i2c.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/User/ch32v00X_it.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Debug/debug.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_iwdg.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_misc.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_pwr.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_rcc.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_spi.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_tim.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_usart.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_wwdg.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_opa.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/iap.h
+../Application/A_Config.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Traj_Planner.h:
+../Application/App_Model.h:
+../Application/A_Param.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/flash.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Core/core_riscv.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/system_ch32v00X.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/ch32v00X_conf.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_adc.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_dbgmcu.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_dma.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_exti.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_flash.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_gpio.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_i2c.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/User/ch32v00X_it.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Debug/debug.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_iwdg.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_misc.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_pwr.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_rcc.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_spi.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_tim.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_usart.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_wwdg.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_opa.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/iap.h:

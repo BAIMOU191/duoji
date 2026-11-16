@@ -268,7 +268,7 @@
 				},
 				"createFlash": {
 					"enabled": true,
-					"outputFileFormat": "binary",
+					"outputFileFormat": "ihex",
 					"copy_only_section_text": false,
 					"copy_only_section_data": false,
 					"copy_only_sections": [],
@@ -324,7 +324,7 @@
 	"flashConfig": {
 		"mcutype": "CH32V002/4/5/6/7",
 		"address": "0x08000000",
-		"target_path": "obj\\CH32V00X_IAP.bin",
+		"target_path": "obj\\CH32V00X_IAP.hex",
 		"clkSpeed": "High",
 		"debug_interface_mode": "1-wire serial",
 		"erase": true,

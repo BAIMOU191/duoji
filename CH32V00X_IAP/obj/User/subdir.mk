@@ -1,5 +1,5 @@
 ################################################################################
-# MRS Version: 2.5.0
+# MRS Version: 3.0.0
 # Automatically-generated file. Do not edit!
 ################################################################################
 
@@ -27,6 +27,6 @@ DIR_EXPANDS += \
 
 
 # Each subdirectory must supply rules for building sources it contributes
-User/%.o: ../User/%.c
+User/%.o: ../User/%.c $(FLAGS_C_FILE)
 	@	riscv-wch-elf-gcc -march=rv32ec_zmmul_xw -mabi=ilp32e -msmall-data-limit=0 -msave-restore -fmax-errors=20 -Os -fmessage-length=0 -fsigned-char -ffunction-sections -fdata-sections -fno-common -Wunused -Wuninitialized -g -I"c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/SRC/Core" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/SRC/Debug" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/SRC/Peripheral/inc" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/User" -I"c:/Users/Admin/Desktop/duoji/CH32V00X_IAP/System" -std=gnu99 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@)" -c -o "$@" "$<"
 

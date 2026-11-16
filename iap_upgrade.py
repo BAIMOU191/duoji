@@ -3,8 +3,9 @@
     python iap_upgrade.py                 按下面的配置升级
     python iap_upgrade.py --query         只读舵机信息，不升级
     python iap_upgrade.py --rescue        救砖：提示断电重上电后再升级
-    python iap_upgrade.py --port COM5 --id 3 --fw 新固件.hex    临时覆盖配置
+    python iap_upgrade.py --port COM5 --id 3 --fw xxx_upgrade.bin    临时覆盖配置
 
+固件文件是 fw_pack.py 打包出的加密升级文件(*_upgrade.bin)，本脚本只负责传输，不需要也不接触密钥。
 依赖：pyserial（pip install pyserial）
 协议见《舵机IAP升级协议与流程.html》。
 
@@ -13,9 +14,9 @@
 
 # ============================== 配置 ==============================
 PORT      = 'COM141'                                        # 串口号
-SERVO_ID  = 0                                          # 舵机 ID，0~254
+SERVO_ID  = 0                                         # 舵机 ID，0~254
 APP_BAUD  = 115200                                        # 舵机当前的波特率
-HEX_FILE  = r'CH32V00X_APP_ADC_15kg\obj\CH32V00X_APP.hex'      # 要烧录的固件
+FW_FILE   = r'CH32V00X_APP_IIC\obj\CH32V00X_APP_upgrade.bin'  # 要烧录的加密升级文件(fw_pack.py 生成)
 # ==================================================================
 
 import argparse
@@ -28,10 +29,11 @@ import zlib
 HEAD, TAIL = b'\xAA\x55', b'\x55\xAA'
 CMD_HELLO, CMD_START, CMD_WRITE, CMD_FINISH = 0x01, 0x02, 0x03, 0x04
 CMD_QUERY, CMD_ENTER = 0x20, 0x21
-BOOT_BAUD, PAGE, APP_MAX, FW_INFO_OFFSET = 115200, 256, 0xF400, 0x100
+BOOT_BAUD, PAGE, APP_MAX = 115200, 256, 0xF400 - 0x1400   # APP 区 [0x1400, 0xF400)
+UP_MAGIC, UP_FORMAT, UP_HEAD = b'SVUP', 1, 32               # 升级文件头，格式见 fw_pack.py
 
 STATUS_TEXT = {
-    0: '成功', 1: '帧无效(CRC 或长度不对)', 2: '硬件信息或固件类型不符',
+    0: '成功', 1: '帧无效(长度不对)', 2: '硬件信息或固件类型不符',
     3: '地址或长度越界', 4: '写入后读回不一致', 5: '整包 CRC32 不符',
     6: '顺序错误(尚未成功开始)',
 }
@@ -155,50 +157,25 @@ class Link:
 
 # ------------------------------------------------------------------ 固件
 
-def load_hex(path):
-    """解析 hex，返回 (镜像, 适用硬件4项, 版本3项)"""
-    cells, base = {}, 0
+def load_upgrade(path):
+    """读加密升级文件，返回 (密文, 适用硬件4项, 版本3项, 明文CRC32, IV)"""
+    if path.lower().endswith('.hex'):
+        raise Fail('这是 hex 明文固件；先在出固件的电脑上用 fw_pack.py 打包成 *_upgrade.bin')
     try:
-        text = open(path, 'r', encoding='ascii', errors='ignore').read()
+        data = open(path, 'rb').read()
     except OSError as exc:
         raise Fail('打不开固件文件：%s' % exc)
-
-    for line in text.splitlines():
-        line = line.strip()
-        if not line.startswith(':'):
-            continue
-        try:
-            raw = bytes.fromhex(line[1:])
-        except ValueError:
-            raise Fail('hex 里有非法字符：%s' % line[:16])
-        if sum(raw) & 0xFF:
-            raise Fail('hex 行校验和不对：%s' % line[:16])
-        count, addr, rtype, payload = raw[0], raw[1] << 8 | raw[2], raw[3], raw[4:4 + raw[0]]
-        if rtype == 0x00:
-            for i in range(count):
-                cells[base + addr + i] = payload[i]
-        elif rtype == 0x01:
-            break
-        elif rtype == 0x02:
-            base = (payload[0] << 8 | payload[1]) * 16
-        elif rtype == 0x04:
-            base = (payload[0] << 8 | payload[1]) << 16
-
-    if not cells:
-        raise Fail('hex 里没有数据')
-    cells = {(a - 0x08000000 if a >= 0x08000000 else a): v for a, v in cells.items()}
-    top = max(cells)
-    if top >= APP_MAX:
-        raise Fail('固件数据到了 0x%X，超出 APP 区(0x%X)' % (top, APP_MAX))
-
-    image = bytearray(b'\xFF' * (((top + 1 + PAGE - 1) // PAGE) * PAGE))
-    for addr, value in cells.items():
-        image[addr] = value
-
-    info = image[FW_INFO_OFFSET:FW_INFO_OFFSET + 16]
-    if info[:4] != b'SVFW':
-        raise Fail('固件里没有信息块(偏移 0x100 不是 SVFW)，可能不是本产品的固件')
-    return bytes(image), tuple(info[4:8]), tuple(info[8:11])
+    if len(data) < UP_HEAD + 4 or data[:4] != UP_MAGIC:
+        raise Fail('不是本产品的升级文件(文件头标识不对)')
+    if data[4] != UP_FORMAT:
+        raise Fail('升级文件格式版本 %d 不支持，请更新升级工具' % data[4])
+    if struct.unpack_from('<I', data, len(data) - 4)[0] != crc32(data[:-4]):
+        raise Fail('升级文件损坏(文件 CRC 不对)')
+    length, image_crc = struct.unpack_from('<II', data, 12)
+    cipher = data[UP_HEAD:-4]
+    if length != len(cipher) or length == 0 or length % PAGE or length > APP_MAX:
+        raise Fail('升级文件长度字段不对')
+    return cipher, tuple(data[5:9]), tuple(data[9:12]), image_crc, data[20:32]
 
 
 def hw_text(hw):
@@ -239,7 +216,8 @@ def handshake(link, limit):
     return None
 
 
-def upgrade(link, servo_id, image, fw_hw, fw_ver, app_baud, rescue):
+def upgrade(link, servo_id, image, fw_hw, fw_ver, image_crc, iv, app_baud, rescue):
+    """image 为密文，image_crc 为明文 CRC32，iv 为加密初始值"""
     if not 0 <= servo_id <= 254:
         raise Fail('升级ID必须为0~254；255只允许用于查询')
     info = None                                # 查询到的舵机信息；救砖或舵机已在 Boot 时为 None
@@ -295,12 +273,12 @@ def upgrade(link, servo_id, image, fw_hw, fw_ver, app_baud, rescue):
         if ok is False:
             raise Fail('固件适用硬件 %s 与舵机 %s 不符，已停止' % (hw_text(fw_hw), hw_text(boot['hw'])))
 
-    length, image_crc = len(image), crc32(image)
+    length = len(image)
     total = length // PAGE
     print('开始擦除：长度 %d 字节，CRC32 %08X，共 %d 页'
           % (length, image_crc, total))
     print('  配置和硬件信息采用新固件；仅保留舵机 ID 与波特率')
-    link.request(CMD_START, struct.pack('<II', length, image_crc),
+    link.request(CMD_START, struct.pack('<II', length, image_crc) + iv,
                  timeout=5.0, retries=3)
 
     start_time = time.monotonic()
@@ -323,7 +301,8 @@ def upgrade(link, servo_id, image, fw_hw, fw_ver, app_baud, rescue):
 
     print('整包校验…')
     try:
-        link.request(CMD_FINISH, b'', timeout=2.0, retries=3)
+        # 只发一次：Boot 校验通过就跳 APP，重发只会落到新 APP 上；没应答就去查版本确认
+        link.request(CMD_FINISH, b'', timeout=2.0, retries=1)
     except Fail as exc:
         if '没有应答' not in str(exc):
             raise
@@ -357,7 +336,7 @@ def main():
     ap.add_argument('--port', default=PORT)
     ap.add_argument('--id', type=int, default=SERVO_ID)
     ap.add_argument('--baud', type=int, default=APP_BAUD, help='舵机当前波特率')
-    ap.add_argument('--fw', default=HEX_FILE)
+    ap.add_argument('--fw', default=FW_FILE, help='加密升级文件 *_upgrade.bin')
     ap.add_argument('--rescue', action='store_true', help='救砖：跳过查询，等断电重上电')
     ap.add_argument('--query', action='store_true', help='只读舵机信息')
     args = ap.parse_args()
@@ -385,7 +364,7 @@ def main():
                       % (boot['flag'], hw_text(boot['hw'])))
             return 0
 
-        image, fw_hw, fw_ver = load_hex(args.fw)
+        image, fw_hw, fw_ver, image_crc, iv = load_upgrade(args.fw)
         print('固件：%s' % args.fw)
         print('      版本 %d.%d.%d，适用硬件 %s，%d 字节'
               % (*fw_ver, hw_text(fw_hw), len(image)))
@@ -394,7 +373,7 @@ def main():
             print('提醒：固件里有 %d 处字节序列长得像舵机 ASCII 指令，'
                   '升级时总线上的其他舵机可能误动作，建议只接这一台' % risky)
         link = Link(args.port, args.baud)
-        upgrade(link, args.id, image, fw_hw, fw_ver, args.baud, args.rescue)
+        upgrade(link, args.id, image, fw_hw, fw_ver, image_crc, iv, args.baud, args.rescue)
         return 0
     except Fail as exc:
         print('\n失败：%s' % exc, file=sys.stderr)
