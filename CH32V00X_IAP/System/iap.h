@@ -19,6 +19,12 @@
 #define HWINFO_MAGIC       0x46495748U
 #define FWINFO_MAGIC       0x57465653U
 
+/* 升级请求标志：APP 收到"进入升级"后写这两个字再软件复位，Boot 读到即清。
+ * SRAM 在软件/看门狗/下载器复位后保持，断电丢失，所以只对紧接着的那一次复位有效。
+ * 地址在 Boot 链接脚本 RAM 区之外(Boot 的 .data/.bss/栈都碰不到)，APP 侧 iap.c 用同一个地址和魔数 */
+#define BOOT_REQ_ADDR      0x20000FF0U
+#define BOOT_REQ_MAGIC     0x51455242U     /** "BREQ"；第二个字存它的反码 */
+
 #define IAP_HEAD1          0xAAU
 #define IAP_HEAD2          0x55U
 #define IAP_TAIL1          0x55U

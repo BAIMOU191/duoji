@@ -12,6 +12,7 @@ void USART1_IRQHandler(void)        __attribute__((interrupt("WCH-Interrupt-fast
 void TIM1_CC_IRQHandler(void)       __attribute__((interrupt("WCH-Interrupt-fast")));
 void TIM1_UP_IRQHandler(void)       __attribute__((interrupt("WCH-Interrupt-fast")));
 void DMA1_Channel1_IRQHandler(void) __attribute__((interrupt("WCH-Interrupt-fast")));
+void DMA1_Channel4_IRQHandler(void) __attribute__((interrupt("WCH-Interrupt-fast")));
 
 /* NMI：复位恢复，避免死循环 */
 void NMI_Handler(void)
@@ -27,10 +28,16 @@ void HardFault_Handler(void)
     while (1) {}
 }
 
-/* USART1：驱动收发队列，解析在任务里做 */
+/* USART1：总线空闲通知 + 发送收尾，收发数据都由DMA搬，解析在任务里做 */
 void USART1_IRQHandler(void)
 {
     D_UART1_ISR();
+}
+
+/* DMA1通道4：串口发送DMA搬完一帧 */
+void DMA1_Channel4_IRQHandler(void)
+{
+    D_UART1_TxDma_ISR();
 }
 
 /* TIM1捕获：双沿测PWM脉宽 */

@@ -7,7 +7,6 @@
 C_SRCS += \
 ../Common/C_Motor_Model.c \
 ../Common/C_Pos_Ctrl.c \
-../Common/C_Ring_Buf.c \
 ../Common/C_Speed_Observer.c \
 ../Common/C_Task_Scheduler.c \
 ../Common/C_Traj_Planner.c 
@@ -15,7 +14,6 @@ C_SRCS += \
 C_DEPS += \
 ./Common/C_Motor_Model.d \
 ./Common/C_Pos_Ctrl.d \
-./Common/C_Ring_Buf.d \
 ./Common/C_Speed_Observer.d \
 ./Common/C_Task_Scheduler.d \
 ./Common/C_Traj_Planner.d 
@@ -23,7 +21,6 @@ C_DEPS += \
 OBJS += \
 ./Common/C_Motor_Model.o \
 ./Common/C_Pos_Ctrl.o \
-./Common/C_Ring_Buf.o \
 ./Common/C_Speed_Observer.o \
 ./Common/C_Task_Scheduler.o \
 ./Common/C_Traj_Planner.o 

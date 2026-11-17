@@ -29,6 +29,7 @@ Application/A_Tasks.o: ../Application/A_Tasks.c ../Application/A_Tasks.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_wwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_opa.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h \
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_uart.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/iap.h
 ../Application/A_Tasks.h:
 ../Application/A_Servo.h:
@@ -64,4 +65,5 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_usart.
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_wwdg.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_opa.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h:
+c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_uart.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/iap.h:

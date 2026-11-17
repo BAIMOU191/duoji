@@ -63,7 +63,6 @@ void     A_ServoCtrl_HoldAt(int32_t pos);         /* 参考立即静止在 pos(�
 void     A_ServoCtrl_FoldTo(uint16_t target);     /* 连续坐标折回单圈分支并刷新 angle/angle_circ */
 void     A_ServoCtrl_Recenter(void);              /* 连续坐标回到行程中点分支，不重读编码器 */
 void     A_ServoCtrl_SetMultiTurn(uint8_t active);/* 多圈运动：1=坐标按连续展开 */
-uint8_t  A_ServoCtrl_MultiTurnActive(void);
 #endif
 void     A_ServoCtrl_Brake(void);                 /* 沿当前方向按减速度刹停 */
 uint8_t  A_ServoCtrl_TrajDone(void);              /* 规划器参考已停 */

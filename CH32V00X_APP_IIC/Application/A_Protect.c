@@ -68,7 +68,7 @@ typedef struct {
     int16_t  i_limit_pwm;/** 同上换成PWM上限(回升目标) */
     int16_t  last_ma;    /** 最近电流(mA)，协议方向带符号，供上报 */
     uint16_t last_cv;    /** 最近电压，厘伏 */
-    int16_t  last_temp;  /** 最近温度，0.1℃；-32768=无效 */
+    int16_t  last_temp;  /** 最近一次读成功的温度，0.1℃；-32768=上电后还没读成功过 */
     uint8_t  last_current_valid; /** 最近电流是否采在驱动段 */
     int16_t  pwm_limit;  /** 当前下发舵机的PWM上限 */
 } Protect_t;
@@ -162,7 +162,7 @@ uint8_t A_Protect_CanDrive(void)
     return (uint8_t)(r->min_start_torque_pct == 0U || r->torque_limit_pct >= r->min_start_torque_pct);
 }
 
-/* 最近温度(0.1℃)：过温检测每250ms采一次的缓存，查询不碰I2C；-32768=尚未采样或读取失败 */
+/* 最近温度(0.1℃)：过温检测每250ms采一次的缓存，读失败保留上次值；查询不碰I2C；-32768=上电后还没读成功过 */
 int16_t A_Protect_GetTemperature(void)
 { return s_prot.last_temp; }
 
@@ -297,7 +297,7 @@ static void Protect_OverTemp(void)
 {
     int16_t temp = A_Temperature_Read(); /* 0.1℃，-32768=读取失败 */
 
-    s_prot.last_temp = temp;
+    if (temp != (int16_t)-32768) s_prot.last_temp = temp;   /* 读失败保留上次值 */
 
     if ((g_runtime_config.run.protect_enable & PROT_ENABLE_TEMP) == 0U)
     {

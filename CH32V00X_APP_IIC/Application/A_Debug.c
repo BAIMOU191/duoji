@@ -17,7 +17,7 @@
 void A_Debug_Task(void)
 {
     ServoDebugTelemetry_t data;
-    char frame[RING_BUF_SIZE];
+    char frame[D_UART_TX_FRAME_MAX];
     int len;
 
     if (IAP_UpgradePending() || !D_UART_Tx_Idle() || !A_Uart_DebugReady()) return;
@@ -31,7 +31,7 @@ void A_Debug_Task(void)
         (int)data.out_mv, (long)data.dist_mv, (unsigned)data.saturated,
         (unsigned)data.state, (unsigned)data.flags, (unsigned)A_Protect_Fault(), (int)data.cur_ma,
         (long)data.enc_raw);
-    /* 队列仅127字节；超长丢整帧，不发截断CSV */
+    /* 单帧最长127字节；超长丢整帧，不发截断CSV */
     if (len > 0 && (unsigned)len < sizeof(frame))
         (void)D_UART1_Tx_Write((const uint8_t *)frame, (uint8_t)len);
 }

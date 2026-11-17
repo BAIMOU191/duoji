@@ -1,7 +1,7 @@
 /*
  * iap.c —— Bootloader 主流程与升级协议
- *   复位：软件复位 = APP 收到进入升级后主动复位，直接进升级循环；
- *         上电复位先等 200ms 握手(救砖用)，没有握手且 APP 完好就进 APP，否则留下。
+ *   复位：APP 收到进入升级后在 RAM 写升级请求标志(iap.h BOOT_REQ_ADDR)再复位，Boot 见到标志直接进升级循环；
+ *         其余复位(上电、下载器、看门狗、APP 故障复位)先等 200ms 握手(救砖用)，没有握手且 APP 完好就进 APP，否则留下。
  *   升级循环：握手 / 开始 / 写页 / 完成。
  *   10 秒没有收到有效 Boot 帧(握手/开始/写页/完成)且 APP 完好，自动回 APP；总线上别的流量不算。
  *   非 Boot 命令、CRC 不对的帧静默丢弃，不应答。
@@ -98,13 +98,17 @@ static uint8_t Tick_Poll(void)
     return 1U;
 }
 
-/* 本次复位是不是软件复位(APP 收到进入升级后主动复位)；读完清标志 */
-static uint8_t Reset_WasSoftware(void)
+/* APP 是否在复位前写了升级请求标志(见 iap.h BOOT_REQ_ADDR)；读完立刻清，只对这一次复位有效。
+ * 不再用软件复位标志判断：下载器复位、APP 故障复位也会置它，会被误当成升级请求而多等 10 秒 */
+static uint8_t App_Requested(void)
 {
-    uint8_t soft = (RCC->RSTSCKR & RCC_SFTRSTF) != 0U;
+    volatile uint32_t *req = (volatile uint32_t *)BOOT_REQ_ADDR;
+    uint8_t asked = req[0] == BOOT_REQ_MAGIC && req[1] == ~BOOT_REQ_MAGIC;
 
-    RCC->RSTSCKR |= RCC_RMVF;
-    return soft;
+    req[0] = 0U;
+    req[1] = 0U;
+    RCC->RSTSCKR |= RCC_RMVF;                       /* 复位原因标志顺手清掉，给 APP 一个干净的起点 */
+    return asked;
 }
 
 /* 阻塞发送；发送期间关接收，免得单线回环把自己发的字节收回来 */
@@ -640,7 +644,7 @@ static uint8_t Loop(uint16_t window_ms)
 
 void IAP_Run(void)
 {
-    uint8_t app_request = Reset_WasSoftware(); /** 软件复位 = APP 收到进入升级后主动复位 */
+    uint8_t app_request = App_Requested();     /** APP 收到进入升级后写标志再复位 */
 
     OptionBytes_Check();
     Hw_Init();

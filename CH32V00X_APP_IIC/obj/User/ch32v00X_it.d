@@ -25,7 +25,6 @@ User/ch32v00X_it.o: ../User/ch32v00X_it.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_tim.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_adc.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_uart.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Ring_Buf.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Task_Scheduler.h
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/User/ch32v00X_it.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Debug/debug.h:
@@ -53,5 +52,4 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_tim.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_adc.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_uart.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Ring_Buf.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Task_Scheduler.h:

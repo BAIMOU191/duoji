@@ -32,7 +32,6 @@ Application/A_Calib_Min.o: ../Application/A_Calib_Min.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_tim.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_iwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_uart.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Ring_Buf.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/iap.h
 ../Application/A_Calib_Min.h:
 ../Application/A_Config.h:
@@ -69,5 +68,4 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_motor.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_tim.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_iwdg.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_uart.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Ring_Buf.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/System/iap.h:

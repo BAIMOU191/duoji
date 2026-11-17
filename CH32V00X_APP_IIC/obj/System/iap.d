@@ -27,7 +27,6 @@ System/iap.o: ../System/iap.c ../System/iap.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_wwdg.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_opa.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Ring_Buf.h \
  ../System/flash.h
 ../System/iap.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Application/A_Config.h:
@@ -58,5 +57,4 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_usart.
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_wwdg.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_opa.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Ring_Buf.h:
 ../System/flash.h:

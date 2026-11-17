@@ -16,7 +16,7 @@
 PORT      = 'COM141'                                        # 串口号
 SERVO_ID  = 0                                         # 舵机 ID，0~254
 APP_BAUD  = 115200                                        # 舵机当前的波特率
-FW_FILE   = r'CH32V00X_APP_IIC\obj\CH32V00X_APP_upgrade.bin'  # 要烧录的加密升级文件(fw_pack.py 生成)
+FW_FILE   = r'CH32V00X_APP_ADC\obj\CH32V00X_APP_upgrade.bin'  # 要烧录的加密升级文件(fw_pack.py 生成)
 # ==================================================================
 
 import argparse

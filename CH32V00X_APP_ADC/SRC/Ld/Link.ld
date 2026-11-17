@@ -177,7 +177,11 @@ SECTIONS
 	    PROVIDE(_susrstack = . );
 	    . = . + __stack_size;
 	    PROVIDE( _eusrstack = .);
-	} >RAM 
-	
+	} >RAM
+
+	/* RAM 余量硬检查：.data+.bss 与栈之间至少留 1KB 给 stdio 的 malloc(stdout 文件结构等)，不够直接链接失败。
+	 * Flash 超出由 FLASH 区长度保证(region overflowed)。栈实际峰值见标定固件 @DIAG,stack。 */
+	ASSERT(_ebss + 1024 <= _heap_end, "RAM overflow: .data+.bss leaves less than 1KB heap below the stack")
+
 }
 

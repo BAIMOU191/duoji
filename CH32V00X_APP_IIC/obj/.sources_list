@@ -23,7 +23,6 @@
 ../Application/A_UartCmd.c
 ../Common/C_Motor_Model.c
 ../Common/C_Pos_Ctrl.c
-../Common/C_Ring_Buf.c
 ../Common/C_Speed_Observer.c
 ../Common/C_Task_Scheduler.c
 ../Common/C_Traj_Planner.c

@@ -415,7 +415,6 @@ void A_ServoCtrl_HoldAt(int32_t pos)                       { C_Traj_Hold(pos); }
 
 /* 多圈坐标：1=按连续展开坐标跑，angle 取回绕值给协议 */
 void A_ServoCtrl_SetMultiTurn(uint8_t active) { s_geom.multiturn = active; }
-uint8_t A_ServoCtrl_MultiTurnActive(void)     { return s_geom.multiturn; }
 
 /* 连续坐标接到 near 所在的那一圈；连续展开基准(circular_valid)保持不变 */
 static void Geom_Fold(int32_t near)

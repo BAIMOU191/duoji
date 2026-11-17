@@ -147,14 +147,14 @@ uint8_t A_Param_VoltageRangeValid(uint16_t lo_dv, uint16_t hi_dv)
 
 /* ============================== 实时状态 ============================== */
 
-/* 速度：内部厘度/s(观测器缓存，不重读位置) → 0.1°/s，四舍五入；观测器不在更新为 0x8000 */
+/* 速度：内部厘度/s(观测器缓存，不重读位置) → 0.1°/s，四舍五入；观测器不在更新报0 */
 static int16_t Param_Speed(void)
 {
     ServoTelemetry_t s;
     uint32_t mag;
 
     A_Servo_GetTelemetry(&s);
-    if (s.speed_cdps == INT32_MIN) return PARAM_INVALID_S16;
+    if (s.speed_cdps == INT32_MIN) return 0;
     mag = Fx_UDivR((uint32_t)Fx_Abs32(s.speed_cdps) + 5U, FX_RECIP(10U));
     if (mag > 32767U) mag = 32767U;
     return (int16_t)((s.speed_cdps < 0) ? -(int32_t)mag : (int32_t)mag);
@@ -167,6 +167,12 @@ static int16_t Param_Torque(void)
 
     A_Protect_GetTelemetry(&p);
     return A_Torque_Estimate(p.current_ma, p.current_valid);
+}
+
+/* 温度：读失败已保留上次值；内部 -32768 只剩上电后还没读成功过，对外报0 */
+static int16_t Param_Temperature(int16_t temp_dc)
+{
+    return (temp_dc == (int16_t)-32768) ? 0 : temp_dc;
 }
 
 /* 七项实时状态，顺序与宽度是协议；扭矩、速度、电流带符号，位置值增大方向为正 */
@@ -182,7 +188,7 @@ static void Param_Telemetry(uint8_t *out)
     (void)Param_Put(out + 4,  (uint16_t)A_Torque_Estimate(p.current_ma, p.current_valid), 2U);
     (void)Param_Put(out + 6,  (uint16_t)Param_Speed(), 2U);
     (void)Param_Put(out + 8,  (uint16_t)p.current_ma, 2U);
-    (void)Param_Put(out + 10, (uint16_t)p.temperature_dc, 2U);
+    (void)Param_Put(out + 10, (uint16_t)Param_Temperature(p.temperature_dc), 2U);
     (void)Param_Put(out + 12, p.voltage_cv, 2U);
 }
 
@@ -222,7 +228,7 @@ uint8_t A_Param_Read(uint8_t addr, uint8_t *out, uint8_t *len)
     case PARAM_FAULT:        n = Param_Put(out, A_Protect_Fault(), 2U);                          break;
     case PARAM_POSITION:     n = Param_Put(out, Q3_TO_PARAM_POS(A_Servo_GetPositionQ3()), 2U);  break;
     case PARAM_SPEED:        n = Param_Put(out, (uint16_t)Param_Speed(), 2U);                    break;
-    case PARAM_TEMPERATURE:  n = Param_Put(out, (uint16_t)A_Protect_GetTemperature(), 2U);       break;
+    case PARAM_TEMPERATURE:  n = Param_Put(out, (uint16_t)Param_Temperature(A_Protect_GetTemperature()), 2U);     break;
     case PARAM_VOLTAGE:      n = Param_Put(out, A_Voltage_Read(), 2U);                           break;
     case PARAM_CURRENT:      n = Param_Put(out, (uint16_t)A_Protect_GetCurrent(), 2U);           break;
     case PARAM_TORQUE:       n = Param_Put(out, (uint16_t)Param_Torque(), 2U);                   break;

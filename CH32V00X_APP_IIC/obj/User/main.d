@@ -23,7 +23,6 @@ User/main.o: ../User/main.c \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_opa.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_uart.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Ring_Buf.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_spi.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_i2c.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_tim.h \
@@ -66,7 +65,6 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_wwdg.h
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X_opa.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_uart.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Ring_Buf.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_spi.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_i2c.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_tim.h:

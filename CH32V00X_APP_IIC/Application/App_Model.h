@@ -12,7 +12,7 @@
 #define APP_MODEL_T4_H10_V8_Q15     2   /* 磁编码 MT6701 8V 15kg */
 
 
-#define APP_MODEL  APP_MODEL_T4_H10_V8_Q15
+#define APP_MODEL  APP_MODEL_T2_H10_V8_Q20
 
 
 /* ==================== 2. 编码器相关常量(本工程共用) ====================
@@ -22,7 +22,8 @@
 /* 控制器整定里随编码器变化的部分(A_Config.h 第4节引用)：
  * 磁编码噪声不是瓶颈，限制带宽的是输出轴齿隙(轻载时越易在齿隙里抖) */
 #define ENCODER_TUNE_OBS_BW_HZ      16   /** 观测器位置/速度极点(Hz) */
-#define ENCODER_TUNE_VEL_BW_CAP     100U /** 速度环带宽上限(rad/s)，另受纯延迟限制 */
+#define ENCODER_TUNE_VEL_BW_CAP     60U  /** 速度环带宽上限(rad/s)，另受纯延迟限制。2026-11-17 机械臂实测：100 时负载力矩过零段(齿轮不受力)
+                                         *  速度环在齿隙里形成约12Hz极限环，60/40 均消除；60 停稳静差约0.25°(仍在0.3°到位窗内) */
 #define ENCODER_DEF_RESOLUTION_CDEG 30U  /** 到位精度出厂值(厘度)：编码器噪声越小可取越小 */
 
 
@@ -38,16 +39,16 @@
 /* ---- 电机标定（标定固件打印，整节替换） ----
  * 电压域模型 U = kv·ω + ka·α + fc·sgn(ω)，静止且 |U| < fs 时粘住；参数与母线电压无关，
  * 运行时电压按实测母线换算成占空比。额定能力为标定电压下的值(已留10%余量)，只用于配置校验与出厂默认值。 */
-#define MOTOR_CAL_MV              7533   /* 标定电压，mV */
-#define MOTOR_KV_UV                326   /* 反电势斜率，µV/(厘度/s) */
-#define MOTOR_KA_NV               9325   /* 加速系数，nV/(厘度/s²) */
-#define MOTOR_FC_MV                308   /* 动摩擦，mV */
-#define MOTOR_FS_MV                627   /* 起转电压，mV */
-#define MOTOR_DELAY_US            2089   /* 输入到响应的纯延迟，µs */
-#define MOTOR_NOISE_CDEG             1   /* 静止读数噪声幅值(±)，厘度 */
-#define MOTOR_MIN_STEP_CDEG         13   /* 最小可靠位移，厘度 */
-#define MOTOR_SIGN                  -1   /* 正电压使输出轴角度增大 = 1 */
-#define MOTOR_RATED_VEL_DPS        194   /* 额定最高速度，度/秒 */
+#define MOTOR_CAL_MV              7700   /* 标定电压，mV */
+#define MOTOR_KV_UV                361   /* 反电势斜率，µV/(厘度/s) */
+#define MOTOR_KA_NV               9614   /* 加速系数，nV/(厘度/s²) */
+#define MOTOR_FC_MV                200   /* 动摩擦，mV */
+#define MOTOR_FS_MV                523   /* 起转电压，mV */
+#define MOTOR_DELAY_US             358   /* 输入到响应的纯延迟，µs */
+#define MOTOR_NOISE_CDEG             2   /* 静止读数噪声幅值(±)，厘度 */
+#define MOTOR_MIN_STEP_CDEG          9   /* 最小可靠位移，厘度 */
+#define MOTOR_SIGN                   1   /* 正电压使输出轴角度增大 = 1 */
+#define MOTOR_RATED_VEL_DPS        183   /* 额定最高速度，度/秒 */
 #define MOTOR_RATED_ACC_DPS2      6000   /* 额定零速加速度，度/秒² */
 #define MOTOR_RATED_DEC_DPS2      6000   /* 额定低速减速度，度/秒² */
 
@@ -65,18 +66,18 @@
 /* ---- 电机标定（标定固件打印，整节替换） ----
  * 电压域模型 U = kv·ω + ka·α + fc·sgn(ω)，静止且 |U| < fs 时粘住；参数与母线电压无关，
  * 运行时电压按实测母线换算成占空比。额定能力为标定电压下的值(已留10%余量)，只用于配置校验与出厂默认值。 */
-#define MOTOR_CAL_MV              7677   /* 标定电压，mV */
-#define MOTOR_KV_UV                313   /* 反电势斜率，µV/(厘度/s) */
-#define MOTOR_KA_NV               8435   /* 加速系数，nV/(厘度/s²) */
-#define MOTOR_FC_MV                260   /* 动摩擦，mV */
-#define MOTOR_FS_MV                400   /* 起转电压，mV */
-#define MOTOR_DELAY_US            2622   /* 输入到响应的纯延迟，µs */
+#define MOTOR_CAL_MV              7700   /* 标定电压，mV */
+#define MOTOR_KV_UV                326   /* 反电势斜率，µV/(厘度/s) */
+#define MOTOR_KA_NV               9351   /* 加速系数，nV/(厘度/s²) */
+#define MOTOR_FC_MV                200   /* 动摩擦，mV */
+#define MOTOR_FS_MV                522   /* 起转电压，mV */
+#define MOTOR_DELAY_US            1000   /* 输入到响应的纯延迟，µs */
 #define MOTOR_NOISE_CDEG             1   /* 静止读数噪声幅值(±)，厘度 */
 #define MOTOR_MIN_STEP_CDEG         10   /* 最小可靠位移，厘度 */
 #define MOTOR_SIGN                  -1   /* 正电压使输出轴角度增大 = 1 */
 #define MOTOR_RATED_VEL_DPS        200   /* 额定最高速度，度/秒 */
-#define MOTOR_RATED_ACC_DPS2      7500   /* 额定零速加速度，度/秒² */
-#define MOTOR_RATED_DEC_DPS2      7500   /* 额定低速减速度，度/秒² */
+#define MOTOR_RATED_ACC_DPS2      7000   /* 额定零速加速度，度/秒² */
+#define MOTOR_RATED_DEC_DPS2      7000   /* 额定低速减速度，度/秒² */
 
 /* ---- 工作电压范围（0.1V） ---- */
 #define PROT_VOLTAGE_CFG_MIN_DV      60U  /** 用户可设的工作电压下限(也是出厂值) */

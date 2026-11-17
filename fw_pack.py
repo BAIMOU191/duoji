@@ -18,7 +18,7 @@
 """
 # ============================== 配置 ==============================
 # 相对路径以本脚本所在目录为准，也可写绝对路径；命令行给了路径时以命令行为准
-HEX_FILE = r'CH32V00X_APP_IIC\obj\CH32V00X_APP.hex'   # 要打包的 APP hex
+HEX_FILE = r'CH32V00X_APP_ADC\obj\CH32V00X_APP.hex'   # 要打包的 APP hex
 KEY_FILE = r'boot_key.txt'                            # 密钥 txt(gen_key.py 生成)
 # ==================================================================
 import argparse

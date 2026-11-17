@@ -34,8 +34,7 @@ Application/A_Servo.o: ../Application/A_Servo.c ../Application/A_Servo.h \
  ../Application/A_Protect.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Fixed.h \
  c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_tim.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_uart.h \
- c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Ring_Buf.h
+ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_uart.h
 ../Application/A_Servo.h:
 ../Application/A_Config.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Traj_Planner.h:
@@ -74,4 +73,3 @@ c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/SRC/Peripheral/inc/ch32v00X.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Fixed.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_tim.h:
 c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Drivers/D_uart.h:
-c:/Users/Admin/Desktop/duoji/CH32V00X_APP_IIC/Common/C_Ring_Buf.h:

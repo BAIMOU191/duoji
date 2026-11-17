@@ -1,0 +1,1460 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>舵机调试上位机</title>
+<style>
+:root{
+  --bg:#f4f5f7; --card:#ffffff; --fg:#1d2330; --mut:#6b7385; --line:#e2e5eb; --line2:#eef0f4;
+  --acc:#2f6fed; --acc-fg:#fff; --ok:#1f9d55; --warn:#c77700; --err:#d64545; --chip:#f0f2f6;
+  --grid:#eceef2; --axis:#8a92a3; --hover:#9aa3b5;
+  --c1:#2f6fed; --c2:#e8590c; --c3:#7048e8; --c4:#0c8599; --c5:#d6336c; --c6:#2b8a3e; --c7:#c77700; --c8:#495057;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+}
+:root[data-theme="dark"]{
+  --bg:#12151b; --card:#1a1e26; --fg:#e4e7ee; --mut:#8d95a7; --line:#2b313d; --line2:#232832;
+  --acc:#5b8cff; --acc-fg:#0d1220; --ok:#3ccf7a; --warn:#f0a73a; --err:#ff6b6b; --chip:#232934;
+  --grid:#252b35; --axis:#7d8597; --hover:#5c6578;
+  --c1:#5b8cff; --c2:#ff8a3d; --c3:#9d84ff; --c4:#3bc9db; --c5:#f06595; --c6:#51cf66; --c7:#fcc419; --c8:#adb5bd;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#12151b; --card:#1a1e26; --fg:#e4e7ee; --mut:#8d95a7; --line:#2b313d; --line2:#232832;
+    --acc:#5b8cff; --acc-fg:#0d1220; --ok:#3ccf7a; --warn:#f0a73a; --err:#ff6b6b; --chip:#232934;
+    --grid:#252b35; --axis:#7d8597; --hover:#5c6578;
+    --c1:#5b8cff; --c2:#ff8a3d; --c3:#9d84ff; --c4:#3bc9db; --c5:#f06595; --c6:#51cf66; --c7:#fcc419; --c8:#adb5bd;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:13px/1.45 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+button,input,select{font:inherit;color:inherit}
+input,select{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:3px 6px;min-width:0}
+input[type=number]{width:72px}
+input[type=range]{padding:0;border:0;background:none}
+input:focus,select:focus{outline:2px solid color-mix(in srgb,var(--acc) 40%,transparent);outline-offset:0}
+button{background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:3px 10px;cursor:pointer;white-space:nowrap}
+button:hover:not(:disabled){border-color:var(--acc)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.pri{background:var(--acc);color:var(--acc-fg);border-color:var(--acc)}
+button.danger{color:var(--err)}
+button.on{background:color-mix(in srgb,var(--acc) 18%,var(--chip));border-color:var(--acc)}
+label{display:inline-flex;align-items:center;gap:4px}
+.mono{font-family:var(--mono)}
+.mut{color:var(--mut)}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:8px 16px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+header h1{font-size:15px;margin:0 8px 0 0;font-weight:650}
+.grp{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;padding:4px 12px}
+.seg button.on{background:var(--acc);color:var(--acc-fg)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--mut);display:inline-block}
+.dot.ok{background:var(--ok)} .dot.err{background:var(--err)}
+main{padding:12px 16px 40px;display:flex;flex-direction:column;gap:12px;max-width:1800px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
+.card h2{font-size:13px;margin:0 0 8px;font-weight:650;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.card h2 .sp{flex:1}
+.row{display:flex;gap:6px 10px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.top{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:12px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:1200px){.top{grid-template-columns:1fr}.g3{grid-template-columns:1fr 1fr}}
+@media (max-width:760px){.g3,.g2{grid-template-columns:1fr}header{padding:8px 16px}main{padding:12px 16px 40px}}
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:12px;border:1px solid var(--line);background:var(--chip);cursor:pointer;user-select:none;font-size:12px}
+.chip input[type=checkbox]{display:none}
+.chip .sw{width:10px;height:3px;border-radius:2px}
+.chip.off{opacity:.45}
+#wave{width:100%;height:440px;display:block;margin-top:6px}
+.chip select{padding:0 2px;border-radius:4px;font-size:11px;border-color:var(--line2)}
+.chip label{gap:5px;cursor:pointer}
+.chip .cv{color:var(--mut);min-width:64px;text-align:right}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tile{border:1px solid var(--line2);border-radius:8px;padding:5px 8px;background:color-mix(in srgb,var(--chip) 50%,transparent)}
+.tile .k{font-size:11px;color:var(--mut)}
+.tile .v{font-family:var(--mono);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .s{font-family:var(--mono);font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile.wide{grid-column:span 2}
+.tile.bad .v{color:var(--err)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 8px;font-size:12px;margin-top:8px}
+.stats b{font-family:var(--mono);font-weight:600}
+.note{font-size:12px;color:var(--mut)}
+.warnbox{border:1px solid color-mix(in srgb,var(--warn) 50%,transparent);background:color-mix(in srgb,var(--warn) 10%,transparent);border-radius:8px;padding:6px 10px;font-size:12px}
+.tblwrap{overflow:auto;max-height:560px;border:1px solid var(--line2);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th,td{padding:3px 6px;border-bottom:1px solid var(--line2);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--card);z-index:1;font-weight:600;color:var(--mut)}
+td.desc{white-space:normal;min-width:180px;color:var(--mut)}
+tr.sec td{background:var(--chip);font-weight:600;color:var(--fg)}
+tr.na{opacity:.4}
+td.val{font-family:var(--mono);min-width:110px}
+td input{width:76px}
+.st0{color:var(--ok)} .stE{color:var(--err)}
+.pass{color:var(--ok);font-weight:600} .fail{color:var(--err);font-weight:600} .info{color:var(--warn);font-weight:600}
+#log{height:300px;overflow:auto;font-family:var(--mono);font-size:12px;border:1px solid var(--line2);border-radius:8px;padding:4px 6px;background:color-mix(in srgb,var(--chip) 40%,transparent)}
+#log div{white-space:pre-wrap;word-break:break-all}
+.ltx{color:var(--c1)} .lrx{color:var(--ok)} .lecho{color:var(--mut)} .lerr{color:var(--err)} .linfo{color:var(--warn)}
+#testOut{max-height:360px;overflow:auto}
+#testOut table td{white-space:normal}
+.btns{display:flex;flex-wrap:wrap;gap:5px}
+.sub{font-size:12px;color:var(--mut);margin:8px 0 2px;font-weight:600}
+input.posrange{flex:1;min-width:140px}
+.k2{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center}
+hr{border:0;border-top:1px solid var(--line2);margin:8px 0}
+[data-proto-only].hidden{display:none !important}
+</style>
+</head>
+<body>
+<header>
+  <h1>舵机调试上位机</h1>
+  <div class="grp">
+    <span class="dot" id="connDot"></span>
+    <button class="pri" id="btnConnect">选择串口并连接</button>
+    <button id="btnDisconnect" disabled>断开</button>
+    <label>波特率 <select id="selBaud"></select></label>
+    <label title="不接硬件，用内置的虚拟舵机演示和自检"><input type="checkbox" id="chkSim"> 模拟舵机</label>
+    <label id="simEchoWrap" title="模拟单线半双工的发送回显" hidden><input type="checkbox" id="chkSimEcho" checked> 模拟回显</label>
+  </div>
+  <div class="grp">
+    协议
+    <div class="seg" id="segProto"><button data-p="bin" class="on">二进制</button><button data-p="text">明文</button></div>
+  </div>
+  <div class="grp">
+    <label>舵机ID <input type="number" id="inId" min="0" max="255" value="0"></label>
+    <label title="广播应答延时 100ms+ID×2ms，用于计算等待时间">总线最大ID <input type="number" id="inMaxId" min="0" max="254" value="10" style="width:56px"></label>
+    <label>应答超时 <input type="number" id="inTimeout" min="5" max="1000" value="30" style="width:56px">ms</label>
+    <label>版本 <select id="selDev"><option value="auto">自动(读00)</option><option value="pot">电位器版</option><option value="mag">磁编码版</option></select></label>
+  </div>
+  <div class="grp mut" id="devInfo">未连接</div>
+</header>
+
+<main>
+  <div id="noSerial" class="warnbox" hidden>当前浏览器不支持 Web Serial，无法连接真实串口。请用 Chrome 或 Edge 打开本文件；仍可勾选“模拟舵机”体验全部功能。</div>
+
+  <section class="top">
+    <div class="card">
+      <h2>实时波形
+        <span class="mut" style="font-weight:400" id="pollSrc">二进制：每周期读 C9 状态集合</span>
+        <span class="sp"></span>
+        <button class="pri" id="btnPoll">开始采集</button>
+        <label>周期 <input type="number" id="inPeriod" min="10" max="2000" value="50" style="width:60px">ms</label>
+        <label title="每 500ms 附带查询 CMD01 工作状态/故障 与 C8 堵转（仅二进制）"><input type="checkbox" id="chkExtra" checked> 附带状态位</label>
+        <label>窗口 <select id="selWin"><option>5</option><option selected>10</option><option>20</option><option>30</option><option>60</option><option>120</option><option>300</option></select>s</label>
+        <button id="btnFreeze">冻结视图</button>
+        <button id="btnClear">清空</button>
+        <button id="btnCsv">导出CSV</button>
+      </h2>
+      <div class="chips" id="chips"></div>
+      <canvas id="wave"></canvas>
+      <div class="note" style="margin-top:4px">所有曲线画在同一张图，名字后面的下拉框是显示倍率（只影响画图，旁边的数值是真实值）；鼠标悬停看任意时刻数值；冻结后滚轮可前后平移。浏览器标签页切到后台时定时器会被限速，采集请保持本页在前台。</div>
+    </div>
+    <div class="card">
+      <h2>实时状态<span class="sp"></span><span class="mut mono" id="sampleAge"></span></h2>
+      <div class="tiles">
+        <div class="tile"><div class="k">目标位置</div><div class="v" id="vTgt">—</div><div class="s" id="sTgt"></div></div>
+        <div class="tile"><div class="k">实际位置</div><div class="v" id="vPos">—</div><div class="s" id="sPos"></div></div>
+        <div class="tile"><div class="k">位置误差 (目标−实际)</div><div class="v" id="vErr">—</div><div class="s" id="sErr"></div></div>
+        <div class="tile"><div class="k">速度</div><div class="v" id="vSpd">—</div><div class="s">°/s</div></div>
+        <div class="tile"><div class="k">扭矩</div><div class="v" id="vTrq">—</div><div class="s">%</div></div>
+        <div class="tile"><div class="k">电流</div><div class="v" id="vCur">—</div><div class="s">mA</div></div>
+        <div class="tile"><div class="k">温度</div><div class="v" id="vTmp">—</div><div class="s">℃</div></div>
+        <div class="tile"><div class="k">电压</div><div class="v" id="vVol">—</div><div class="s">V</div></div>
+        <div class="tile"><div class="k">工作状态 C0</div><div class="v" id="vState">—</div></div>
+        <div class="tile" id="tStall"><div class="k">堵转 C8</div><div class="v" id="vStall">—</div></div>
+        <div class="tile wide" id="tFault"><div class="k">故障 C1</div><div class="v" id="vFault" style="font-size:14px">—</div></div>
+      </div>
+      <div class="stats">
+        <span>轮询 <b id="stSent">0</b></span><span>成功 <b id="stOk">0</b></span><span>超时 <b id="stTo">0</b></span>
+        <span>实际速率 <b id="stHz">—</b></span><span>延迟 <b id="stLat">—</b></span><span>最大 <b id="stLatMax">—</b></span>
+        <span>跳过 <b id="stSkip">0</b></span><span>坏帧 <b id="stBad">0</b></span><span>回显 <b id="stEcho">0</b></span>
+        <span>杂散字节 <b id="stJunk">0</b></span><span>丢包率 <b id="stLoss">—</b></span><span><button id="btnStatReset" style="padding:0 6px">清零</button></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="g3">
+    <div class="card">
+      <h2>运动控制<span class="sp"></span><span class="mut" style="font-weight:400" id="moveHint"></span></h2>
+      <div class="row">
+        <input type="range" class="posrange" id="rngPos" min="0" max="4095" value="2048">
+        <input type="number" id="inPos" min="0" max="4095" value="2048" style="width:66px">
+        <span class="mono mut" id="posConv" style="min-width:120px"></span>
+      </div>
+      <div class="row">
+        <label>时间 <input type="number" id="inTime" min="0" max="65535" value="1000">ms</label>
+        <label data-proto-only="text" class="hidden" title="仅磁编码版，明文 nnnnNnTnnnn，T 为每圈时间">额外圈数 N <input type="number" id="inTurns" min="0" max="9" value="0" style="width:46px"></label>
+        <button class="pri" id="btnMove">发送运动</button>
+      </div>
+      <div class="row">
+        <label title="拖动滑块时按间隔自动发送运动指令，不用点发送"><input type="checkbox" id="chkFollow" checked> 拖动即发送</label>
+        <label>间隔 <select id="selFollowMs"><option>10</option><option selected>20</option><option>50</option></select>ms</label>
+        <label title="拖动时每条运动指令带的时间，0 = 最快（仍受最短运动时间约束）">拖动运动时间 <input type="number" id="inFollowT" min="0" max="9999" value="0" style="width:60px">ms</label>
+      </div>
+      <div class="btns">
+        <button data-us="500">500µs</button><button data-us="1000">1000µs</button><button data-us="1500">1500µs</button><button data-us="2000">2000µs</button><button data-us="2500">2500µs</button>
+      </div>
+      <div class="sub">运动动作</div>
+      <div class="btns">
+        <button id="btnPause">暂停</button><button id="btnResume">继续</button><button id="btnStop">停止</button>
+      </div>
+      <div class="sub">往复测试（用当前协议的运动指令）</div>
+      <div class="row">
+        <label>A <input type="number" id="swA" value="1024" min="0" max="4095" style="width:62px"></label>
+        <label>B <input type="number" id="swB" value="3072" min="0" max="4095" style="width:62px"></label>
+        <label>运动 <input type="number" id="swT" value="800" style="width:60px">ms</label>
+        <label>间隔 <input type="number" id="swP" value="1500" style="width:60px">ms</label>
+        <label>次数 <input type="number" id="swN" value="0" style="width:52px" title="0 = 不限"></label>
+        <button id="btnSweep">开始往复</button>
+      </div>
+      <div class="note">位置码 0～4095（0=500µs，4095=2500µs）。明文模式自动换算成 µs，时间上限 9999ms。</div>
+    </div>
+
+    <div class="card">
+      <h2>扭矩 / 释放 / 查询</h2>
+      <div class="sub">扭矩模式</div>
+      <div class="btns">
+        <button id="btnFree">自由释放</button>
+        <button id="btnDamp">阻尼释放</button>
+        <button id="btnNormal">恢复正常</button>
+      </div>
+      <div class="row" data-proto-only="bin">
+        <label>阻尼比例 83 <input type="number" id="inDamp" min="0" max="100" value="100" style="width:56px">%</label>
+        <span class="note">二进制：阻尼=写82=2并先写83；明文 ULM 固定 100%</span>
+      </div>
+      <div class="sub">扭矩上限</div>
+      <div class="row">
+        <input type="range" id="rngTq" min="0" max="100" value="100" style="flex:1">
+        <span class="mono" id="tqVal" style="width:42px">100%</span>
+        <button id="btnTq">写入</button>
+      </div>
+      <div class="note" id="tqNote">二进制写 RAM 84（掉电不保存）；明文 SP 写 Flash 24</div>
+      <div class="sub">查询</div>
+      <div class="btns" id="queryBtns"></div>
+      <div class="mono" id="queryOut" style="margin-top:6px;font-size:12px;white-space:pre-wrap;min-height:2.6em"></div>
+    </div>
+
+    <div class="card">
+      <h2>标定与系统</h2>
+      <div class="note">标定结果写 Flash。点击前会再确认一次。</div>
+      <div class="sub">标定（二进制 8B / 明文）</div>
+      <div class="btns" id="calBtns"></div>
+      <div class="sub">模式 / 上电</div>
+      <div class="row">
+        <label>工作模式 <select id="selMode"></select></label><button id="btnMode">写入</button>
+      </div>
+      <div class="row">
+        <label>上电动作 <select id="selCsm"><option value="1">1 转到上电位置</option><option value="2">2 原地保持</option><option value="3">3 自由释放</option></select></label><button id="btnCsm">写入</button>
+      </div>
+      <div class="row">
+        <label>新ID <input type="number" id="inNewId" min="0" max="254" value="1" style="width:60px"></label><button id="btnSetId">改ID</button>
+        <label>波特率档 <select id="selNewBaud"></select></label><button id="btnSetBaud">改波特率</button>
+      </div>
+      <div class="sub">系统动作</div>
+      <div class="btns">
+        <button id="btnReload" data-proto-only="bin">重载 SRAM 参数 (8C=1)</button>
+        <button id="btnRstKeep" class="danger">恢复默认(保留ID)</button>
+        <button id="btnRstAll" class="danger">全部恢复默认</button>
+      </div>
+      <div class="row" data-proto-only="bin">
+        <span class="mut">恢复默认的方式</span>
+        <label><input type="radio" name="rstWay" value="cmd" checked> CMD 07/08</label>
+        <label><input type="radio" name="rstWay" value="8c"> 写 8C=2/3</label>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>参数表
+      <span class="mut" style="font-weight:400" id="paramHint"></span>
+      <span class="sp"></span>
+      <label title="勾选后越界值也照发，用来测试状态码 03"><input type="checkbox" id="chkNoRange"> 不做本地范围检查</label>
+      <button id="btnReadInfo">读设备信息</button>
+      <button id="btnReadFlash">读 Flash 区</button>
+      <button id="btnReadRam">读 RAM 区</button>
+      <button id="btnReadRt">读实时状态</button>
+      <button class="pri" id="btnReadAll">全部读取</button>
+    </h2>
+    <div class="tblwrap"><table id="ptbl"><thead><tr><th>地址</th><th>名称</th><th>字节</th><th>权限</th><th>默认</th><th>范围</th><th>单位</th><th>当前值</th><th>写入</th><th></th><th>状态</th><th>说明</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="g2">
+    <div class="card">
+      <h2>协议自检<span class="sp"></span><button class="pri" id="btnTest">运行自检</button><button id="btnTestStop" disabled>中止</button></h2>
+      <div class="note" id="testHint"></div>
+      <div id="testOut"></div>
+    </div>
+    <div class="card">
+      <h2>原始帧 / 终端</h2>
+      <div data-proto-only="bin">
+        <div class="sub">二进制帧构造</div>
+        <div class="row">
+          <label>ID <input type="number" id="rbId" min="0" max="255" value="0" style="width:58px"></label>
+          <label>CMD <select id="rbCmd"><option value="1">01 简要状态</option><option value="2" selected>02 读参数</option><option value="3">03 写参数</option><option value="4">04 预留</option><option value="5">05 预留</option><option value="6">06 预留</option><option value="7">07 恢复默认(保留ID)</option><option value="8">08 全部恢复</option><option value="9">09 重启(预留)</option><option value="-1">自定义…</option></select></label>
+          <input type="text" id="rbCmdHex" placeholder="CMD hex" style="width:60px" hidden>
+          <label>DATA <input type="text" id="rbData" class="mono" value="C9" placeholder="hex，如 24 32" style="width:160px"></label>
+        </div>
+        <div class="row"><span class="mono" id="rbPreview" style="word-break:break-all"></span></div>
+        <div class="row">
+          <button class="pri" id="rbSend">发送</button>
+          <label title="勾选后发送下框中的原样字节（不补CRC），可测试坏帧"><input type="checkbox" id="rbRawMode"> 原样字节</label>
+          <input type="text" id="rbRaw" class="mono" placeholder="AA 66 00 02 01 C9 B2 66 AA" style="flex:1;min-width:180px">
+        </div>
+      </div>
+      <div data-proto-only="text" class="hidden">
+        <div class="sub">明文指令</div>
+        <div class="row">
+          <label><input type="checkbox" id="txWrap" checked> 自动加 #ID P … !</label>
+          <input type="text" id="txIn" class="mono" placeholder="如 RAD 或 1500T1000" style="flex:1;min-width:160px">
+          <button class="pri" id="txSend">发送</button>
+        </div>
+        <div class="btns" id="textQuick"></div>
+      </div>
+      <div class="sub">最近应答</div>
+      <div class="mono" id="rawOut" style="font-size:12px;white-space:pre-wrap;word-break:break-all;min-height:3em"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>通信日志<span class="sp"></span>
+      <label><input type="checkbox" id="logPoll"> 显示轮询帧</label>
+      <label><input type="checkbox" id="logEcho"> 显示回显</label>
+      <label><input type="checkbox" id="logAuto" checked> 自动滚动</label>
+      <button id="logClear">清空</button><button id="logSave">导出</button>
+    </h2>
+    <div id="log"></div>
+  </section>
+</main>
+
+<script>
+'use strict';
+/* ====================================================================
+ *  基础工具
+ * ==================================================================== */
+const $ = id => document.getElementById(id);
+const BAUDS = [9600,19200,38400,57600,115200,128000,256000,1000000];
+const ST_NAME = ['成功','命令不存在','数据长度错误','参数值越界','当前状态不允许','操作失败','只读地址','功能未开放'];
+const WORK_STATE = ['空闲','运动','暂停','自由释放','阻尼释放','反馈恢复','故障'];
+const FAULT_BITS = ['过温','过流','保留','欠压','过压','电压采样无效'];
+const hex2 = b => b.toString(16).toUpperCase().padStart(2,'0');
+const hexs = a => Array.from(a, hex2).join(' ');
+const pad = (v,n) => String(v).padStart(n,'0');
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const now = () => performance.now();
+const clamp = (v,a,b) => Math.min(b, Math.max(a, v));
+const codeToUs = c => 500 + c * 2000 / 4095;
+const usToCode = us => Math.round((us - 500) * 4095 / 2000);
+function crc8(arr){ let c = 0; for (const b of arr){ c ^= b; for (let i = 0; i < 8; i++) c = ((c << 1) ^ ((c & 0x80) ? 7 : 0)) & 0xFF; } return c; }
+function buildBin(id, cmd, data){ data = data || []; const body = [id & 0xFF, cmd & 0xFF, data.length, ...data]; return Uint8Array.from([0xAA,0x66,...body,crc8(body),0x66,0xAA]); }
+function parseHex(s){ const t = s.replace(/0x/gi,'').replace(/[^0-9a-fA-F]/g,' ').trim(); if (!t) return []; const parts = t.split(/\s+/); const out = [];
+  for (const p of parts){ if (p.length % 2) throw new Error('hex 位数不对：' + p); for (let i = 0; i < p.length; i += 2) out.push(parseInt(p.substr(i,2),16)); } return out; }
+const le = (arr, signed) => { let v = 0; for (let i = arr.length - 1; i >= 0; i--) v = v * 256 + arr[i]; if (signed && arr.length === 2 && v >= 32768) v -= 65536; return v; };
+const toLe = (v, n) => { const o = []; v = v < 0 ? v + (1 << (8*n)) : v; for (let i = 0; i < n; i++){ o.push(v & 0xFF); v = Math.floor(v / 256); } return o; };
+
+/* ====================================================================
+ *  参数表定义（来自《舵机参数表》）
+ * ==================================================================== */
+const MODE_NAMES = {1:'270° 顺时针',2:'270° 逆时针',3:'180° 顺时针',4:'180° 逆时针',5:'90° 顺时针',6:'90° 逆时针',7:'360° 顺时针',8:'360° 逆时针',9:'顺时针定圈',10:'逆时针定圈',11:'顺时针定时',12:'逆时针定时',13:'自定义行程'};
+const MODE_RANGE = {1:270,2:270,3:180,4:180,5:90,6:90,7:360,8:360};
+// rw: R / RW / W ;  min/max 可以是函数（依赖设备信息）
+const P = [
+ {sec:'设备信息（只读）'},
+ {a:0x00,name:'舵机类型',n:1,rw:'R',def:'1/2',unit:'—',desc:'1/3 电位器，2/4 磁编码'},
+ {a:0x01,name:'硬件版本',n:1,rw:'R',unit:'0.1版',desc:'例 10 = 1.0',fmt:v=>(v/10).toFixed(1)},
+ {a:0x02,name:'标称电压',n:1,rw:'R',unit:'V'},
+ {a:0x03,name:'扭力型号',n:1,rw:'R',unit:'kg'},
+ {a:0x04,name:'额定最大速度',n:2,rw:'R',unit:'°/s'},
+ {a:0x05,name:'额定最大加速度',n:2,rw:'R',unit:'°/s²'},
+ {a:0x06,name:'额定最大减速度',n:2,rw:'R',unit:'°/s²'},
+ {a:0x07,name:'自动平滑时间',n:1,rw:'R',unit:'ms'},
+ {a:0x08,name:'最小可靠位移',n:1,rw:'R',unit:'0.01°'},
+ {a:0x10,name:'固件版本',n:3,rw:'R',unit:'—',desc:'主.次.修订',raw3:true},
+ {sec:'Flash 区（掉电保存）'},
+ {a:0x20,name:'舵机ID',n:1,rw:'RW',def:0,min:0,max:254,desc:'修改后用新ID通信',txt:'ID'},
+ {a:0x21,name:'波特率档位',n:1,rw:'RW',def:5,min:1,max:8,desc:'5 = 115200',fmt:v=>v+' ('+(BAUDS[v-1]||'?')+')',txt:'BD'},
+ {a:0x22,name:'工作模式',n:1,rw:'RW',def:1,min:1,max:12,desc:'13 由 AMI/AMX 进入',fmt:v=>v+' '+(MODE_NAMES[v]||''),txt:'MOD'},
+ {a:0x23,name:'上电动作',n:1,rw:'RW',def:1,min:1,max:3,desc:'1 转到上电位置，2 原地保持，3 自由释放',txt:'CSM'},
+ {a:0x24,name:'扭矩上限',n:1,rw:'RW',def:100,min:0,max:100,unit:'%',desc:'0 = 禁止主动驱动',txt:'SP'},
+ {a:0x25,name:'上电位置',n:2,rw:'RW',def:2048,min:0,max:4095,unit:'位置码',fmt:v=>v+' ('+codeToUs(v).toFixed(1)+'µs)'},
+ {a:0x30,name:'最大速度',n:2,rw:'RW',def:'[04]×90%',min:0,max:()=>info[4],unit:'°/s',desc:'0 = 额定值'},
+ {a:0x31,name:'最大加速度',n:2,rw:'RW',def:'[05]×70%',min:0,max:()=>info[5],unit:'°/s²',desc:'0 = 额定值'},
+ {a:0x32,name:'最大减速度',n:2,rw:'RW',def:'[06]×70%',min:0,max:()=>info[6],unit:'°/s²',desc:'0 = 额定值'},
+ {a:0x33,name:'S曲线平滑时间',n:1,rw:'RW',def:100,min:0,max:200,unit:'ms',desc:'0 = 自动'},
+ {a:0x34,name:'最短运动时间',n:2,rw:'RW',def:150,min:0,max:500,unit:'ms',desc:'0 = 不限制'},
+ {a:0x35,name:'保持比例 P',n:1,rw:'RW',def:80,min:0,max:100,unit:'‰/°'},
+ {a:0x37,name:'到位精度',n:2,rw:'RW',def:'50/30',min:()=>info[8]!=null?Math.ceil(info[8]*1.5):0,max:500,unit:'0.01°'},
+ {a:0x38,name:'保持积分 I',n:1,rw:'RW',def:0,min:0,max:100,unit:'‰/(°·s)'},
+ {a:0x40,name:'过流阈值',n:2,rw:'RW',def:3000,min:500,max:5000,unit:'mA'},
+ {a:0x41,name:'过流持续时间',n:2,rw:'RW',def:30,min:10,max:1000,unit:'ms'},
+ {a:0x42,name:'过温阈值',n:2,rw:'RW',def:500,min:300,max:1000,unit:'0.1℃'},
+ {a:0x43,name:'过温持续时间',n:2,rw:'RW',def:250,min:250,max:10000,unit:'ms'},
+ {a:0x44,name:'堵转位移阈值',n:2,rw:'RW',def:32,min:10,max:()=>info[4]!=null?Math.floor(info[4]/2):undefined,unit:'0.01°/20ms'},
+ {a:0x45,name:'堵转连续次数',n:1,rw:'RW',def:5,min:1,max:100,unit:'次'},
+ {a:0x46,name:'保护开关',n:1,rw:'RW',def:15,min:0,max:15,unit:'位掩码',desc:'过温1 + 过流2 + 堵转4 + 电压8'},
+ {a:0x47,name:'最低工作电压',n:1,rw:'RW',def:'60/90',min:()=>vMin(),max:()=>vMax(),unit:'0.1V',desc:'须比最高电压低 ≥0.5V'},
+ {a:0x48,name:'最高工作电压',n:1,rw:'RW',def:'90/130',min:()=>vMin(),max:()=>vMax(),unit:'0.1V',desc:'须比最低电压高 ≥0.5V'},
+ {a:0x49,name:'最小启动扭矩',n:1,rw:'RW',def:0,min:0,max:100,unit:'%',desc:'0 = 关闭'},
+ {a:0x4A,name:'负载惯量比',n:1,rw:'RW',def:0,min:0,max:40,unit:'×10',desc:'0 = 扰动前馈关闭'},
+ {a:0x4B,name:'负载自学习',n:1,rw:'RW',def:1,min:0,max:1,desc:'1 开，0 关'},
+ {sec:'RAM 区（仅本次上电有效；80/81/8B/8C 动作命令在上方面板）'},
+ {a:0x82,name:'扭矩模式',n:1,rw:'RW',def:1,min:0,max:2,desc:'0 自由释放，1 正常，2 自定义阻尼'},
+ {a:0x83,name:'阻尼比例',n:1,rw:'RW',def:100,min:0,max:100,unit:'%',desc:'扭矩模式 2 时使用'},
+ {a:0x84,name:'实时扭矩上限',n:1,rw:'RW',def:'F24',min:0,max:100,unit:'%'},
+ {a:0x85,name:'实时最大速度',n:2,rw:'RW',def:'F30',min:0,max:()=>info[4],unit:'°/s'},
+ {a:0x86,name:'实时最大加速度',n:2,rw:'RW',def:'F31',min:0,max:()=>info[5],unit:'°/s²'},
+ {a:0x87,name:'实时最大减速度',n:2,rw:'RW',def:'F32',min:0,max:()=>info[6],unit:'°/s²'},
+ {a:0x88,name:'实时平滑时间',n:1,rw:'RW',def:'F33',min:0,max:200,unit:'ms'},
+ {a:0x89,name:'实时最短运动时间',n:2,rw:'RW',def:'F34',min:0,max:500,unit:'ms'},
+ {a:0x8A,name:'实时保持 P',n:1,rw:'RW',def:'F35',min:0,max:100,unit:'‰/°'},
+ {a:0x8E,name:'实时到位精度',n:2,rw:'RW',def:'F37',min:()=>info[8]!=null?Math.ceil(info[8]*1.5):0,max:500,unit:'0.01°'},
+ {a:0x8F,name:'实时保持 I',n:1,rw:'RW',def:'F38',min:0,max:100,unit:'‰/(°·s)'},
+ {a:0x90,name:'实时负载惯量比',n:1,rw:'RW',def:'F4A',min:0,max:40,unit:'×10'},
+ {a:0x91,name:'实时负载自学习',n:1,rw:'RW',def:'F4B',min:0,max:1},
+ {sec:'实时状态（只读）'},
+ {a:0xC0,name:'工作状态',n:1,rw:'R',fmt:v=>v+' '+(WORK_STATE[v]||'?')},
+ {a:0xC1,name:'故障状态',n:2,rw:'R',unit:'位掩码',fmt:v=>v+(v?' '+faultText(v):' 无')},
+ {a:0xC2,name:'当前位置',n:2,rw:'R',unit:'位置码',fmt:v=>v+' ('+codeToUs(v).toFixed(1)+'µs)',txt:'RAD'},
+ {a:0xC3,name:'速度',n:2,rw:'R',signed:true,unit:'0.1°/s'},
+ {a:0xC4,name:'温度',n:2,rw:'R',signed:true,unit:'0.1℃'},
+ {a:0xC5,name:'电压',n:2,rw:'R',unit:'0.01V'},
+ {a:0xC6,name:'电流',n:2,rw:'R',signed:true,unit:'mA'},
+ {a:0xC7,name:'扭矩',n:2,rw:'R',signed:true,unit:'%'},
+ {a:0xC8,name:'堵转状态',n:1,rw:'R',desc:'1 = 堵转保持中'},
+ {a:0xC9,name:'状态集合',n:14,rw:'R',desc:'目标/实际位置、扭矩、速度、电流、温度、电压',raw3:true},
+];
+const PD = {}; P.forEach(d => { if (d.a != null) PD[d.a] = d; });
+const info = {};         // 设备信息缓存 addr -> value
+let devType = 'pot';     // pot / mag（实际生效）
+let curMode = null;
+function vMin(){ return info[2] === 8 ? 60 : info[2] === 12 ? 90 : 60; }
+function vMax(){ return info[2] === 8 ? 90 : info[2] === 12 ? 130 : 130; }
+function rangeOf(d){ const mn = typeof d.min === 'function' ? d.min() : d.min; const mx = typeof d.max === 'function' ? d.max() : d.max; return [mn, mx]; }
+function faultText(v){ const s = []; FAULT_BITS.forEach((n,i) => { if (v & (1<<i)) s.push(n); }); if (v >> 6) s.push('未知位0x'+(v>>6<<6).toString(16)); return s.join('、'); }
+function fmtParam(d, v){
+  if (d.a === 0x10) return v.join('.');
+  if (d.a === 0xC9) return c9Text(v);
+  return d.fmt ? d.fmt(v) : String(v);
+}
+function c9Parse(b){ return { tgt: le(b.slice(0,2)), pos: le(b.slice(2,4)), trq: le(b.slice(4,6),true), spd: le(b.slice(6,8),true), cur: le(b.slice(8,10),true), tmp: le(b.slice(10,12),true), vol: le(b.slice(12,14)) }; }
+function c9Text(b){ const c = c9Parse(b); return `目标${c.tgt} 实际${c.pos} 扭矩${c.trq}% 速度${(c.spd/10).toFixed(1)}°/s 电流${c.cur}mA 温度${(c.tmp/10).toFixed(1)}℃ 电压${(c.vol/100).toFixed(2)}V`; }
+
+/* ====================================================================
+ *  全局状态
+ * ==================================================================== */
+let proto = 'bin';
+let link = null;              // {write(u8), close(), kind}
+let baud = 115200;
+let serialPort = null;
+const stats = { sent:0, ok:0, to:0, skip:0, bad:0, echo:0, junk:0, latSum:0, latN:0, latMax:0 };
+const okTimes = [];
+
+/* ====================================================================
+ *  串口 / 模拟链路
+ * ==================================================================== */
+let reader = null, writer = null, keepReading = false;
+async function openSerial(port, rate){
+  await port.open({ baudRate: rate, dataBits: 8, stopBits: 1, parity: 'none', bufferSize: 8192 });
+  writer = port.writable.getWriter();
+  keepReading = true;
+  (async () => {
+    while (keepReading && port.readable){
+      reader = port.readable.getReader();
+      try { for (;;){ const { value, done } = await reader.read(); if (done) break; if (value && value.length) onRx(value); } }
+      catch (e){ if (keepReading) logLine('err', '串口读取错误：' + e.message); }
+      finally { try { reader.releaseLock(); } catch {} }
+    }
+  })();
+  return {
+    kind: 'serial',
+    write: async u8 => { await writer.write(u8); },
+    close: async () => { keepReading = false; try { await reader.cancel(); } catch {} try { writer.releaseLock(); } catch {} try { await port.close(); } catch {} },
+  };
+}
+async function connect(){
+  try {
+    if ($('chkSim').checked){
+      link = makeSimLink();
+    } else {
+      if (!('serial' in navigator)){ alert('当前浏览器不支持 Web Serial，请用 Chrome / Edge。'); return; }
+      serialPort = await navigator.serial.requestPort();
+      link = await openSerial(serialPort, baud);
+    }
+  } catch (e){ logLine('err', '连接失败：' + e.message); return; }
+  setConnUi(true);
+  logLine('info', (link.kind === 'sim' ? '已连接模拟舵机' : '串口已打开') + '，波特率 ' + baud);
+  identify();
+}
+async function disconnect(){
+  stopPoll(); stopSweep();
+  const l = link; link = null;
+  failAllPending();
+  if (l) await l.close();
+  setConnUi(false);
+  logLine('info', '已断开');
+}
+async function changeBaud(rate){
+  baud = rate; $('selBaud').value = rate;
+  if (!link) return;
+  if (link.kind === 'sim'){ logLine('info', '模拟链路波特率改为 ' + rate); return; }
+  const wasPoll = polling; stopPoll();
+  await link.close(); link = null; failAllPending();
+  try { link = await openSerial(serialPort, rate); logLine('info', '串口已按 ' + rate + ' 重新打开'); if (wasPoll) startPoll(); }
+  catch (e){ logLine('err', '重新打开失败：' + e.message); setConnUi(false); }
+}
+function setConnUi(on){
+  $('connDot').className = 'dot ' + (on ? 'ok' : '');
+  $('btnConnect').disabled = on; $('btnDisconnect').disabled = !on;
+  $('chkSim').disabled = on;
+  if (!on) $('devInfo').textContent = '未连接';
+}
+if (navigator.serial) navigator.serial.addEventListener('disconnect', e => { if (link && link.kind === 'serial' && e.target === serialPort){ logLine('err', '串口设备已拔出'); disconnect(); } });
+
+/* ====================================================================
+ *  接收解析：二进制 AA66…66AA 与明文 #…!
+ * ==================================================================== */
+let rxBuf = [], lastRxT = 0;
+function onRx(bytes){ for (const b of bytes) rxBuf.push(b); lastRxT = now(); parseRx(); }
+function junk(n){ stats.junk += n; const j = rxBuf.splice(0, n); junkAcc.push(...j); }
+let junkAcc = [];
+function flushJunkLog(){ if (junkAcc.length){ logLine('err', '杂散字节 ' + hexs(junkAcc.slice(0, 64)) + (junkAcc.length > 64 ? ' …' : ''), null, false); junkAcc = []; } }
+function parseRx(){
+  for (;;){
+    if (!rxBuf.length) break;
+    const b0 = rxBuf[0];
+    if (b0 === 0xAA){
+      if (rxBuf.length < 2) break;
+      if (rxBuf[1] !== 0x66){ junk(1); continue; }
+      if (rxBuf.length < 5) break;
+      const len = rxBuf[4];
+      if (len > 32){ stats.bad++; junk(1); continue; }
+      const total = 8 + len;
+      if (rxBuf.length < total) break;
+      const f = rxBuf.slice(0, total);
+      if (f[total-2] === 0x66 && f[total-1] === 0xAA && crc8(f.slice(2, 5 + len)) === f[5 + len]){
+        flushJunkLog(); rxBuf.splice(0, total); onBinFrame(Uint8Array.from(f));
+      } else { stats.bad++; logLine('err', '坏帧(CRC/帧尾错) ' + hexs(f)); junk(1); }
+      continue;
+    }
+    if (b0 === 0x23){ // '#'
+      let end = -1, badc = false;
+      for (let i = 1; i < rxBuf.length && i < 48; i++){ const c = rxBuf[i]; if (c === 0x21){ end = i; break; } if (c < 0x20 || c > 0x7E || c === 0x23){ badc = true; break; } }
+      if (badc){ junk(1); continue; }
+      if (end < 0){ if (rxBuf.length >= 48) { junk(1); continue; } break; }
+      const s = String.fromCharCode(...rxBuf.splice(0, end + 1));
+      flushJunkLog(); onTextFrame(s); continue;
+    }
+    junk(1);
+  }
+}
+setInterval(() => { // 帧内超时：残留半帧超过 20ms 无新字节则作废
+  if (rxBuf.length && now() - lastRxT > 20){ while (rxBuf.length){ junk(1); parseRx(); } }
+  flushJunkLog();
+}, 20);
+
+/* ====================================================================
+ *  事务队列：半双工，一问一答
+ * ==================================================================== */
+const Q = []; let cur = null;
+function byteMs(n){ return n * 10 * 1000 / baud; }
+function txn(t){ // t: {kind:'bin'|'text', bytes, cmd, text, expect:bool, poll:bool, desc, bcast, timeout}
+  return new Promise(res => { t.res = res; Q.push(t); pump(); });
+}
+async function pump(){
+  if (cur || !Q.length) return;
+  if (!link){ while (Q.length) Q.shift().res({ ok:false, err:'未连接', replies:[] }); return; }
+  const t = cur = Q.shift();
+  t.replies = [];
+  const tw = byteMs(t.bytes.length);
+  logTx(t);
+  t.t0 = now();
+  try { await link.write(t.bytes); } catch (e){ logLine('err', '发送失败：' + e.message); return finish(t, { ok:false, err:'发送失败' }); }
+  if (t.poll) stats.sent++;
+  if (!t.expect){ t.timer = setTimeout(() => finish(t, { ok:true, noReply:true }), tw + 3); return; }
+  const base = +$('inTimeout').value || 30;
+  const wait = t.bcast ? 100 + 2 * (+$('inMaxId').value || 0) + base + 20 : (t.timeout || base);
+  t.timer = setTimeout(() => {
+    if (t.bcast && t.replies.length) finish(t, { ok:true, ...t.replies[0], replies:t.replies });
+    else { if (t.poll) stats.to++; if (!t.quietTimeout) logLine('err', '应答超时：' + t.desc, null, t.poll); finish(t, { ok:false, timeout:true }); }
+  }, tw + wait);
+}
+function finish(t, r){
+  if (cur !== t) return;
+  clearTimeout(t.timer); cur = null;
+  r.replies = r.replies || t.replies;
+  t.res(r);
+  setTimeout(pump, 1); // 给总线 1ms 喘息
+}
+function failAllPending(){ if (cur){ const t = cur; clearTimeout(t.timer); cur = null; t.res({ ok:false, err:'已断开', replies:[] }); } while (Q.length) Q.shift().res({ ok:false, err:'已断开', replies:[] }); }
+
+function onBinFrame(f){
+  const cmd = f[3];
+  if (cmd < 0x80){ stats.echo++; if ($('logEcho').checked) logLine('echo', '回显 ' + hexs(f)); return; }
+  const t = cur;
+  const lat = t ? now() - t.t0 : 0;
+  const r = { frame:f, id:f[2], st:f[5], data:Array.from(f.slice(6, 5 + f[4])), lat };
+  if (t && t.kind === 'bin' && t.expect && cmd === ((t.cmd | 0x80) & 0xFF)){
+    logRx(f, describeBinReply(f, t), t.poll, lat);
+    if (t.poll){ stats.ok++; stats.latSum += lat; stats.latN++; stats.latMax = Math.max(stats.latMax, lat); }
+    if (t.bcast){ t.replies.push(r); return; }
+    finish(t, { ok:true, ...r });
+  } else logRx(f, '未匹配的应答 ' + describeBinReply(f, null), false, 0, true);
+}
+function onTextFrame(s){
+  const t = cur;
+  if (t && t.kind === 'text' && s === t.text){ stats.echo++; if ($('logEcho').checked) logLine('echo', '回显 ' + s); return; }
+  const m = /^#(\d{3})P(.*)!$/.exec(s);
+  const lat = t ? now() - t.t0 : 0;
+  if (t && t.kind === 'text' && t.expect && m){
+    const r = { text:s, id:+m[1], body:m[2], lat };
+    logLine('rx', s, `(${lat.toFixed(1)}ms)`, t.poll);
+    if (t.poll){ stats.ok++; stats.latSum += lat; stats.latN++; stats.latMax = Math.max(stats.latMax, lat); }
+    if (t.bcast){ t.replies.push(r); return; }
+    finish(t, { ok:true, ...r });
+  } else logLine('rx', s, m ? '未匹配的应答' : '格式不对', false);
+}
+
+/* ---------- 便捷封装 ---------- */
+function tid(){ return clamp(+$('inId').value | 0, 0, 255); }
+function binTx(cmd, data, opt){ opt = opt || {}; const id = opt.id != null ? opt.id : tid();
+  return txn({ kind:'bin', bytes:buildBin(id, cmd, data), cmd, expect:true, bcast:id === 255, poll:!!opt.poll, timeout:opt.timeout, quietTimeout:opt.quietTimeout, desc:describeBinReq(cmd, data || []) }); }
+function binRaw(bytes, opt){ opt = opt || {}; const cmd = bytes.length > 3 ? bytes[3] : 0;
+  return txn({ kind:'bin', bytes:Uint8Array.from(bytes), cmd, expect:true, bcast:bytes[2] === 255, timeout:opt.timeout, quietTimeout:opt.quietTimeout, desc:'原始帧' }); }
+function txtTx(body, opt){ opt = opt || {}; const id = opt.id != null ? opt.id : tid(); const s = '#' + pad(id,3) + 'P' + body + '!';
+  return txtRaw(s, opt.expect !== false, opt); }
+function txtRaw(s, expect, opt){ opt = opt || {};
+  const m = /^#(\d{3})P/.exec(s);
+  return txn({ kind:'text', bytes:new TextEncoder().encode(s), text:s, expect, bcast:!!m && +m[1] === 255, poll:!!opt.poll, timeout:opt.timeout, quietTimeout:opt.quietTimeout, desc:s }); }
+const readP = (a, opt) => binTx(2, [a], opt);
+const writeP = (a, v, n, opt) => binTx(3, [a, ...(Array.isArray(v) ? v : toLe(v, n))], opt);
+
+/* 描述帧（日志用） */
+function describeBinReq(cmd, d){
+  const nm = {1:'简要状态',2:'读',3:'写',4:'预留04',5:'预留05',6:'预留06',7:'恢复默认(保留ID)',8:'全部恢复默认',9:'重启(预留)'}[cmd] || ('CMD ' + hex2(cmd));
+  if ((cmd === 2 || cmd === 3) && d.length){ const p = PD[d[0]]; const pn = p ? p.name : ({0x80:'运动目标',0x81:'运动动作',0x8B:'校准动作',0x8C:'系统动作'})[d[0]] || '';
+    let s = nm + ' ' + hex2(d[0]) + (pn ? ' ' + pn : '');
+    if (cmd === 3 && d.length > 1){ const v = d.slice(1); s += d[0] === 0x80 && v.length === 4 ? ` = 位置${le(v.slice(0,2))} 时间${le(v.slice(2,4))}ms` : ' = ' + le(v, p && p.signed); }
+    return s; }
+  return nm;
+}
+function describeBinReply(f, t){
+  const st = f[5]; const d = Array.from(f.slice(6, 5 + f[4]));
+  let s = 'CMD ' + hex2(f[3]) + ' ID' + f[2] + ' ' + (st === 0 ? 'OK' : '状态' + hex2(st) + ' ' + (ST_NAME[st] || '?'));
+  if (st === 0 && f[3] === 0x81 && d.length >= 2) s += ' 工作状态=' + (WORK_STATE[d[0]] || d[0]) + ' 故障=' + d[1];
+  if (st === 0 && f[3] === 0x82 && d.length){ const p = PD[d[0]]; if (p){ const v = p.raw3 ? d.slice(1) : le(d.slice(1), p.signed); s += ' ' + hex2(d[0]) + ' ' + p.name + ' = ' + fmtParam(p, v); } }
+  return s;
+}
+
+/* ====================================================================
+ *  日志
+ * ==================================================================== */
+const LOG = []; const T0 = now();
+function ts(){ const t = (now() - T0) / 1000; return t.toFixed(3).padStart(9, ' '); }
+function logLine(cls, main, extra, poll){
+  const e = { t:ts(), cls, main, extra:extra || '', poll:!!poll };
+  LOG.push(e); if (LOG.length > 20000) LOG.splice(0, 5000);
+  if (visibleLog(e)) appendLog(e);
+}
+function visibleLog(e){ if (e.poll && !$('logPoll').checked) return false; if (e.cls === 'echo' && !$('logEcho').checked) return false; return true; }
+function appendLog(e){
+  const el = $('log'); const d = document.createElement('div'); d.className = 'l' + e.cls;
+  const tag = {tx:'TX',rx:'RX',echo:'EC',err:'!!',info:'--'}[e.cls];
+  d.textContent = `${e.t} ${tag} ${e.main}${e.extra ? '   ' + e.extra : ''}`;
+  el.appendChild(d); while (el.childElementCount > 1500) el.firstChild.remove();
+  if ($('logAuto').checked) el.scrollTop = el.scrollHeight;
+}
+function rerenderLog(){ $('log').innerHTML = ''; LOG.filter(visibleLog).slice(-1500).forEach(appendLog); }
+function logTx(t){ if (t.kind === 'bin') logLine('tx', hexs(t.bytes), t.desc, t.poll); else logLine('tx', t.text, t.expect ? '' : '(无应答指令)', t.poll); }
+function logRx(f, desc, poll, lat, warn){ logLine(warn ? 'err' : 'rx', hexs(f), desc + (lat ? ` (${lat.toFixed(1)}ms)` : ''), poll); }
+
+/* ====================================================================
+ *  波形数据与绘图
+ * ==================================================================== */
+const CH = [
+  {k:'tgt', name:'目标位置', unit:'码', col:'--c2', dec:0, sc:1},
+  {k:'pos', name:'实际位置', unit:'码', col:'--c1', dec:0, sc:1},
+  {k:'err', name:'位置误差', unit:'码', col:'--c5', dec:0, sc:10},
+  {k:'spd', name:'速度', unit:'°/s', col:'--c3', dec:1, sc:10},
+  {k:'trq', name:'扭矩', unit:'%', col:'--c4', dec:0, sc:10},
+  {k:'cur', name:'电流', unit:'mA', col:'--c7', dec:0, sc:1},
+  {k:'tmp', name:'温度', unit:'℃', col:'--c6', dec:1, sc:10},
+  {k:'vol', name:'电压', unit:'V', col:'--c8', dec:2, sc:100},
+];
+const SCALES = [[100,'×100'],[10,'×10'],[1,'×1'],[0.1,'÷10'],[0.01,'÷100']];
+const D = { t:[] }; CH.forEach(c => D[c.k] = []);
+const visCh = Object.fromEntries(CH.map(c => [c.k, true]));
+const scCh = Object.fromEntries(CH.map(c => [c.k, c.sc]));
+const chipVal = {};
+let view = { win:10, frozen:false, end:0 }, hoverT = null, dirty = true;
+function pushSample(s){
+  const t = (now() - T0) / 1000;
+  D.t.push(t); CH.forEach(c => D[c.k].push(s[c.k] != null ? s[c.k] : NaN));
+  if (D.t.length > 80000){ const n = 10000; D.t.splice(0, n); CH.forEach(c => D[c.k].splice(0, n)); }
+  okTimes.push(now()); if (okTimes.length > 80) okTimes.shift();
+  dirty = true; updateTiles(s);
+}
+function colorOf(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+const PL = 58, PR = 12, PT = 10, PB = 20;
+function buildChart(){
+  const cv = $('wave');
+  cv.addEventListener('mousemove', e => { const r = cv.getBoundingClientRect(); const x = e.clientX - r.left; const [t0, t1] = viewRange();
+    hoverT = (x < PL || x > r.width - PR) ? null : t0 + (x - PL) / (r.width - PL - PR) * (t1 - t0); dirty = true; });
+  cv.addEventListener('mouseleave', () => { hoverT = null; dirty = true; });
+  cv.addEventListener('wheel', e => { if (!view.frozen) return; e.preventDefault(); view.end += Math.sign(e.deltaY) * view.win * 0.1; view.end = clamp(view.end, D.t[0] || 0, D.t[D.t.length-1] || 0); dirty = true; }, { passive:false });
+  const chips = $('chips'); chips.innerHTML = '';
+  CH.forEach(c => {
+    const w = document.createElement('span'); w.className = 'chip';
+    w.innerHTML = `<label><input type="checkbox" checked><span class="sw" style="background:var(${c.col})"></span>${c.name}</label><select title="显示倍率（只影响画图，数值显示真实值）"></select><span class="cv mono"></span>`;
+    const sel = w.querySelector('select'); SCALES.forEach(([v, n]) => sel.add(new Option(n, v))); sel.value = c.sc;
+    sel.onchange = () => { scCh[c.k] = +sel.value; dirty = true; };
+    w.querySelector('input').addEventListener('change', e => { visCh[c.k] = e.target.checked; w.classList.toggle('off', !e.target.checked); dirty = true; });
+    chipVal[c.k] = w.querySelector('.cv');
+    chips.appendChild(w);
+  });
+}
+function viewRange(){ const last = D.t.length ? D.t[D.t.length-1] : 0; const end = view.frozen ? view.end : Math.max(last, view.win); return [end - view.win, end]; }
+function lb(arr, x){ let lo = 0, hi = arr.length; while (lo < hi){ const m = (lo + hi) >> 1; if (arr[m] < x) lo = m + 1; else hi = m; } return lo; }
+function niceStep(range, n){ const raw = range / n; const p = Math.pow(10, Math.floor(Math.log10(raw))); const m = raw / p; return (m < 1.5 ? 1 : m < 3 ? 2 : m < 7 ? 5 : 10) * p; }
+function valueAt(k, t){ const i = lb(D.t, t); let best = -1, bd = Infinity; for (const j of [i-1, i]) if (j >= 0 && j < D.t.length){ const d = Math.abs(D.t[j] - t); if (d < bd){ bd = d; best = j; } } return best < 0 ? NaN : D[k][best]; }
+function drawAll(){
+  if (!dirty) return; dirty = false;
+  const [t0, t1] = viewRange();
+  const cGrid = colorOf('--grid'), cAxis = colorOf('--axis'), cHov = colorOf('--hover');
+  const dpr = window.devicePixelRatio || 1;
+  const cv = $('wave'), W = cv.clientWidth, H = cv.clientHeight; if (!W) return;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)){ cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const ctx = cv.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  const pw = W - PL - PR, ph = H - PT - PB;
+  const chs = CH.filter(c => visCh[c.k]);
+  const i0 = Math.max(0, lb(D.t, t0) - 1), i1 = Math.min(D.t.length, lb(D.t, t1) + 1);
+  let mn = Infinity, mx = -Infinity;
+  chs.forEach(c => { const a = D[c.k], k = scCh[c.k]; for (let i = i0; i < i1; i++){ const v = a[i] * k; if (v === v){ if (v < mn) mn = v; if (v > mx) mx = v; } } });
+  if (mn === Infinity){ mn = 0; mx = 100; }
+  if (mx - mn < 10){ const c = (mx + mn) / 2; mn = c - 5; mx = c + 5; }
+  const padv = (mx - mn) * 0.06; mn -= padv; mx += padv;
+  const X = t => PL + (t - t0) / (t1 - t0) * pw, Y = v => PT + (mx - v) / (mx - mn) * ph;
+  ctx.font = '11px ' + getComputedStyle(document.body).fontFamily; ctx.lineWidth = 1;
+  const ys = niceStep(mx - mn, 8); ctx.strokeStyle = cGrid; ctx.fillStyle = cAxis; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let v = Math.ceil(mn / ys) * ys; v <= mx; v += ys){ const y = Math.round(Y(v)) + .5; ctx.beginPath(); ctx.moveTo(PL, y); ctx.lineTo(PL + pw, y); ctx.stroke(); ctx.fillText(+v.toFixed(6) + '', PL - 4, y); }
+  if (mn < 0 && mx > 0){ const y = Math.round(Y(0)) + .5; ctx.strokeStyle = cAxis; ctx.beginPath(); ctx.moveTo(PL, y); ctx.lineTo(PL + pw, y); ctx.stroke(); ctx.strokeStyle = cGrid; }
+  const xs = niceStep(t1 - t0, 10); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let t = Math.ceil(t0 / xs) * xs; t <= t1; t += xs){ const x = Math.round(X(t)) + .5; ctx.beginPath(); ctx.moveTo(x, PT); ctx.lineTo(x, PT + ph); ctx.stroke(); ctx.fillText(+t.toFixed(2) + 's', x, PT + ph + 3); }
+  ctx.save(); ctx.beginPath(); ctx.rect(PL, PT, pw, ph); ctx.clip();
+  chs.forEach(c => {
+    const a = D[c.k], k = scCh[c.k]; ctx.strokeStyle = colorOf(c.col); ctx.lineWidth = 1.5; ctx.beginPath();
+    if (i1 - i0 > pw * 2){ // 按像素列做 min/max 抽取
+      let col = -1, cmn = NaN, cmx = NaN, pen = false;
+      const flush = () => { if (col >= 0 && cmn === cmn){ const x = PL + col + .5; if (!pen){ ctx.moveTo(x, Y(cmx)); pen = true; } else ctx.lineTo(x, Y(cmx)); ctx.lineTo(x, Y(cmn)); } };
+      for (let i = i0; i < i1; i++){ const c2 = Math.floor(X(D.t[i]) - PL); const v = a[i] * k;
+        if (c2 !== col){ flush(); col = c2; cmn = cmx = v; } else if (v === v){ if (cmn !== cmn){ cmn = cmx = v; } else { if (v < cmn) cmn = v; if (v > cmx) cmx = v; } }
+        if (v !== v) pen = false; }
+      flush();
+    } else {
+      let pen = false;
+      for (let i = i0; i < i1; i++){ const v = a[i] * k; if (v !== v){ pen = false; continue; } const x = X(D.t[i]), y = Y(v); if (!pen){ ctx.moveTo(x, y); pen = true; } else ctx.lineTo(x, y); }
+    }
+    ctx.stroke();
+  });
+  ctx.restore();
+  if (hoverT != null && hoverT >= t0 && hoverT <= t1){ const x = Math.round(X(hoverT)) + .5; ctx.strokeStyle = cHov; ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(x, PT); ctx.lineTo(x, PT + ph); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = cAxis; ctx.textAlign = x > PL + pw - 60 ? 'right' : 'left'; ctx.textBaseline = 'top'; ctx.fillText(' ' + hoverT.toFixed(2) + 's ', x, PT + 2); }
+  ctx.strokeStyle = cGrid; ctx.strokeRect(PL + .5, PT + .5, pw, ph);
+  CH.forEach(c => { const v = hoverT != null ? valueAt(c.k, hoverT) : D[c.k][D[c.k].length - 1];
+    chipVal[c.k].textContent = (v === v && v != null ? v.toFixed(c.dec) : '—') + ' ' + c.unit; });
+}
+function renderLoop(){ if (!view.frozen && polling) dirty = true; drawAll(); requestAnimationFrame(renderLoop); }
+window.addEventListener('resize', () => dirty = true);
+
+/* ====================================================================
+ *  实时状态显示
+ * ==================================================================== */
+let lastSampleT = 0;
+function angleText(code){ const r = MODE_RANGE[curMode]; if (!r || code !== code) return ''; return ' ≈' + ((codeToUs(code) - 1500) / 2000 * r).toFixed(1) + '°'; }
+function updateTiles(s){
+  lastSampleT = now();
+  const set = (id, v) => $(id).textContent = v;
+  const f = (v, d) => v == null || v !== v ? '—' : v.toFixed(d);
+  set('vTgt', f(s.tgt, 0)); set('sTgt', s.tgt === s.tgt && s.tgt != null ? codeToUs(s.tgt).toFixed(1) + 'µs' : '');
+  set('vPos', f(s.pos, 0)); set('sPos', s.pos === s.pos && s.pos != null ? codeToUs(s.pos).toFixed(1) + 'µs' + angleText(s.pos) : '');
+  set('vErr', f(s.err, 0)); set('sErr', s.err === s.err && s.err != null ? (s.err * 2000 / 4095).toFixed(2) + 'µs' : '');
+  set('vSpd', f(s.spd, 1)); set('vTrq', f(s.trq, 0)); set('vCur', f(s.cur, 0)); set('vTmp', f(s.tmp, 1)); set('vVol', f(s.vol, 2));
+}
+function setStatusBits(state, fault, stall){
+  if (state != null) $('vState').textContent = state + ' ' + (WORK_STATE[state] || '?');
+  if (fault != null){ $('vFault').textContent = fault ? fault + ' ' + faultText(fault) : '0 无'; $('tFault').classList.toggle('bad', !!fault); }
+  if (stall != null){ $('vStall').textContent = stall ? '1 堵转保持' : '0 正常'; $('tStall').classList.toggle('bad', !!stall); }
+}
+setInterval(() => {
+  $('stSent').textContent = stats.sent; $('stOk').textContent = stats.ok; $('stTo').textContent = stats.to; $('stSkip').textContent = stats.skip;
+  $('stBad').textContent = stats.bad; $('stEcho').textContent = stats.echo; $('stJunk').textContent = stats.junk;
+  $('stLat').textContent = stats.latN ? (stats.latSum / stats.latN).toFixed(1) + 'ms' : '—';
+  $('stLatMax').textContent = stats.latN ? stats.latMax.toFixed(1) + 'ms' : '—';
+  $('stLoss').textContent = stats.sent ? ((stats.to / stats.sent) * 100).toFixed(2) + '%' : '—';
+  const rec = okTimes.filter(t => now() - t < 3000);
+  $('stHz').textContent = rec.length > 2 ? ((rec.length - 1) / ((rec[rec.length-1] - rec[0]) / 1000)).toFixed(1) + 'Hz' : '—';
+  $('sampleAge').textContent = lastSampleT ? '最近数据 ' + ((now() - lastSampleT) / 1000).toFixed(1) + 's 前' : '';
+}, 250);
+
+/* ====================================================================
+ *  轮询
+ * ==================================================================== */
+let polling = false, pollTimer = null, pollNext = 0, pollTick = 0, lastCur = NaN;
+function startPoll(){
+  if (!link){ alert('请先连接'); return; }
+  if (tid() === 255){ alert('采集需要单播ID，广播 255 不能用于轮询'); return; }
+  polling = true; $('btnPoll').textContent = '停止采集'; $('btnPoll').classList.remove('pri');
+  pollNext = now(); pollTick = 0; schedulePoll();
+}
+function stopPoll(){ polling = false; clearTimeout(pollTimer); $('btnPoll').textContent = '开始采集'; $('btnPoll').classList.add('pri'); }
+function schedulePoll(){
+  if (!polling) return;
+  const per = clamp(+$('inPeriod').value || 50, 10, 2000);
+  pollNext += per; const n = now(); if (pollNext < n - per) pollNext = n; // 落后太多就追平，不补发
+  pollTimer = setTimeout(schedulePoll, Math.max(0, pollNext - n));
+  if (cur || Q.length){ stats.skip++; return; }
+  pollTick++;
+  doPoll(per);
+}
+async function doPoll(per){
+  if (proto === 'bin'){
+    const r = await readP(0xC9, { poll:true });
+    if (r.ok && r.st === 0 && r.data.length >= 15 && r.data[0] === 0xC9){
+      const c = c9Parse(r.data.slice(1));
+      pushSample({ tgt:c.tgt, pos:c.pos, err:c.tgt - c.pos, spd:c.spd / 10, trq:c.trq, cur:c.cur, tmp:c.tmp / 10, vol:c.vol / 100 });
+    }
+    if ($('chkExtra').checked && pollTick % Math.max(1, Math.round(500 / per)) === 0){
+      const s = await binTx(1, [], { poll:true });
+      if (s.ok && s.st === 0 && s.data.length >= 2) setStatusBits(s.data[0], s.data[1], null);
+      const k = await readP(0xC8, { poll:true });
+      if (k.ok && k.st === 0 && k.data.length >= 2) setStatusBits(null, null, k.data[1]);
+    }
+  } else {
+    const a = await txtTx('RTV', { poll:true });
+    const b = await txtTx('RIV', { poll:true });
+    if (b.ok){ const m = /^I(-?)(\d{4})V(\d+)\.(\d)$/.exec(b.body); if (m) lastCur = (m[1] ? -1 : 1) * +m[2]; }
+    if (a.ok){ const m = /^DP(\d{4})T(-?\d+)V(\d+)\.(\d)$/.exec(a.body);
+      if (m){ const pos = usToCode(+m[1]); pushSample({ pos, tmp:+m[2], vol:+m[3] + m[4] / 10, cur:lastCur }); } }
+  }
+}
+
+/* ====================================================================
+ *  运动控制
+ * ==================================================================== */
+function posCode(){ return clamp(+$('inPos').value | 0, 0, 4095); }
+function updPosConv(){ const c = posCode(); $('posConv').textContent = codeToUs(c).toFixed(1) + 'µs' + angleText(c) + (proto === 'text' ? ' → ' + pad(clamp(Math.round(codeToUs(c)), 500, 2500), 4) : ''); }
+async function sendMove(code, ms, quiet){
+  code = clamp(code | 0, 0, 4095); ms = Math.max(0, ms | 0);
+  if (proto === 'bin'){ const r = await writeP(0x80, [...toLe(code, 2), ...toLe(Math.min(ms, 65535), 2)], 0); if (!quiet) showResult('运动', r); return r; }
+  const us = clamp(Math.round(codeToUs(code)), 500, 2500), t = Math.min(ms, 9999), n = +$('inTurns').value | 0;
+  const body = n > 0 ? `${pad(us,4)}N${clamp(n,0,9)}T${pad(t,4)}` : `${pad(us,4)}T${pad(t,4)}`;
+  return txtTx(body, { expect:false });
+}
+let sweepOn = false;
+async function runSweep(){
+  sweepOn = true; $('btnSweep').textContent = '停止往复';
+  const A = +$('swA').value, B = +$('swB').value, T = +$('swT').value, Pd = +$('swP').value, N = +$('swN').value | 0;
+  for (let i = 0; sweepOn && (N === 0 || i < N * 2); i++){
+    if (!link) break;
+    await sendMove(i % 2 ? B : A, T, true);
+    const end = now() + Pd; while (sweepOn && now() < end) await sleep(20);
+  }
+  stopSweep();
+}
+function stopSweep(){ sweepOn = false; $('btnSweep').textContent = '开始往复'; }
+
+/* ====================================================================
+ *  通用结果显示
+ * ==================================================================== */
+function resText(r){
+  if (!r) return '—';
+  if (r.err) return r.err;
+  if (r.noReply) return '已发送（该指令无应答）';
+  if (r.timeout) return proto === 'text' ? '无应答（明文：未收到或指令被拒绝）' : '超时无应答';
+  if (r.text != null) return r.text + `  (${r.lat.toFixed(1)}ms)`;
+  let s = (r.st === 0 ? 'OK' : '状态 ' + hex2(r.st) + ' ' + (ST_NAME[r.st] || '?')) + `  (${r.lat.toFixed(1)}ms)`;
+  if (r.replies && r.replies.length > 1) s += `  共 ${r.replies.length} 台应答：` + r.replies.map(x => 'ID' + x.id).join(',');
+  return s;
+}
+function showResult(what, r){ $('queryOut').textContent = what + '：' + resText(r); }
+const okR = r => r && r.ok && (r.text != null || r.noReply || r.st === 0);
+
+/* ====================================================================
+ *  参数表
+ * ==================================================================== */
+const rowEls = {};
+function buildTable(){
+  const tb = $('ptbl').tBodies[0]; tb.innerHTML = '';
+  P.forEach(d => {
+    const tr = document.createElement('tr');
+    if (d.sec){ tr.className = 'sec'; tr.innerHTML = `<td colspan="12">${d.sec}</td>`; tb.appendChild(tr); return; }
+    const [mn, mx] = rangeOf(d);
+    tr.innerHTML = `<td class="mono">${hex2(d.a)}</td><td>${d.name}</td><td>${d.n}</td><td>${{R:'只读',RW:'读写',W:'只写'}[d.rw]}</td><td>${d.def ?? '本机值'}</td>`
+      + `<td class="rng mono"></td><td>${d.unit || '—'}</td><td class="val">—</td>`
+      + `<td>${d.rw === 'RW' ? '<input type="number">' : ''}</td>`
+      + `<td><button class="br" style="padding:0 7px">读</button>${d.rw === 'RW' ? ' <button class="bw" style="padding:0 7px">写</button>' : ''}</td>`
+      + `<td class="st"></td><td class="desc">${d.desc || ''}</td>`;
+    const e = { tr, val:tr.querySelector('.val'), st:tr.querySelector('.st'), inp:tr.querySelector('input'), rng:tr.querySelector('.rng') };
+    tr.querySelector('.br').onclick = () => readRow(d);
+    if (d.rw === 'RW') tr.querySelector('.bw').onclick = () => writeRow(d);
+    rowEls[d.a] = e; tb.appendChild(tr); void mn; void mx;
+  });
+  refreshTable();
+}
+function refreshTable(){
+  P.forEach(d => { if (d.sec) return; const e = rowEls[d.a]; const [mn, mx] = rangeOf(d);
+    e.rng.textContent = mn != null || mx != null ? `${mn ?? '?'}～${mx ?? '?'}` : '';
+    const na = proto === 'text' && !d.txt; e.tr.classList.toggle('na', na);
+    e.tr.querySelectorAll('button,input').forEach(b => b.disabled = na); });
+  $('paramHint').textContent = proto === 'text' ? '明文模式只有 ID/波特率/模式/上电动作/扭矩上限/位置 能读写，其余灰显' : 'CMD 02 读 / CMD 03 写';
+}
+function setRow(d, st, v){
+  const e = rowEls[d.a]; if (!e) return;
+  if (v !== undefined){ e.val.textContent = fmtParam(d, v); if (e.inp && !Array.isArray(v) && document.activeElement !== e.inp) e.inp.value = v; }
+  e.st.className = 'st ' + (st === 'OK' ? 'st0' : 'stE'); e.st.textContent = st;
+}
+async function readRow(d){
+  if (proto === 'bin'){
+    const r = await readP(d.a);
+    if (r.ok && r.st === 0){
+      const raw = r.data.slice(1); const v = d.raw3 ? raw : le(raw, d.signed);
+      if (r.data[0] !== d.a || raw.length !== d.n){ setRow(d, '长度/地址不符 ' + hexs(r.data), d.raw3 ? raw : v); return r; }
+      setRow(d, 'OK', v); noteInfo(d.a, v); return r;
+    }
+    setRow(d, r.ok ? hex2(r.st) + ' ' + ST_NAME[r.st] : (r.err || '超时')); return r;
+  }
+  const r = await txtTx(d.txt);
+  if (!r.ok){ setRow(d, r.err || '无应答'); return r; }
+  const v = parseTextVal(d, r);
+  if (v == null){ setRow(d, '格式不符：' + r.body); return r; }
+  setRow(d, 'OK', v); noteInfo(d.a, v); return r;
+}
+function parseTextVal(d, r){
+  let m;
+  switch (d.txt){
+    case 'ID': return r.body === '' ? r.id : null;
+    case 'BD': m = /^BAUD(\d+)$/.exec(r.body); if (!m) return null; { const g = BAUDS.indexOf(+m[1]); return g >= 0 ? g + 1 : null; }
+    case 'MOD': m = /^MOD(\d+)$/.exec(r.body); return m ? +m[1] : null;
+    case 'CSM': m = /^CSM(\d)$/.exec(r.body); return m ? +m[1] : null;
+    case 'SP': m = /^SP(\d+)$/.exec(r.body); return m ? +m[1] : null;
+    case 'RAD': m = /^(\d{4})$/.exec(r.body); return m ? usToCode(+m[1]) : null;
+  }
+  return null;
+}
+function textWriteBody(d, v){
+  switch (d.txt){ case 'ID': return 'ID' + pad(v,3); case 'BD': return 'BD' + v; case 'MOD': return 'MOD' + v; case 'CSM': return 'CSM' + v; case 'SP': return 'SP' + pad(v,3); }
+  return null;
+}
+async function writeRow(d, value){
+  const e = rowEls[d.a]; const v = value != null ? value : +e.inp.value;
+  if (!Number.isInteger(v)){ setRow(d, '请输入整数'); return; }
+  const [mn, mx] = rangeOf(d);
+  if (!$('chkNoRange').checked && ((mn != null && v < mn) || (mx != null && v > mx))){ setRow(d, `本地检查：超出 ${mn}～${mx}`); return; }
+  if (d.a === 0x20 && !confirm(`把舵机ID从 ${tid()} 改成 ${v}？成功后上位机目标ID会自动切换。`)) return;
+  if (d.a === 0x21 && !confirm(`把波特率改为档位 ${v}（${BAUDS[v-1]}）？成功后上位机会跟着切换。`)) return;
+  let r;
+  if (proto === 'bin') r = await writeP(d.a, v, d.n);
+  else { const b = textWriteBody(d, v); if (!b) return; r = await txtTx(b); }
+  const ok = proto === 'bin' ? (r.ok && r.st === 0) : (r.ok && r.body === 'OK');
+  setRow(d, ok ? 'OK' : (r.ok ? (proto === 'bin' ? hex2(r.st) + ' ' + ST_NAME[r.st] : '应答 ' + r.text) : (proto === 'text' ? '无应答（被拒绝？）' : (r.err || '超时'))));
+  if (ok) await afterWrite(d.a, v);
+  return r;
+}
+async function afterWrite(a, v){
+  if (a === 0x20){ $('inId').value = v; $('rbId').value = v; logLine('info', '目标ID 已切换为 ' + v); }
+  if (a === 0x21){ await sleep(30); await changeBaud(BAUDS[v-1]); }
+  if (a === 0x22){ curMode = v; updPosConv(); }
+  if (rowEls[a] && (proto === 'bin' || PD[a].txt)) await readRow(PD[a]);
+}
+function noteInfo(a, v){
+  if (a <= 0x10) info[a] = v;
+  if (a === 0x22) curMode = v;
+  if (a === 0x00 && $('selDev').value === 'auto'){ devType = (v === 2 || v === 4) ? 'mag' : 'pot'; buildModeSel(); }
+  if (a <= 0x08 || a === 0x10) { refreshTable(); renderDevInfo(); }
+}
+function renderDevInfo(){
+  const parts = [];
+  parts.push(devType === 'mag' ? '磁编码版' : '电位器版');
+  if (info[2] != null) parts.push(info[2] + 'V');
+  if (info[3] != null) parts.push(info[3] + 'kg');
+  if (info[1] != null) parts.push('硬件' + (info[1]/10).toFixed(1));
+  if (info[0x10]) parts.push('固件' + info[0x10].join('.'));
+  if (info.ver) parts.push(info.ver);
+  if (info[4] != null) parts.push('额定' + info[4] + '°/s');
+  if (curMode != null) parts.push('模式' + curMode + ' ' + (MODE_NAMES[curMode] || ''));
+  $('devInfo').textContent = parts.join(' · ');
+}
+async function readGroup(filter){ const wasPoll = polling; stopPoll(); for (const d of P) if (!d.sec && filter(d) && !(proto === 'text' && !d.txt)) { if (!link) break; await readRow(d); } if (wasPoll) startPoll(); }
+
+/* 连上后先识别 */
+async function identify(){
+  if (proto === 'bin'){
+    for (const a of [0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x10,0x22]){ const r = await readRow(PD[a]); if (!r.ok) { if (a === 0) { logLine('err', '读不到设备信息：检查ID/波特率/接线'); break; } } }
+  } else {
+    const v = await txtTx('VER'); if (v.ok) info.ver = v.body;
+    await readRow(PD[0x22]);
+  }
+  renderDevInfo();
+}
+
+/* ====================================================================
+ *  动作按钮
+ * ==================================================================== */
+async function act(name, binFn, textBody, confirmMsg){
+  if (confirmMsg && !confirm(confirmMsg)) return null;
+  let r;
+  if (proto === 'bin'){ if (!binFn){ showResult(name, { err:'二进制无对应命令' }); return null; } r = await binFn(); }
+  else { if (!textBody){ showResult(name, { err:'明文协议无对应指令' }); return null; } const noReply = textBody === 'DST'; r = await txtTx(textBody, { expect:!noReply }); }
+  showResult(name, r); $('rawOut').textContent = name + '：' + resText(r);
+  return r;
+}
+const CAL = [
+  {n:'中位校准', v:1, t:'SCK', m:'把当前位置标定为 1500µs（中位）'},
+  {n:'零点校准', v:2, t:'SCZ', m:'把当前位置标定为 500µs（零点）'},
+  {n:'行程500端', v:3, t:'AMI', m:'当前位置设为行程 500 端，并进入模式 13'},
+  {n:'行程2500端', v:4, t:'AMX', m:'当前位置设为行程 2500 端，并进入模式 13'},
+  {n:'目标下限', v:5, t:'SMI', m:'当前位置设为目标下限（更小的目标会被拒绝）'},
+  {n:'目标上限', v:6, t:'SMX', m:'当前位置设为目标上限（更大的目标会被拒绝）'},
+  {n:'保存上电位置', v:7, t:'CSD', m:'当前位置保存为上电位置'},
+];
+function buildCal(){
+  const box = $('calBtns'); box.innerHTML = '';
+  CAL.forEach(c => { const b = document.createElement('button'); b.textContent = c.n; b.title = `二进制 8B=${c.v} / 明文 ${c.t}`;
+    b.onclick = () => act(c.n, () => writeP(0x8B, c.v, 1), c.t, c.m + '，结果写入 Flash。确定？'); box.appendChild(b); });
+}
+const QUERIES = [
+  {n:'简要状态 CMD01', bin:async () => { const r = await binTx(1, []); if (r.ok && r.st === 0) { setStatusBits(r.data[0], r.data[1], null); r.extra = `工作状态 ${r.data[0]} ${WORK_STATE[r.data[0]]||''}，故障低8位 ${r.data[1]}`; } return r; }},
+  {n:'读位置 RAD', t:'RAD', bin:() => readP(0xC2)},
+  {n:'位置/温度/电压 RTV', t:'RTV'},
+  {n:'电流/电压 RIV', t:'RIV'},
+  {n:'固件版本 VER', t:'VER', bin:() => readP(0x10)},
+  {n:'读ID', t:'ID', bin:() => readP(0x20)},
+  {n:'读波特率 BD', t:'BD', bin:() => readP(0x21)},
+  {n:'读模式 MOD', t:'MOD', bin:() => readP(0x22)},
+  {n:'扭矩上限 SP', t:'SP', bin:() => readP(0x24)},
+  {n:'上电动作 CSM', t:'CSM', bin:() => readP(0x23)},
+  {n:'状态集合 C9', bin:() => readP(0xC9)},
+];
+function buildQueries(){
+  const box = $('queryBtns'); box.innerHTML = '';
+  QUERIES.forEach(q => { const b = document.createElement('button'); b.textContent = q.n; b.dataset.q = q.n;
+    b.onclick = async () => {
+      let r;
+      if (proto === 'bin'){ if (!q.bin) return; r = await q.bin(); }
+      else { if (!q.t) return; r = await txtTx(q.t); }
+      let s = resText(r);
+      if (r.extra) s += '\n' + r.extra;
+      else if (proto === 'bin' && r.ok && r.st === 0 && r.data.length > 1){ const d = PD[r.data[0]]; if (d){ const v = d.raw3 ? r.data.slice(1) : le(r.data.slice(1), d.signed); s += '\n' + d.name + ' = ' + fmtParam(d, v); noteInfo(d.a, v); setRow(d, 'OK', v); } }
+      $('queryOut').textContent = q.n + '：' + s;
+    };
+    box.appendChild(b); });
+  refreshProtoButtons();
+}
+function refreshProtoButtons(){
+  $('queryBtns').querySelectorAll('button').forEach(b => { const q = QUERIES.find(x => x.n === b.dataset.q); b.disabled = proto === 'bin' ? !q.bin : !q.t; });
+}
+const TEXT_QUICK = ['VER','ID','BD','MOD','SP','CSM','RAD','RTV','RIV','DPT','DCT','DST','ULK','ULM','ULR'];
+function buildTextQuick(){ const box = $('textQuick'); TEXT_QUICK.forEach(k => { const b = document.createElement('button'); b.textContent = k; b.onclick = async () => { const r = await txtTx(k, { expect:k !== 'DST' }); $('rawOut').textContent = '#' + pad(tid(),3) + 'P' + k + '!  →  ' + resText(r); }; box.appendChild(b); }); }
+
+function buildModeSel(){
+  const s = $('selMode'); const keep = s.value; s.innerHTML = '';
+  const modes = devType === 'mag' ? [1,2,3,4,5,6,7,8,9,10,11,12] : [1,2,3,4,5,6,9,10,11,12];
+  modes.forEach(m => s.add(new Option(m + ' ' + MODE_NAMES[m], m)));
+  if (keep) s.value = keep;
+  PD[0x22].max = 12;
+  $('moveHint').textContent = devType === 'mag' ? '磁编码版：明文支持多圈 N' : '';
+}
+
+/* ====================================================================
+ *  协议切换
+ * ==================================================================== */
+function setProto(p){
+  if (p === proto) return;
+  const wasPoll = polling; stopPoll(); stopSweep();
+  proto = p;
+  $('segProto').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+  document.querySelectorAll('[data-proto-only]').forEach(el => el.classList.toggle('hidden', el.dataset.protoOnly !== p));
+  $('pollSrc').textContent = p === 'bin' ? '二进制：每周期读 C9 状态集合' : '明文：每周期发 RTV + RIV（只有位置/温度/电压/电流）';
+  $('inTime').max = p === 'bin' ? 65535 : 9999;
+  $('tqNote').textContent = p === 'bin' ? '二进制写 RAM 84（掉电不保存）' : '明文 SP 写 Flash 24（掉电保存）';
+  $('chkExtra').disabled = p !== 'bin';
+  $('btnReadInfo').disabled = p !== 'bin';
+  refreshTable(); refreshProtoButtons(); updPosConv(); renderTestHint();
+  logLine('info', '协议切换为 ' + (p === 'bin' ? '二进制' : '明文'));
+  if (wasPoll) startPoll();
+}
+
+/* ====================================================================
+ *  协议自检
+ * ==================================================================== */
+let testing = false, testAbort = false;
+function renderTestHint(){
+  $('testHint').textContent = proto === 'bin'
+    ? '二进制：CRC 示例、命令 01/02/03、全部参数读取与范围、RAM 写读回(自动还原)、状态码 01/02/03/06/07、坏帧不应答、C9 连读稳定性、广播应答延时。不会让舵机运动，不写 Flash。'
+    : '明文：各查询指令应答格式、ID 一致性、SP 原值写回、越界/未知指令不应答、广播应答延时。不会让舵机运动。';
+}
+async function runTests(){
+  if (!link){ alert('请先连接'); return; }
+  if (tid() === 255){ alert('自检需要单播ID'); return; }
+  const wasPoll = polling; stopPoll(); stopSweep();
+  testing = true; testAbort = false; $('btnTest').disabled = true; $('btnTestStop').disabled = false;
+  const out = $('testOut'); out.innerHTML = '<table><thead><tr><th style="width:38%">项目</th><th>结果</th><th>说明</th></tr></thead><tbody></tbody></table>';
+  const tb = out.querySelector('tbody'); let np = 0, nf = 0, ni = 0;
+  const add = (name, res, detail) => { if (res === true) np++; else if (res === false) nf++; else ni++;
+    const tr = document.createElement('tr'); tr.innerHTML = `<td>${name}</td><td class="${res === true ? 'pass' : res === false ? 'fail' : 'info'}">${res === true ? '通过' : res === false ? '失败' : '信息'}</td><td class="mono" style="font-size:11px"></td>`;
+    tr.lastChild.textContent = detail || ''; tb.appendChild(tr); out.scrollTop = out.scrollHeight; };
+  try {
+    if (proto === 'bin') await testsBin(add); else await testsText(add);
+  } catch (e){ add('异常', false, e.message); }
+  const sum = document.createElement('div'); sum.style.marginTop = '6px'; sum.innerHTML = `<b>通过 ${np}</b> · <b class="fail">失败 ${nf}</b> · <span class="info">信息 ${ni}</span>${testAbort ? '（已中止）' : ''}`; out.appendChild(sum);
+  testing = false; $('btnTest').disabled = false; $('btnTestStop').disabled = true;
+  if (wasPoll) startPoll();
+}
+const stOf = r => !r.ok ? (r.timeout ? '超时' : r.err) : hex2(r.st) + ' ' + (ST_NAME[r.st] || '?');
+async function testsBin(add){
+  const ab = () => { if (testAbort || !link) throw new Error('已中止'); };
+  // 1. CRC 文档示例
+  const ex = ['AA 66 00 03 05 80 00 08 E8 03 CF 66 AA','AA 66 00 03 02 81 02 41 66 AA','AA 66 00 03 02 81 01 48 66 AA','AA 66 00 03 02 82 00 70 66 AA','AA 66 00 03 02 82 01 77 66 AA','AA 66 00 03 02 24 32 88 66 AA','AA 66 00 02 01 24 3F 66 AA','AA 66 00 02 01 10 B3 66 AA','AA 66 00 02 01 C0 8D 66 AA','AA 66 00 02 01 C9 B2 66 AA','AA 66 00 83 01 00 A3 66 AA'];
+  const badEx = ex.filter(s => { const b = parseHex(s); return crc8(b.slice(2, b.length - 3)) !== b[b.length - 3]; });
+  add('CRC-8/ATM 与手册示例一致（离线）', !badEx.length, badEx.length ? '不一致：' + badEx.join(' | ') : `${ex.length} 个示例全部吻合`);
+  // 2. CMD01
+  ab(); let r = await binTx(1, []);
+  add('CMD01 简要状态', r.ok && r.st === 0 && r.data.length === 2, r.ok ? `${stOf(r)} LEN=${r.data.length + 1} 状态=${r.data[0]} 故障=${r.data[1]} ${r.lat.toFixed(1)}ms` : stOf(r));
+  // 3. 全部可读参数
+  const groups = [['设备信息 00～10', d => d.a <= 0x10], ['Flash 参数 20～4B', d => d.a >= 0x20 && d.a < 0x80], ['RAM 参数 82～91', d => d.a >= 0x80 && d.a < 0xC0], ['实时状态 C0～C9', d => d.a >= 0xC0]];
+  const vals = {};
+  for (const [gname, f] of groups){
+    const bad = []; let n = 0;
+    for (const d of P){ if (d.sec || !f(d)) continue; ab(); n++;
+      r = await readP(d.a);
+      if (!(r.ok && r.st === 0)){ bad.push(hex2(d.a) + ':' + stOf(r)); continue; }
+      const raw = r.data.slice(1);
+      if (r.data[0] !== d.a || raw.length !== d.n){ bad.push(hex2(d.a) + `:长度${raw.length}≠${d.n}`); continue; }
+      const v = d.raw3 ? raw : le(raw, d.signed); vals[d.a] = v; noteInfo(d.a, v); setRow(d, 'OK', v);
+    }
+    // 范围检查
+    for (const d of P){ if (d.sec || !f(d) || vals[d.a] == null || d.raw3) continue; const [mn, mx] = rangeOf(d); const v = vals[d.a];
+      if ((mn != null && v < mn) || (mx != null && v > mx)) bad.push(hex2(d.a) + `=${v} 超出 ${mn}～${mx}`); }
+    add('读取 ' + gname + `（${n} 项）`, !bad.length, bad.length ? bad.join('；') : '全部读到，长度正确，值在范围内');
+  }
+  if (vals[0xC9]){ const c = c9Parse(vals[0xC9]); add('C9 与单项读取对照', 'info', `C9: 实际${c.pos} 电压${c.vol} 温度${c.tmp}；单项: C2=${vals[0xC2]} C5=${vals[0xC5]} C4=${vals[0xC4]}（运动中会有差异）`); }
+  // 4. RAM 写读回
+  for (const a of [0x83, 0x8A, 0x88]){
+    ab(); const d = PD[a]; const o = vals[a]; if (o == null){ add(`RAM ${hex2(a)} 写读回`, false, '原值未读到'); continue; }
+    const nv = o === 50 ? 60 : 50;
+    const w = await writeP(a, nv, d.n); const rb = await readP(a); const back = rb.ok && rb.st === 0 ? le(rb.data.slice(1)) : null;
+    const w2 = await writeP(a, o, d.n); const rb2 = await readP(a); const back2 = rb2.ok && rb2.st === 0 ? le(rb2.data.slice(1)) : null;
+    add(`RAM ${hex2(a)} ${d.name} 写读回并还原`, w.ok && w.st === 0 && back === nv && w2.ok && w2.st === 0 && back2 === o, `原值${o} → 写${nv}(${stOf(w)}) 读回${back} → 还原(${stOf(w2)}) 读回${back2}`);
+  }
+  // 5. 状态码
+  const expect = async (name, p, want, firmwareNote) => { ab(); const rr = await p; const ok = rr.ok && rr.st === want;
+    add(name, firmwareNote && rr.ok && !ok ? 'info' : ok, `期望 ${hex2(want)}，实际 ${stOf(rr)}${firmwareNote ? '；' + firmwareNote : ''}`); };
+  await expect('未知命令 CMD 0A → 01', binTx(0x0A, []), 1);
+  await expect('CMD01 带数据 → 02', binTx(1, [0]), 2);
+  await expect('读参数 LEN=2 → 02', binTx(2, [0x24, 0]), 2);
+  await expect('写 84 用 2 字节值 → 02', binTx(3, [0x84, 50, 0]), 2);
+  await expect('写 84 = 101 → 03', binTx(3, [0x84, 101]), 3);
+  await expect('写只读 C0 → 06', binTx(3, [0xC0, 0]), 6);
+  await expect('写只读 00 → 06', binTx(3, [0x00, 1]), 6);
+  for (const c of [4,5,6,9]) await expect(`预留 CMD ${hex2(c)} → 07`, binTx(c, []), 7);
+  ab(); r = await readP(0x7F); add('读未定义地址 7F', 'info', '实际 ' + stOf(r) + '（手册未规定，固件实现为 03）');
+  ab(); r = await readP(0x80); add('读只写地址 80', 'info', '实际 ' + stOf(r));
+  // 6. 坏帧
+  ab(); let f = Array.from(buildBin(tid(), 2, [0xC9])); f[f.length - 3] ^= 0x5A;
+  r = await binRaw(f, { timeout:60, quietTimeout:true }); add('CRC 错误帧不应答', !r.ok && r.timeout, r.ok ? '收到应答：' + stOf(r) : '无应答');
+  ab(); f = Array.from(buildBin(tid(), 2, [0xC9])); f[f.length - 1] = 0x00;
+  r = await binRaw(f, { timeout:60, quietTimeout:true }); add('帧尾错误帧不应答', !r.ok && r.timeout, r.ok ? '收到应答：' + stOf(r) : '无应答');
+  ab(); const other = tid() === 254 ? 253 : tid() + 1;
+  r = await binTx(2, [0xC9], { id:other, timeout:60, quietTimeout:true }); add(`发给 ID${other} 的帧本机不应答`, 'info', r.ok ? `ID${r.id} 应答了（总线上可能有 ID${other}）` : '无应答');
+  // 7. C9 连读
+  ab(); let okn = 0, lats = []; const N = 50;
+  for (let i = 0; i < N; i++){ ab(); r = await readP(0xC9); if (r.ok && r.st === 0 && r.data.length === 15){ okn++; lats.push(r.lat); } }
+  lats.sort((a,b) => a-b);
+  const per = +$('inPeriod').value || 50;
+  add(`C9 连续读 ${N} 次`, okn === N && lats[lats.length-1] < per, `成功 ${okn}/${N}，延迟 中位 ${lats.length ? lats[lats.length>>1].toFixed(1) : '—'}ms 最大 ${lats.length ? lats[lats.length-1].toFixed(1) : '—'}ms（采集周期 ${per}ms）`);
+  // 8. 广播
+  ab(); r = await binTx(2, [0xC9], { id:255 });
+  if (r.ok){ const exp = 100 + 2 * r.id; const lat = r.lat - byteMs(9);
+    add('广播读 C9 应答延时 ≈100ms+ID×2ms', lat >= exp - 5 && lat <= exp + 25, `收到 ${r.replies.length} 台：` + r.replies.map(x => `ID${x.id} ${x.lat.toFixed(0)}ms`).join('，') + `；本机期望约 ${exp}ms`); }
+  else add('广播读 C9 应答延时', false, stOf(r));
+  ab(); r = await binTx(3, [0x20, tid()], { id:255 }); add('广播写 ID(20) → 04 拒绝', r.ok && r.st === 4, '实际 ' + stOf(r));
+}
+async function testsText(add){
+  const ab = () => { if (testAbort || !link) throw new Error('已中止'); };
+  const chk = async (cmd, re, name) => { ab(); const r = await txtTx(cmd); const ok = r.ok && re.test(r.body) && r.id === tid();
+    add(name || cmd, ok, r.ok ? `${r.text}  (${r.lat.toFixed(1)}ms)${r.id !== tid() ? '  ID不一致!' : ''}` : '无应答'); return r; };
+  let r = await chk('VER', /^Servo-V\d+\.\d+\.\d+$/, 'VER 固件版本'); if (r.ok) { info.ver = r.body; renderDevInfo(); }
+  await chk('ID', /^$/, 'ID 读ID（应答 #nnnP!）');
+  await chk('BD', /^BAUD(9600|19200|38400|57600|115200|128000|256000|1000000)$/, 'BD 读波特率');
+  r = await chk('MOD', /^MOD(\d{1,2})$/, 'MOD 读模式');
+  const sp = await chk('SP', /^SP\d{1,3}$/, 'SP 读扭矩上限');
+  await chk('CSM', /^CSM[123]$/, 'CSM 读上电动作');
+  r = await chk('RAD', /^\d{4}$/, 'RAD 读位置'); if (r.ok){ const v = +r.body; add('RAD 范围 500～2500', v >= 500 && v <= 2500, String(v)); }
+  await chk('RTV', /^DP\d{4}T-?\d+V\d+\.\d$/, 'RTV 位置/温度/电压');
+  await chk('RIV', /^I-?\d{4}V\d+\.\d$/, 'RIV 电流/电压');
+  if (sp.ok){ const v = +sp.body.slice(2); ab(); r = await txtTx('SP' + pad(v,3)); add(`SP${pad(v,3)} 原值写回 → OK`, r.ok && r.body === 'OK', r.ok ? r.text : '无应答'); }
+  ab(); r = await txtTx('SP101', { timeout:60, quietTimeout:true }); add('SP101 越界 → 不应答', !r.ok, r.ok ? '收到 ' + r.text : '无应答');
+  ab(); r = await txtTx('MOD99', { timeout:60, quietTimeout:true }); add('MOD99 越界 → 不应答', !r.ok, r.ok ? '收到 ' + r.text : '无应答');
+  ab(); r = await txtTx('XYZ', { timeout:60, quietTimeout:true }); add('未知指令 XYZ → 不应答', !r.ok, r.ok ? '收到 ' + r.text : '无应答');
+  ab(); r = await txtRaw('#' + pad(tid(),3) + 'PRAD', true, { timeout:60, quietTimeout:true }); add('缺结束符 ! 的帧 → 不应答', !r.ok, r.ok ? '收到 ' + r.text : '无应答');
+  ab(); r = await txtTx('RAD', { id:255 });
+  if (r.ok){ const exp = 100 + 2 * r.id; const lat = r.lat - byteMs(9);
+    add('广播 #255PRAD! 应答延时 ≈100ms+ID×2ms', lat >= exp - 5 && lat <= exp + 25, `收到 ${r.replies.length} 台：` + r.replies.map(x => `${x.text} ${x.lat.toFixed(0)}ms`).join('，') + `；期望约 ${exp}ms`); }
+  else add('广播 #255PRAD!', false, '无应答');
+  ab(); let okn = 0, lats = []; const N = 30;
+  for (let i = 0; i < N; i++){ ab(); r = await txtTx('RTV'); if (r.ok){ okn++; lats.push(r.lat); } }
+  lats.sort((a,b) => a-b);
+  add(`RTV 连续 ${N} 次`, okn === N, `成功 ${okn}/${N}，延迟 中位 ${lats.length ? lats[lats.length>>1].toFixed(1) : '—'}ms 最大 ${lats.length ? lats[lats.length-1].toFixed(1) : '—'}ms`);
+}
+
+/* ====================================================================
+ *  模拟舵机（不接硬件时用；按手册与固件行为实现主要逻辑）
+ * ==================================================================== */
+function makeSimLink(){
+  const sim = new SimServo(bytes => onRx(bytes));
+  return { kind:'sim', write: async u8 => sim.hostWrite(u8), close: async () => sim.stop() };
+}
+class SimServo {
+  constructor(emit){
+    this.emit = emit; this.id = 0; this.buf = []; this.type = $('selDev').value === 'mag' ? 2 : 1;
+    this.p = { 0x00:this.type, 0x01:10, 0x02:12, 0x03:30, 0x04:300, 0x05:3000, 0x06:3000, 0x07:60, 0x08:20,
+      0x20:0, 0x21:5, 0x22:1, 0x23:1, 0x24:100, 0x25:2048, 0x30:270, 0x31:2100, 0x32:2100, 0x33:100, 0x34:150, 0x35:80, 0x37:this.type === 2 ? 30 : 50, 0x38:0,
+      0x40:3000, 0x41:30, 0x42:500, 0x43:250, 0x44:32, 0x45:5, 0x46:15, 0x47:90, 0x48:130, 0x49:0, 0x4A:0, 0x4B:1, 0x82:1, 0x83:100 };
+    this.F2R = {0x24:0x84,0x30:0x85,0x31:0x86,0x32:0x87,0x33:0x88,0x34:0x89,0x35:0x8A,0x37:0x8E,0x38:0x8F,0x4A:0x90,0x4B:0x91};
+    for (const f in this.F2R) this.p[this.F2R[f]] = this.p[f];
+    this.pos = 2048; this.tgt = 2048; this.v = 0; this.vT = 0; this.paused = false; this.stopped = false; this.tmp = 265; this.cur = 0; this.trq = 0; this.fault = 0; this.lastA = 0;
+    this.timer = setInterval(() => this.step(0.01), 10);
+  }
+  stop(){ clearInterval(this.timer); }
+  get state(){ const m = this.p[0x82]; if (m === 0) return 3; if (m === 2) return 4; if (this.paused) return 2; return Math.abs(this.tgt - this.pos) > 1 || Math.abs(this.v) > 1 ? 1 : 0; }
+  step(dt){
+    const range = MODE_RANGE[this.p[0x22]] || 270, cpd = 4095 / range;
+    const vmax = (this.p[0x85] || this.p[0x04]) * cpd, amax = (this.p[0x86] || this.p[0x05]) * cpd;
+    let vd;
+    if (this.p[0x82] !== 1){ vd = this.v * (this.p[0x82] === 2 ? 0.5 : 0.95); }
+    else if (this.paused){ vd = 0; }
+    else { const d = this.tgt - this.pos; const lim = Math.min(vmax, this.vT || vmax, Math.sqrt(2 * amax * Math.abs(d)));
+      vd = Math.sign(d) * lim; if (Math.abs(d) < 0.5){ vd = 0; this.pos = this.pos * 0.8 + this.tgt * 0.2; } }
+    const dv = clamp(vd - this.v, -amax * dt, amax * dt); this.v += dv; this.pos = clamp(this.pos + this.v * dt, 0, 4095);
+    const a = dv / dt / cpd; this.lastA = a;
+    const tl = this.p[0x84] / 100;
+    let cur = this.p[0x82] === 1 ? (Math.sign(this.v) * 180 * (Math.abs(this.v) > 1) + a * 0.25 + (this.tgt - this.pos) * 3) : 0;
+    cur = clamp(cur, -2500 * tl, 2500 * tl) + (Math.random() - .5) * 30;
+    this.cur = Math.round(cur); this.trq = Math.round(this.cur / 25);
+    this.tmp += ((265 + Math.abs(this.cur) * 0.02) - this.tmp) * 0.002;
+  }
+  c9(){ return [...toLe(Math.round(this.tgt),2), ...toLe(Math.round(this.pos),2), ...toLe(this.trq,2), ...toLe(Math.round(this.v / (4095 / (MODE_RANGE[this.p[0x22]] || 270)) * 10),2), ...toLe(this.cur,2), ...toLe(Math.round(this.tmp),2), ...toLe(Math.round(1200 - Math.abs(this.cur) * 0.05 + (Math.random() - .5) * 4),2)]; }
+  hostWrite(u8){
+    if ($('chkSimEcho').checked) setTimeout(() => this.emit(u8.slice()), 0);
+    const tw = byteMs(u8.length);
+    setTimeout(() => { for (const b of u8) this.rx(b); }, tw);
+  }
+  rx(b){
+    const t = now(); if (t - (this.lastRx || 0) > 10) this.buf = []; this.lastRx = t;   // 固件：10ms 无字节作废半帧
+    if (b === 0x23 && this.buf[0] === 0x23) this.buf = [];                              // 固件：'#' 重新开始一帧
+    const B = this.buf; B.push(b);
+    if (B[0] === 0xAA){ if (B.length >= 2 && B[1] !== 0x66){ this.buf = []; return; } if (B.length >= 5){ if (B[4] > 32){ this.buf = []; return; } if (B.length === 8 + B[4]){ this.bin(B.slice()); this.buf = []; } } return; }
+    if (B[0] === 0x23){ if (b === 0x21){ this.text(String.fromCharCode(...B)); this.buf = []; } else if (B.length > 40) this.buf = []; return; }
+    this.buf = [];
+  }
+  send(bytes, bc){ const delay = bc ? 100 + this.id * 2 : 1 + Math.random() * 1.5; setTimeout(() => this.emit(Uint8Array.from(bytes)), delay); }
+  bin(f){
+    const n = f[4], id = f[2], cmd = f[3];
+    if (f[6 + n] !== 0x66 || f[7 + n] !== 0xAA || crc8(f.slice(2, 5 + n)) !== f[5 + n]) return;
+    if ((id !== this.id && id !== 255) || (cmd & 0x80)) return;
+    const bc = id === 255, d = f.slice(5, 5 + n); let st = 0, out = [];
+    switch (cmd){
+      case 1: if (n) st = 2; else out = [this.state, this.fault & 0xFF]; break;
+      case 2: if (n !== 1) st = 2; else { const r = this.read(d[0]); st = r.st; out = r.st ? [] : [d[0], ...r.out]; } break;
+      case 3: if (n < 2) st = 2; else if (bc && (d[0] === 0x20 || (d[0] === 0x8C && d[1] === 3))) st = 4; else st = this.write(d[0], d.slice(1)); break;
+      case 7: case 8: if (n) st = 2; else if (bc && cmd === 8) st = 4; else this.reset(cmd === 7); break;
+      case 4: case 5: case 6: case 9: st = 7; break;
+      default: st = 1;
+    }
+    const body = [this.id, cmd | 0x80, 1 + out.length, st, ...out];
+    this.send([0xAA,0x66,...body,crc8(body),0x66,0xAA], bc);
+  }
+  read(a){
+    const d = PD[a];
+    if (!d || d.rw === 'W') return { st:3 };
+    if (a === 0x10) return { st:0, out:[1,1,0] };
+    if (a === 0xC9) return { st:0, out:this.c9() };
+    const c = this.c9();
+    const rt = {0xC0:this.state, 0xC1:this.fault, 0xC2:Math.round(this.pos), 0xC3:le(c.slice(6,8),true), 0xC4:Math.round(this.tmp), 0xC5:le(c.slice(12,14)), 0xC6:this.cur, 0xC7:this.trq, 0xC8:0};
+    const v = a >= 0xC0 ? rt[a] : this.p[a];
+    return { st:0, out:toLe(v ?? 0, d.n) };
+  }
+  writeSize(a){ if (a === 0x80) return 4; if (a === 0x81 || a === 0x8B || a === 0x8C) return 1; const d = PD[a]; return d && d.rw === 'RW' ? d.n : 0; }
+  write(a, bytes){
+    const size = this.writeSize(a);
+    if (!size) return (a < 0x20 || a >= 0x80) ? 6 : 3;
+    if (bytes.length !== size) return 2;
+    const v = le(bytes);
+    switch (a){
+      case 0x80: { const pos = le(bytes.slice(0,2)), T = le(bytes.slice(2,4)); if (pos > 4095) return 3; if (this.p[0x82] !== 1) return 4;
+        const range = MODE_RANGE[this.p[0x22]] || 270; this.tgt = pos; this.paused = false;
+        const Tm = Math.max(T, this.p[0x89]); this.vT = Tm ? Math.abs(pos - this.pos) / (Tm / 1000) * 1.3 : 0; void range; return 0; }
+      case 0x81: if (v === 1) this.paused = false; else if (v === 2) this.paused = true; else if (v === 3){ this.tgt = this.pos; this.paused = false; } else return 3; return 0;
+      case 0x8B: return v >= 1 && v <= 7 ? 0 : 3;
+      case 0x8C: if (v === 1) return 0; if (v === 2 || v === 3){ setTimeout(() => this.reset(v === 2), 3); return 0; } return 3;
+    }
+    const d = PD[a]; const [mn, mx] = rangeOf(d);
+    if (a === 0x22){ const ok = (v >= 1 && v <= 6) || (v >= 9 && v <= 12) || (this.type === 2 && (v === 7 || v === 8)); if (!ok) return 3; }
+    else if ((mn != null && v < mn) || (mx != null && v > mx)) return 3;
+    this.p[a] = v; if (this.F2R[a]) this.p[this.F2R[a]] = v;
+    if (a === 0x82 && v === 1){ this.tgt = this.pos; }
+    if (a === 0x20) setTimeout(() => { this.id = v; }, 0), this.id = v;
+    return 0;
+  }
+  reset(keepId){ const id = this.id; const s = new SimServo(() => {}); s.stop(); this.p = s.p; this.id = keepId ? id : 0; this.p[0x20] = this.id; }
+  text(s){
+    const m = /^#(\d{3})P(.*)!$/.exec(s); if (!m) return;
+    const id = +m[1], b = m[2]; if (id !== this.id && id !== 255) return;
+    const bc = id === 255; const rep = body => { const r = '#' + pad(this.id,3) + 'P' + body + '!'; this.send(Array.from(new TextEncoder().encode(r)), bc); };
+    let mm;
+    if ((mm = /^(\d{4})T(\d{4})$/.exec(b)) || (this.type === 2 && (mm = /^(\d{4})N\dT(\d{4})$/.exec(b)))){ const us = +mm[1]; if (us >= 500 && us <= 2500) this.write(0x80, [...toLe(usToCode(us),2), ...toLe(+mm[2],2)]); return; }
+    const okIf = st => { if (st === 0) rep('OK'); };
+    if (b === 'VER') return rep('Servo-V1.1.0');
+    if (b === 'ID') return rep('');
+    if ((mm = /^ID(\d{3})$/.exec(b))){ if (bc) return; return okIf(this.write(0x20, [+mm[1]])); }
+    if (b === 'BD') return rep('BAUD' + BAUDS[this.p[0x21]-1]);
+    if ((mm = /^BD(\d)$/.exec(b))) return okIf(this.write(0x21, [+mm[1]]));
+    if (b === 'MOD') return rep('MOD' + this.p[0x22]);
+    if ((mm = /^MOD(\d{1,2})$/.exec(b))) return okIf(this.write(0x22, [+mm[1]]));
+    if (b === 'SP') return rep('SP' + pad(this.p[0x24],3));
+    if ((mm = /^SP(\d{3})$/.exec(b))) return okIf(this.write(0x24, [+mm[1]]));
+    if (b === 'CSM') return rep('CSM' + this.p[0x23]);
+    if ((mm = /^CSM(\d)$/.exec(b))) return okIf(this.write(0x23, [+mm[1]]));
+    if (b === 'RAD') return rep(pad(Math.round(codeToUs(this.pos)),4));
+    if (b === 'RTV') return rep('DP' + pad(Math.round(codeToUs(this.pos)),4) + 'T' + Math.trunc(this.tmp/10) + 'V' + (1200/100).toFixed(1));
+    if (b === 'RIV'){ const c = this.cur; return rep('I' + (c < 0 ? '-' : '') + pad(Math.abs(c),4) + 'V12.0'); }
+    if (b === 'DST'){ this.write(0x81, [3]); return; }
+    if (b === 'DPT'){ this.write(0x81, [2]); return rep('OK'); }
+    if (b === 'DCT'){ this.write(0x81, [1]); return rep('OK'); }
+    if (b === 'ULK'){ this.p[0x82] = 0; return rep('OK'); }
+    if (b === 'ULM'){ this.p[0x83] = 100; this.p[0x82] = 2; return rep('OK'); }
+    if (b === 'ULR'){ this.p[0x82] = 1; this.tgt = this.pos; return rep('OK'); }
+    if (['SCK','SCZ','AMI','AMX','SMI','SMX','CSD'].includes(b)) return rep('OK');
+    if (b === 'CLE0'){ rep('OK'); this.reset(true); return; }
+    if (b === 'CLE'){ if (bc) return; rep('OK'); this.reset(false); return; }
+  }
+}
+
+/* ====================================================================
+ *  事件绑定
+ * ==================================================================== */
+BAUDS.forEach((b, i) => { $('selBaud').add(new Option(b, b)); $('selNewBaud').add(new Option(`${i+1}  (${b})`, i+1)); });
+$('selBaud').value = 115200; $('selNewBaud').value = 5;
+if (!('serial' in navigator)) $('noSerial').hidden = false;
+$('chkSim').onchange = e => { $('simEchoWrap').hidden = !e.target.checked; $('btnConnect').textContent = e.target.checked ? '连接模拟舵机' : '选择串口并连接'; };
+$('btnConnect').onclick = connect;
+$('btnDisconnect').onclick = disconnect;
+$('selBaud').onchange = e => changeBaud(+e.target.value);
+$('segProto').onclick = e => { if (e.target.dataset.p) setProto(e.target.dataset.p); };
+$('selDev').onchange = e => { if (e.target.value !== 'auto') devType = e.target.value; else if (info[0] != null) devType = (info[0] === 2 || info[0] === 4) ? 'mag' : 'pot'; buildModeSel(); renderDevInfo(); };
+$('btnPoll').onclick = () => polling ? stopPoll() : startPoll();
+$('selWin').onchange = e => { view.win = +e.target.value; dirty = true; };
+$('btnFreeze').onclick = () => { view.frozen = !view.frozen; view.end = viewRange()[1]; if (!view.frozen) view.end = 0; $('btnFreeze').classList.toggle('on', view.frozen); $('btnFreeze').textContent = view.frozen ? '恢复滚动' : '冻结视图'; dirty = true; };
+$('btnClear').onclick = () => { D.t.length = 0; CH.forEach(c => D[c.k].length = 0); dirty = true; };
+$('btnCsv').onclick = () => {
+  const head = ['time_s', ...CH.map(c => `${c.k}(${c.unit})`)].join(',');
+  const rows = D.t.map((t, i) => [t.toFixed(3), ...CH.map(c => { const v = D[c.k][i]; return v === v ? v : ''; })].join(','));
+  download('servo_wave_' + Date.now() + '.csv', '﻿' + head + '\n' + rows.join('\n'));
+};
+$('btnStatReset').onclick = () => { Object.keys(stats).forEach(k => stats[k] = 0); okTimes.length = 0; };
+function download(name, text){ const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type:'text/plain' })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
+
+// 运动
+$('rngPos').oninput = e => { $('inPos').value = e.target.value; updPosConv(); if ($('chkFollow').checked) followKick(); };
+$('rngPos').onchange = () => { if ($('chkFollow').checked) followKick(); };
+$('inPos').oninput = e => { $('rngPos').value = e.target.value; updPosConv(); };
+/* 拖动即发送：按间隔节流，只发最新位置；总线忙就等下一拍，松手时的最终位置一定会发出 */
+const fol = { pend:null, last:null, timer:null, ms:0 };
+function followKick(){
+  if (!link) return;
+  fol.pend = posCode();
+  const ms = +$('selFollowMs').value || 20;
+  if (fol.timer && fol.ms !== ms){ clearInterval(fol.timer); fol.timer = null; }
+  if (!fol.timer){ fol.ms = ms; followTick(); if (fol.pend != null || !fol.timer) fol.timer = setInterval(followTick, ms); }
+}
+function followTick(){
+  if (fol.pend == null){ clearInterval(fol.timer); fol.timer = null; fol.last = null; return; }
+  if (!link){ fol.pend = null; return; }
+  if (cur || Q.length) return;
+  const c = fol.pend; fol.pend = null;
+  if (c === fol.last) return;
+  fol.last = c; sendMove(c, +$('inFollowT').value, true);
+}
+$('btnMove').onclick = async () => { const r = await sendMove(posCode(), +$('inTime').value); showResult('运动', r); };
+document.querySelectorAll('[data-us]').forEach(b => b.onclick = async () => { const c = usToCode(+b.dataset.us); $('inPos').value = c; $('rngPos').value = c; updPosConv(); showResult('运动', await sendMove(c, +$('inTime').value)); });
+$('btnPause').onclick = () => act('暂停', () => writeP(0x81, 2, 1), 'DPT');
+$('btnResume').onclick = () => act('继续', () => writeP(0x81, 1, 1), 'DCT');
+$('btnStop').onclick = () => act('停止', () => writeP(0x81, 3, 1), 'DST');
+$('btnSweep').onclick = () => sweepOn ? stopSweep() : (link ? runSweep() : alert('请先连接'));
+$('btnFree').onclick = () => act('自由释放', () => writeP(0x82, 0, 1), 'ULK');
+$('btnDamp').onclick = () => act('阻尼释放', async () => { const r1 = await writeP(0x83, clamp(+$('inDamp').value|0,0,100), 1); if (!(r1.ok && r1.st === 0)) return r1; return writeP(0x82, 2, 1); }, 'ULM');
+$('btnNormal').onclick = () => act('恢复正常', () => writeP(0x82, 1, 1), 'ULR');
+$('rngTq').oninput = e => $('tqVal').textContent = e.target.value + '%';
+$('btnTq').onclick = () => { const v = +$('rngTq').value; act('扭矩上限 ' + v + '%', () => writeP(0x84, v, 1), 'SP' + pad(v,3)); };
+// 模式等
+$('btnMode').onclick = () => writeRow(PD[0x22], +$('selMode').value);
+$('btnCsm').onclick = () => writeRow(PD[0x23], +$('selCsm').value);
+$('btnSetId').onclick = () => writeRow(PD[0x20], +$('inNewId').value);
+$('btnSetBaud').onclick = () => writeRow(PD[0x21], +$('selNewBaud').value);
+$('btnReload').onclick = () => act('重载SRAM参数', () => writeP(0x8C, 1, 1), null);
+async function factory(keepId){
+  const way = document.querySelector('input[name=rstWay]:checked').value;
+  const msg = keepId ? '恢复默认（保留ID）：除ID外参数全部恢复，波特率恢复 115200。确定？' : '全部恢复默认：ID 变 0，波特率恢复 115200，所有参数恢复。确定？';
+  const r = await act(keepId ? '恢复默认(保留ID)' : '全部恢复默认',
+    () => way === 'cmd' ? binTx(keepId ? 7 : 8, []) : writeP(0x8C, keepId ? 2 : 3, 1), keepId ? 'CLE0' : 'CLE', msg);
+  if (okR(r) && !r.noReply){
+    if (!keepId){ $('inId').value = 0; $('rbId').value = 0; logLine('info', '目标ID 改为 0'); }
+    if (baud !== 115200){ await sleep(30); await changeBaud(115200); }
+  }
+}
+$('btnRstKeep').onclick = () => factory(true);
+$('btnRstAll').onclick = () => factory(false);
+// 参数表
+$('btnReadInfo').onclick = () => readGroup(d => d.a <= 0x10);
+$('btnReadFlash').onclick = () => readGroup(d => d.a >= 0x20 && d.a < 0x80);
+$('btnReadRam').onclick = () => readGroup(d => d.a >= 0x80 && d.a < 0xC0);
+$('btnReadRt').onclick = () => readGroup(d => d.a >= 0xC0);
+$('btnReadAll').onclick = () => readGroup(() => true);
+// 自检
+$('btnTest').onclick = runTests;
+$('btnTestStop').onclick = () => { testAbort = true; };
+// 原始帧
+function rbFrame(){
+  const id = clamp(+$('rbId').value | 0, 0, 255);
+  let cmd = +$('rbCmd').value; if (cmd < 0) cmd = parseInt($('rbCmdHex').value || '0', 16) & 0xFF;
+  return buildBin(id, cmd, parseHex($('rbData').value));
+}
+function rbUpd(){ try { const f = rbFrame(); $('rbPreview').textContent = hexs(f); if (!$('rbRawMode').checked) $('rbRaw').value = hexs(f); } catch (e){ $('rbPreview').textContent = e.message; } }
+['rbId','rbData','rbCmdHex'].forEach(id => $(id).addEventListener('input', rbUpd));
+$('rbCmd').onchange = () => { $('rbCmdHex').hidden = +$('rbCmd').value >= 0; rbUpd(); };
+$('rbRawMode').onchange = rbUpd;
+$('rbSend').onclick = async () => {
+  try {
+    const bytes = $('rbRawMode').checked ? parseHex($('rbRaw').value) : Array.from(rbFrame());
+    const r = await binRaw(bytes, { timeout: 60 });
+    let s = hexs(bytes) + '\n→ ' + (r.ok ? hexs(r.frame) + '\n  ' + resText(r) : resText(r));
+    if (r.ok && r.st === 0 && r.data.length > 1){ const d = PD[r.data[0]]; if (d && r.frame[3] === 0x82) s += '\n  ' + d.name + ' = ' + fmtParam(d, d.raw3 ? r.data.slice(1) : le(r.data.slice(1), d.signed)); }
+    $('rawOut').textContent = s;
+  } catch (e){ $('rawOut').textContent = e.message; }
+};
+$('txSend').onclick = async () => {
+  let s = $('txIn').value.trim(); if (!s) return;
+  if ($('txWrap').checked) s = '#' + pad(tid(),3) + 'P' + s + '!';
+  const noReply = /^#\d{3}P(\d{4}(N\d)?T\d{4}|DST)!$/.test(s);
+  const r = await txtRaw(s, !noReply, { timeout: 60 });
+  $('rawOut').textContent = s + '  →  ' + resText(r);
+};
+$('txIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('txSend').click(); });
+$('inId').addEventListener('change', () => { $('rbId').value = $('inId').value; rbUpd(); });
+// 日志
+['logPoll','logEcho'].forEach(id => $(id).onchange = rerenderLog);
+$('logClear').onclick = () => { LOG.length = 0; $('log').innerHTML = ''; };
+$('logSave').onclick = () => download('servo_log_' + Date.now() + '.txt', LOG.map(e => `${e.t} ${e.cls.toUpperCase()} ${e.main} ${e.extra}`).join('\n'));
+
+buildChart(); buildTable(); buildCal(); buildQueries(); buildTextQuick(); buildModeSel(); updPosConv(); rbUpd(); renderTestHint(); renderLoop();
+</script>
+</body>
+</html>

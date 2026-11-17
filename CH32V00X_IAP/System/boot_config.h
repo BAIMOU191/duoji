@@ -10,6 +10,6 @@
  *   量产版请同时使用正式密钥(boot_key.h)，不要出现"正式密钥 + 未开读保护"的 Boot。
  * 不论开关为何，Boot 都会把"上电启动位置"改成用户区(Boot 在主 Flash 0 地址)；已开读保护时不再改写选项字节。
  */
-#define BOOT_RDP_ENABLE    0
+#define BOOT_RDP_ENABLE    1
 
 #endif

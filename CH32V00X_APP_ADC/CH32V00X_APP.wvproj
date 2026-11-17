@@ -28,9 +28,24 @@
 				"name": "*.wvproj"
 			},
 			{
-				"name": "CODE_AUDIT_REPORT.md",
 				"parentLogicPath": "",
-				"type": "file"
+				"type": "file",
+				"name": "CODE_AUDIT_REPORT.md"
+			},
+			{
+				"parentLogicPath": "",
+				"type": "file",
+				"name": "*.7z"
+			},
+			{
+				"parentLogicPath": "",
+				"type": "file",
+				"name": "*.zip"
+			},
+			{
+				"parentLogicPath": "",
+				"type": "file",
+				"name": "*.tar"
 			}
 		],
 		"projectName": "CH32V00X_APP",
@@ -40,20 +55,22 @@
 	"buildConfig": {
 		"configurations": [
 			{
+				"parallelizationNumber": "optimal",
 				"buildArtifact": {
 					"artifact_name": "${ProjName}",
 					"artifact_extension": "elf",
 					"output_prefix": "",
 					"artifact_type": "Executable"
 				},
-				"parallelizationNumber": "optimal",
 				"stop_on_first_build_error": true,
+				"usingCacheAccelerate": false,
 				"pre_script": "",
 				"pre_script_description": "",
 				"post_script": "",
 				"excludeResources": [
 					"${project}/Peripheral/src/ch32v00x_opa.c",
-					"${project}/tests"
+					"${project}/tests",
+					"${project}/AI-Run"
 				],
 				"optimization": {
 					"level": "size",
@@ -269,7 +286,7 @@
 						"use_wch_printffloat": false,
 						"use_wch_printf": false,
 						"use_iqmath": false,
-						"other_linker_flags": ""
+						"other_linker_flags": "-flto"
 					}
 				},
 				"archiver": {
@@ -345,7 +362,7 @@
 		"disablepowerout": false,
 		"clearcodeflash": false,
 		"disablecodeprotect": false,
-		"flashType": "",
+		"flashType": "Internal",
 		"asmFile_path": "",
 		"exepath": "",
 		"exearguments": ""

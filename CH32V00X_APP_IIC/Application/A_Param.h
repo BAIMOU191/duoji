@@ -68,17 +68,16 @@
 #define PARAM_WORK_STATE           0xC0U
 #define PARAM_FAULT                0xC1U
 #define PARAM_POSITION             0xC2U  /* 位置码 0~4095 */
-#define PARAM_SPEED                0xC3U  /* int16 0.1°/s，位置值增大方向为正；0x8000=观测器不在更新 */
-#define PARAM_TEMPERATURE          0xC4U
+#define PARAM_SPEED                0xC3U  /* int16 0.1°/s，位置值增大方向为正；观测器不在更新报0 */
+#define PARAM_TEMPERATURE          0xC4U  /* int16 0.1℃，最近一次读成功的值 */
 #define PARAM_VOLTAGE              0xC5U
 #define PARAM_CURRENT              0xC6U  /* int16 mA，位置值增大方向为正 */
-#define PARAM_TORQUE               0xC7U  /* int16 %，方向同电流；0x8000=测不到 */
+#define PARAM_TORQUE               0xC7U  /* int16 %，方向同电流；测不到报0 */
 #define PARAM_STALLED              0xC8U
 #define PARAM_TELEMETRY            0xC9U  /* 七项实时状态集合 */
 #define PARAM_TELEMETRY_BYTES       14U
 
 #define PARAM_VALUE_MAX             16U   /* 单个参数值最长字节数(集合状态) */
-#define PARAM_INVALID_S16 ((int16_t)-32768)  /* 有符号状态量"无有效值"(线上0x8000) */
 
 /* 读写结果码，即二进制应答状态码 */
 #define PARAM_ST_OK                 0U

@@ -335,7 +335,10 @@ void IAP_Service(void)
         /* Boot从Flash快照ID/波特率；刚改过身份就升级也必须保留最新值。
          * 写入失败留在APP重试，不能带着旧身份进入Boot。 */
         if (!A_Config_SaveTask()) return;
-        RCC_ClearFlag();                                /* Boot 靠"只有软件复位标志"认出这是升级请求 */
+        /* 升级请求标志：地址/魔数与 Boot 的 iap.h BOOT_REQ_ADDR/BOOT_REQ_MAGIC 一致。
+         * 写在 SRAM，软件复位后保持、Boot 读到即清；下载器复位和故障复位不会被误当成升级请求 */
+        ((volatile uint32_t *)IAP_BOOT_REQ_ADDR)[0] = IAP_BOOT_REQ_MAGIC;
+        ((volatile uint32_t *)IAP_BOOT_REQ_ADDR)[1] = ~IAP_BOOT_REQ_MAGIC;
         SystemReset_StartMode(Start_Mode_USER);         /* Boot 在主 Flash 0 地址：普通软件复位即进 Boot */
         NVIC_SystemReset();
     }

@@ -2,9 +2,11 @@
  *   明文   #IIIP<指令>!            见 Text_*
  *   二进制 AA 66 ID CMD LEN DATA CRC8 66 AA   见 Bin_*；参数地址、宽度、范围与读写规则在 A_Param.c
  *   升级   AA 55 ...               交给 iap.c
+ * 帧同步：二进制帧长度非法或校验失败时，帧头之后的字节重新过一遍状态机(紧跟在半帧后的有效帧不会被吞)；
+ *         明文帧里出现 0xAA 即放弃明文、按二进制帧头处理(明文只含ASCII)。另有10ms静默丢弃半帧兜底。
  * 本层只做成帧、校验、ID过滤与应答排队，不直接碰参数字段。
  * 广播(ID=255/FF)的应答延时 100ms+本机ID×2ms 发出，总线上有别的舵机在应答就排队顺延；发给本机的新帧作废未发应答。
- * 广播不能改ID(含会把ID清零的全部恢复出厂)，其余指令明文、二进制都允许。 */
+ * 广播对所有指令都执行(含改ID、全部恢复出厂)，明文、二进制一样。 */
 
 #include "A_UartCmd.h"
 #include "A_Config.h"
@@ -55,10 +57,13 @@ static uint8_t s_text[TEXT_FRAME_MAX], s_text_len;
 static uint8_t s_reply[TEXT_REPLY_MAX], s_reply_len;
 static uint8_t s_bin[BIN_FRAME_MAX], s_bin_len;
 static uint8_t s_wire, s_wire_idle_ms;
+#define WIRE_REPLAY_MAX (2U * BIN_FRAME_MAX)   /* 坏帧字节回放：每次回放至少少2字节，总量不超过一帧，留一倍余量 */
+static uint8_t s_replay[WIRE_REPLAY_MAX], s_replay_len, s_replay_pos;
 static uint8_t s_debug_rx_quiet_ms;   /* 距上次收到字节的ms数，饱和在10：诊断打印只在总线静默时插队 */
 static uint8_t s_reply_bcast;   /* 1=当前帧是广播，应答改为延时发送 */
 static uint8_t s_bin_bcast;
 static uint8_t s_bcast_baud;    /* 广播引起的波特率切换，等延时应答发完再生效 */
+static uint8_t s_rx_activity;   /* 上个1ms拍以来收到过字节(可能是事件任务收的) */
 
 static struct {
     uint8_t  pending;
@@ -287,7 +292,6 @@ static void Text_Frame(const uint8_t *f, uint8_t len)
         k = (uint8_t)strlen(k_text[i].key);
         if (n != k + k_text[i].digits || memcmp(body, k_text[i].key, k) != 0
             || (k_text[i].digits && !Text_Digits(body + k, k_text[i].digits, &arg))) continue;
-        if (id == 255U && (k_text[i].code == T_ID_SET || k_text[i].code == T_CLE)) return;   /* 广播不能改ID(全部恢复会把ID清零) */
         s_reply_bcast = (uint8_t)(id == 255U);
         Text_Execute(k_text[i].code, arg);
         s_reply_bcast = 0U;
@@ -321,18 +325,17 @@ static void Bin_Reply(uint8_t cmd, uint8_t status, const uint8_t *data, uint8_t 
     (void)D_UART1_Tx_Write(f, (uint8_t)(9U + len));
 }
 
-/* 广播写入里会改ID的：写ID参数、系统动作3(全部恢复出厂) */
-#define BCAST_SETS_ID(d, n) ((d)[0] == PARAM_SERVO_ID || ((d)[0] == PARAM_SYSTEM_ACTION && (n) >= 2U && (d)[1] == 3U))
-
-/* 一帧二进制：校验、滤ID、执行应答；广播不能改ID(含全部恢复出厂)，应答延时排队发出 */
-static void Bin_Frame(const uint8_t *f, uint8_t len)
+/* 一帧二进制：校验、滤ID、执行应答；广播的应答延时排队发出。
+ * 返回0=结构或CRC不对(调用方据此重新找帧头)；1=是一帧完整的帧(含发给别人的、别人的应答) */
+static uint8_t Bin_Frame(const uint8_t *f, uint8_t len)
 {
     uint8_t out[1U + PARAM_VALUE_MAX] = {0U}, out_len = 0U, st = PARAM_ST_OK, fx = 0U;
     uint8_t id = f[2], cmd = f[3], n = f[4];
     const uint8_t *data = f + 5;
 
-    if (len != 8U + n || f[6U + n] != BIN_TAIL1 || f[7U + n] != BIN_TAIL2 || f[5U + n] != Bin_Crc8(f + 2, (uint8_t)(3U + n))
-        || (id != g_config.servo_id && id != BIN_BROADCAST) || (cmd & 0x80U)) return;   /* 别的设备的应答帧 */
+    if (len != 8U + n || f[6U + n] != BIN_TAIL1 || f[7U + n] != BIN_TAIL2 || f[5U + n] != Bin_Crc8(f + 2, (uint8_t)(3U + n)))
+        return 0U;
+    if ((id != g_config.servo_id && id != BIN_BROADCAST) || (cmd & 0x80U)) return 1U;   /* 发给别人的，或别的设备的应答帧 */
     Bcast_Cancel();
     s_bin_bcast = (uint8_t)(id == BIN_BROADCAST);
     switch (cmd)
@@ -349,13 +352,11 @@ static void Bin_Frame(const uint8_t *f, uint8_t len)
         break;
     case BIN_CMD_WRITE:
         if (n < 2U) st = PARAM_ST_LENGTH;
-        else if (s_bin_bcast && BCAST_SETS_ID(data, n)) st = PARAM_ST_STATE;
         else st = A_Param_Write(data[0], data + 1, (uint8_t)(n - 1U), &fx);
         break;
     case BIN_CMD_RESET_KEEP:   /* 07仅保留ID；08全部恢复；二者均恢复默认波特率，并按上电动作走一次 */
     case BIN_CMD_RESET_ALL:
         if (n != 0U) { st = PARAM_ST_LENGTH; break; }
-        if (s_bin_bcast && cmd == BIN_CMD_RESET_ALL) { st = PARAM_ST_STATE; break; }   /* 全部恢复会把ID清零 */
         A_Servo_FactoryReset((uint8_t)(cmd == BIN_CMD_RESET_KEEP));
         fx = PARAM_FX_BAUD;
         break;
@@ -369,16 +370,31 @@ static void Bin_Frame(const uint8_t *f, uint8_t len)
     Bin_Reply(cmd, st, out, (st == PARAM_ST_OK) ? out_len : 0U);
     if (st == PARAM_ST_OK && (fx & PARAM_FX_BAUD)) Baud_AfterReply(s_bin_bcast);
     s_bin_bcast = 0U;
+    return 1U;
 }
 
 /* ============================== 收帧分流 ============================== */
+
+/* 坏帧：帧头之后的字节排到待回放字节前面，重新过状态机，里面可能有紧跟而来的有效帧 */
+static void Wire_Resync(const uint8_t *p, uint8_t n)
+{
+    uint8_t rest = (uint8_t)(s_replay_len - s_replay_pos);
+
+    if (n > WIRE_REPLAY_MAX - rest) n = (uint8_t)(WIRE_REPLAY_MAX - rest);   /* 按上面的界不会发生 */
+    memmove(s_replay + n, s_replay + s_replay_pos, rest);
+    memcpy(s_replay, p, n);
+    s_replay_len = (uint8_t)(n + rest);
+    s_replay_pos = 0U;
+    s_wire = WIRE_IDLE;
+}
 
 /* 一根线三种帧：认出帧头后该协议独占整帧，数据区里的字节不会触发别的解析器 */
 static void Wire_Byte(uint8_t b)
 {
     switch (s_wire)
     {
-    case WIRE_TEXT:   /* '#' 重新开始一帧，'!' 结束，超长丢弃 */
+    case WIRE_TEXT:   /* '#' 重新开始一帧，'!' 结束，超长丢弃；0xAA 不可能出现在明文里，当作新的二进制帧头 */
+        if (b == BIN_HEAD1) { s_wire = WIRE_HEAD_AA; return; }
         if (b == '#') s_text_len = 0U;
         else if (s_text_len >= TEXT_FRAME_MAX) { s_wire = WIRE_IDLE; return; }
         s_text[s_text_len++] = b;
@@ -386,8 +402,12 @@ static void Wire_Byte(uint8_t b)
         return;
     case WIRE_BINARY:
         s_bin[s_bin_len++] = b;
-        if (s_bin_len == 5U && s_bin[4] > BIN_DATA_MAX) s_wire = WIRE_IDLE;            /* 长度非法 */
-        else if (s_bin_len >= 5U && s_bin_len == 8U + s_bin[4]) { Bin_Frame(s_bin, s_bin_len); s_wire = WIRE_IDLE; }
+        if (s_bin_len == 5U && s_bin[4] > BIN_DATA_MAX) Wire_Resync(s_bin + 2, 3U);   /* 长度非法 */
+        else if (s_bin_len >= 5U && s_bin_len == 8U + s_bin[4])
+        {
+            s_wire = WIRE_IDLE;
+            if (!Bin_Frame(s_bin, s_bin_len)) Wire_Resync(s_bin + 2, (uint8_t)(s_bin_len - 2U));
+        }
         return;
     case WIRE_IAP:
         if (!IAP_Rx_Deal(b)) s_wire = WIRE_IDLE;
@@ -404,17 +424,33 @@ static void Wire_Byte(uint8_t b)
     }
 }
 
-/* 串口任务：排空接收队列 -> 分流执行 -> 半帧超时放弃 -> 广播延时应答 -> 驱动收尾(切波特率等) */
+/* 排空接收缓冲 -> 分流执行(坏帧回放的字节优先)。不推进计时，可被总线空闲事件随时调用 */
+void A_Uart_Rx(void)
+{
+    uint8_t b;
+
+    for (;;)
+    {
+        if (s_replay_pos < s_replay_len) b = s_replay[s_replay_pos++];
+        else if (D_UART1_Rx_Get(&b))
+        {
+            s_rx_activity = 1U;
+            Bcast_Yield();    /* 总线有人在发：广播应答等线空了再排队发出 */
+        }
+        else break;
+        if (IAP_UpgradePending()) s_replay_len = s_replay_pos = 0U;   /* 已应答进入升级：只清空，不再执行 */
+        else Wire_Byte(b);
+    }
+}
+
+/* 1ms串口任务：收帧执行 -> 半帧超时放弃 -> 广播延时应答 -> 驱动收尾(切波特率等) */
 void A_Uart_Process(void)
 {
-    uint8_t b, received = 0U;
+    uint8_t received;
 
-    while (D_UART1_Rx_Get(&b))
-    {
-        received = 1U;
-        Bcast_Yield();    /* 总线有人在发：广播应答等线空了再排队发出 */
-        if (!IAP_UpgradePending()) Wire_Byte(b);   /* 已应答进入升级：只清空队列，不再执行 */
-    }
+    A_Uart_Rx();
+    received = s_rx_activity;
+    s_rx_activity = 0U;
     if (received) s_wire_idle_ms = 0U;
     else if (s_wire != WIRE_IDLE && ++s_wire_idle_ms >= 10U)
     {

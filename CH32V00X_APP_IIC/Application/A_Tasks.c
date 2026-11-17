@@ -2,6 +2,7 @@
  *   优先级 周期   任务         模块
  *     0    1ms  ServoControl  A_Servo
  *     1    1ms  Uart          A_UartCmd + iap
+ *     1    事件 UartRx        A_UartCmd 收帧(总线空闲中断触发)
  *     2   10ms  Protect       A_Protect
  *     3   20ms  State         A_StatusLed + 喂狗
  *     4   20ms  ConfigSave    A_Config
@@ -16,6 +17,7 @@
 #include "A_Config.h"
 #include "C_Task_Scheduler.h"
 #include "D_iwdg.h"
+#include "D_uart.h"
 #include "iap.h"
 
 static void Task_ServoControl(void)
@@ -27,6 +29,12 @@ static void Task_Uart(void)
 {
     A_Uart_Process();
     IAP_Service();
+}
+
+/* 总线空闲事件：一帧刚收完就解析应答，不等下一个1ms拍 */
+static void Task_UartRx(void)
+{
+    A_Uart_Rx();
 }
 
 static void Task_Protect(void)
@@ -63,6 +71,7 @@ static void Task_Print(void)
 /*                           入口函数        周期ms                  优先级(0最高) */
 static Task_t s_tasks[] = {
     TASK_DEF(Task_ServoControl, 1,                        0),
+    TASK_DEF(Task_UartRx,       0,                        1),
     TASK_DEF(Task_Uart,         1,                        1),
     TASK_DEF(Task_Protect,      10,                       2),
     TASK_DEF(Task_State,        STATUS_LED_PERIOD_MS,     3),
@@ -76,4 +85,5 @@ void A_Tasks_Init(void)
 {
     C_TASK_INIT(s_tasks);
     A_Config_BindSaveEvent(C_Task_EventFlag(Task_ConfigSave));
+    D_UART_SetRxNotify(C_Task_EventFlag(Task_UartRx));   /* 总线一空闲就解析应答，不等下一个1ms拍 */
 }

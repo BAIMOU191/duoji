@@ -36,14 +36,14 @@ static uint8_t TMP112_Read_Temp_Raw(uint16_t *temp_raw)
     return 0;
 }
 
-/* 读温度，0.1°C(250=25.0°C)，-32768=失败 */
+/* 读温度，0.1°C(250=25.0°C)，-32768=失败；原始值0x0000也按失败：TMP112 被干扰复位后、首次转换完成前读出的就是0 */
 int16_t D_TMP112_Read_Temp(void)
 {
     uint16_t raw;
     int16_t  temp_12bit;
     int32_t  temp_tenths;
 
-    if (TMP112_Read_Temp_Raw(&raw) != 0)
+    if (TMP112_Read_Temp_Raw(&raw) != 0 || raw == 0U)
         return -32768;
 
     temp_12bit  = (int16_t)raw >> 4;                  /* 提取12位有符号温度值，1LSB=0.0625℃ */

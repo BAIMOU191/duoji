@@ -112,7 +112,7 @@
 #define PROT_TEMP_LIMIT_DEFAULT_DC     500U  /** 50.0℃ */
 #define PROT_TEMP_LIMIT_MIN_DC         300U
 #define PROT_TEMP_LIMIT_MAX_DC        1000U
-#define PROT_TEMP_TIME_DEFAULT_MS      250U
+#define PROT_TEMP_TIME_DEFAULT_MS      500U
 #define PROT_TEMP_TIME_MIN_MS          250U  /** 不短于一个检测周期 */
 #define PROT_TEMP_TIME_MAX_MS        10000U
 /* ---- 44~45 堵转：每 PROT_STALL_PERIOD_MS 比较参考与实际位移，连续成立达设定次数就地保持(不卸力、不记故障位) ---- */

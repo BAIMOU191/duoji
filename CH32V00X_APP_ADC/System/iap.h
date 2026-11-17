@@ -36,6 +36,8 @@ typedef struct {
 void IAP_Init(void);            /* 上电调用一次：硬件信息页与本固件不一致(空白、旧格式、换过标定)时重写 */
 uint8_t IAP_HwInfoRead(IAP_HwInfo_t *info); /* 读并校验硬件信息页，1=有效 */
 uint8_t IAP_PreservedIdentityRead(uint8_t *id, uint8_t *baud_code);
+#define IAP_BOOT_REQ_ADDR  0x20000FF0U   /** 升级请求标志地址，必须与 Boot 的 BOOT_REQ_ADDR 一致 */
+#define IAP_BOOT_REQ_MAGIC 0x51455242U   /** 必须与 Boot 的 BOOT_REQ_MAGIC 一致 */
 #define IAP_FRAME_HEAD1 0xAAU
 #define IAP_FRAME_HEAD2 0x55U
 
