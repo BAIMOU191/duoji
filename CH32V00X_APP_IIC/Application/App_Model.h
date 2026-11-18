@@ -22,9 +22,9 @@
 /* 控制器整定里随编码器变化的部分(A_Config.h 第4节引用)：
  * 磁编码噪声不是瓶颈，限制带宽的是输出轴齿隙(轻载时越易在齿隙里抖) */
 #define ENCODER_TUNE_OBS_BW_HZ      16   /** 观测器位置/速度极点(Hz) */
-#define ENCODER_TUNE_VEL_BW_CAP     60U  /** 速度环带宽上限(rad/s)，另受纯延迟限制。2026-11-17 机械臂实测：100 时负载力矩过零段(齿轮不受力)
-                                         *  速度环在齿隙里形成约12Hz极限环，60/40 均消除；60 停稳静差约0.25°(仍在0.3°到位窗内) */
-#define ENCODER_DEF_RESOLUTION_CDEG 30U  /** 到位精度出厂值(厘度)：编码器噪声越小可取越小 */
+#define ENCODER_TUNE_VEL_BW_CAP     60U  /** 速度环带宽上限(rad/s)，另受纯延迟限制：再高时负载力矩过零段(齿轮不受力)速度环会在齿隙里自激 */
+#define ENCODER_TUNE_POS_BW_RADS     5U  /** 位置环带宽 ω_p(rad/s)：按负载惯量比约2的串级上限 ω_v/(1+2)/4 取整 */
+#define ENCODER_DEF_RESOLUTION_CDEG 50U  /** 到位精度出厂值(厘度)：不小于编码器噪声与最小可靠位移决定的下限 */
 
 
 /* ==================== 3. 型号表 ==================== */
@@ -57,8 +57,8 @@
 #define PROT_VOLTAGE_CFG_MAX_DV      90U  /** 用户可设的工作电压上限(也是出厂值) */
 
 #elif APP_MODEL == APP_MODEL_T4_H10_V8_Q15
-/* ==================== T2 磁编码 8V 20kg ==================== */
-#define FW_SERVO_TYPE 4U        /** 舵机类型：4=MT6701磁编码版 (飞特版结构舵机)*/
+/* ==================== T4 磁编码 8V 15kg ==================== */
+#define FW_SERVO_TYPE 4U        /** 舵机类型：4=MT6701磁编码版(飞特结构) */
 #define FW_HW_VERSION 10U       /** 硬件版本 v1.0 */
 #define FW_VOLTAGE    8U        /** 电压型号 8V */
 #define FW_TORQUE     15U       /** 扭力型号 15kg；仅作型号标识，不参与扭矩换算 */

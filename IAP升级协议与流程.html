@@ -104,7 +104,7 @@
       <tr><td>6～8</td><td>固件版本</td><td>主版本、次版本、修订版本</td></tr>
     </tbody>
   </table>
-  <p>硬件信息页无效时，4字节硬件身份返回 <code>FF FF FF FF</code>。硬件版本以0.1版为单位，电压型号以V为单位，扭矩型号以kg·cm为单位。</p>
+  <p>硬件信息页无效时，4字节硬件身份返回 <code>FF FF FF FF</code>。硬件版本以0.1版为单位，电压型号以V为单位，扭矩型号以kg为单位（仅作型号标识）。</p>
 
   <h3>4.2 进入升级 <code>CMD=21</code></h3>
   <table>
@@ -298,11 +298,12 @@
       <tr><td>5</td><td>1</td><td>舵机类型</td><td>硬件身份第1项</td></tr>
       <tr><td>6</td><td>1</td><td>硬件版本</td><td>0.1版</td></tr>
       <tr><td>7</td><td>1</td><td>电压型号</td><td>V</td></tr>
-      <tr><td>8</td><td>1</td><td>扭矩型号</td><td>kg·cm</td></tr>
+      <tr><td>8</td><td>1</td><td>扭矩型号</td><td>kg</td></tr>
       <tr><td>9～10</td><td>2</td><td>额定最大速度</td><td>°/s，uint16小端序</td></tr>
       <tr><td>11～14</td><td>4</td><td>额定最大加速度</td><td>°/s²，uint32小端序</td></tr>
       <tr><td>15～18</td><td>4</td><td>额定最大减速度</td><td>°/s²，uint32小端序</td></tr>
-      <tr><td>19～22</td><td>4</td><td>自动平滑时间τ</td><td>ms，τ=ka/kv，uint32小端序（有效值≤65535）</td></tr>
+      <tr><td>19～20</td><td>2</td><td>自动平滑时间τ</td><td>ms，τ=ka/kv，uint16小端序</td></tr>
+      <tr><td>21～22</td><td>2</td><td>保留</td><td>FF</td></tr>
       <tr><td>23～24</td><td>2</td><td>最小可靠位移</td><td>0.01°，uint16小端序</td></tr>
       <tr><td>25～27</td><td>3</td><td>保留</td><td>FF</td></tr>
       <tr><td>28～31</td><td>4</td><td>CRC32</td><td>对0～27字节计算</td></tr>
@@ -373,7 +374,7 @@
   <p>升级中断后重新发送开始命令会复用未完成状态页中的ID、波特率和硬件身份快照，不会擦掉唯一快照。开始命令会重新擦除APP区，因此恢复升级统一从第0页重新发送，不做断点续传。密文每次完全相同，重发与首次发送字节一致。</p>
 
   <h2 id="examples">十二、完整报文示例</h2>
-  <p>以下示例使用：ID=0，硬件身份=类型1/硬件1.0/8V/15kg·cm，当前固件=1.0.0。空格仅为阅读方便，实际发送连续字节。</p>
+  <p>以下示例使用：ID=0，硬件身份=类型1/硬件1.0/8V/15kg，当前固件=1.0.0。空格仅为阅读方便，实际发送连续字节。</p>
   <table>
     <thead><tr><th>用途</th><th>完整帧</th></tr></thead>
     <tbody>

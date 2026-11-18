@@ -28,7 +28,7 @@ static int64_t Obs_Lambda(uint16_t hz)
 }
 
 /* 极点配置：λ1=bw_hz(位置/速度两重)，λ2=dist_hz(扰动)。
- * 扰动极点放低→速度更多来自电机模型、少受电位器噪声影响。 */
+ * 扰动极点放低→速度更多来自电机模型、少受编码器读数噪声影响。 */
 void C_SpeedObs_Configure(const MotorCal_t *cal, uint16_t bw_hz, uint16_t dist_hz, int32_t vel_noise)
 {
     int64_t lam1 = Obs_Lambda(bw_hz), lam2 = Obs_Lambda(dist_hz);

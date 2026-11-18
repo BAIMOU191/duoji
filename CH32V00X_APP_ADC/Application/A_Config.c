@@ -20,11 +20,11 @@ _Static_assert(MOTOR_KV_UV > 0 && MOTOR_KA_NV > 0 && MOTOR_FS_MV >= MOTOR_FC_MV 
 _Static_assert(MOTOR_SIGN == 1 || MOTOR_SIGN == -1, "Invalid motor direction");
 _Static_assert(TUNE_POS_BW_RADS * 4U <= TUNE_VEL_BW_RADS && TUNE_INT_BW_RADS <= TUNE_POS_BW_RADS && TUNE_INT_BW_RADS >= 1U
                && TUNE_VEL_BW_RADS * 1000U <= TUNE_OBS_BW_HZ * 6283U
-               && TUNE_OBS_DIST_HZ >= 1U && TUNE_OBS_DIST_HZ <= TUNE_OBS_BW_HZ, "Controller bandwidths violate constraints");
+               && TUNE_OBS_DIST_HZ >= 1U && TUNE_OBS_DIST_HZ <= TUNE_OBS_BW_HZ && TUNE_OBS_LOAD_RATIO_X10 <= 40U, "Controller bandwidths violate constraints");
 _Static_assert(CFG_DEF_RESOLUTION_CDEG >= CFG_RESOLUTION_MIN_CDEG && CFG_DEF_RESOLUTION_CDEG <= CFG_RESOLUTION_MAX_CDEG
                && CFG_RESOLUTION_MIN_CDEG >= 1U
                && CFG_DEF_HOLD_KP <= CFG_HOLD_KP_MAX
-               && CFG_DEF_HOLD_KI <= CFG_HOLD_KI_MAX && CFG_DEF_LOAD_RATIO_X10 <= CFG_LOAD_RATIO_MAX_X10
+               && CFG_DEF_HOLD_KI <= CFG_HOLD_KI_MAX
                && (CFG_DEF_SMOOTH_MS == 0U || (CFG_DEF_SMOOTH_MS >= CFG_SMOOTH_MIN_MS && CFG_DEF_SMOOTH_MS <= CFG_SMOOTH_MAX_MS))
                && CFG_DEF_MOVE_MIN_MS <= CFG_MOVE_MIN_MAX_MS,
                "Invalid default motion/hold parameters");
@@ -98,8 +98,6 @@ void A_Config_Defaults(Config_t *c)
     c->run.protect_enable           = PROT_ENABLE_DEFAULT;
     c->run.voltage_min_dv           = PROT_VOLTAGE_CFG_MIN_DV;
     c->run.voltage_max_dv           = PROT_VOLTAGE_CFG_MAX_DV;
-    c->run.load_ratio_x10           = CFG_DEF_LOAD_RATIO_X10;
-    c->run.load_learn               = CFG_DEF_LOAD_LEARN;
     c->image_tag                    = s_image_tag;       /* 出厂值属于当前固件 */
 }
 
@@ -113,14 +111,14 @@ void A_Config_ReloadRuntime(uint8_t reset_transient)
     }
 }
 
-/* 用户恢复默认：keep_id=1仅保留ID；波特率一律回出厂值。
+/* 用户恢复默认：keep_id=1仅保留ID(及从机模式，二者同属总线身份)；波特率一律回出厂值。
  * IAP换固件保留ID与波特率的规则在A_Config_Init处理。 */
 void A_Config_Default(uint8_t keep_id)
 {
-    uint8_t id = g_config.servo_id;
+    uint8_t id = g_config.servo_id, slave = g_config.slave_mode;
 
     A_Config_Defaults(&g_config);
-    if (keep_id) g_config.servo_id = id;
+    if (keep_id) { g_config.servo_id = id; g_config.slave_mode = slave; }
 
     A_Config_ReloadRuntime(1U);
     A_Config_MarkDirty();

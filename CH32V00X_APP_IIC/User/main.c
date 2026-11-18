@@ -60,7 +60,7 @@ int main(void)
     A_Protect_Init();                  /* 使扭矩上限与硬件保护生效 */
     A_Tasks_Init();                    /* 注册业务任务 */
 #endif
-    D_IWDG_Init();                     /* 看门狗最后开，最低优先级任务喂 */
+    D_IWDG_Init();                     /* 看门狗最后开，由20ms状态灯任务喂 */
 
     /* ---- 5. 主循环：每轮一个最高优先级就绪任务，不抢占 ---- */
     while (1)

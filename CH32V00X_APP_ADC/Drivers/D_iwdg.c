@@ -18,7 +18,7 @@ void D_IWDG_Init(void)
     IWDG_Enable();
 }
 
-/* 喂狗，由最低优先级任务周期调用 */
+/* 喂狗，由20ms状态灯任务周期调用 */
 void D_IWDG_Feed(void)
 {
     IWDG_ReloadCounter();

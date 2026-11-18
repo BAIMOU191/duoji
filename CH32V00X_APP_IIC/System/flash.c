@@ -1,3 +1,4 @@
+/* flash.c 参数页存取：A/B 双页，写后读回校验；见 flash.h */
 #include "flash.h"
 #include <string.h>
 

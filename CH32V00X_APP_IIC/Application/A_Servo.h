@@ -52,7 +52,9 @@ typedef enum { SERVO_SUBMIT_OK = 0, SERVO_SUBMIT_VALUE, SERVO_SUBMIT_STATE } Ser
 uint8_t  A_Servo_Submit(uint16_t pwm, uint16_t value);       /* 文本协议：pwm 单位 us，500~2500 */
 uint8_t  A_Servo_SubmitQ3(uint16_t q3, uint16_t value);      /* 同上，脉宽 Q3(1/8us)，Q3_MIN~Q3_MAX */
 #if ENCODER_IS_CIRCULAR
-uint8_t  A_Servo_SubmitTurns(uint16_t pwm, uint8_t turns, uint16_t turn_ms); /* 多圈：0~9圈，turn_ms为每圈时间 */
+#define SERVO_TURNS_MAX 9U   /* 多圈运动额外整圈数上限(明文只有1位数字，二进制同口径) */
+uint8_t  A_Servo_SubmitTurns(uint16_t pwm, uint8_t turns, uint16_t turn_ms);   /* 多圈：0~9圈，turn_ms为每圈时间 */
+uint8_t  A_Servo_SubmitTurnsQ3(uint16_t q3, uint8_t turns, uint16_t turn_ms);  /* 同上，脉宽 Q3(1/8us) */
 #endif
 void     A_Servo_Pause(void);
 void     A_Servo_Resume(void);
@@ -65,6 +67,8 @@ uint8_t  A_Servo_SetDamping(uint8_t percent);           /* 自定义阻尼 0~100
 uint8_t  A_Servo_SetMode(uint8_t mode);                 /* 切换工作模式并落盘 */
 uint8_t  A_Servo_CalibrateMid(void);                    /* SCK：当前位置为行程中点 */
 uint8_t  A_Servo_CalibrateZero(void);                   /* SCZ：当前位置为500us端 */
+#define SERVO_TRIM_MAX_US 999   /* 中点微调幅度上限，us(明文3位数字) */
+uint8_t  A_Servo_CalibrateTrim(int16_t us);             /* SCK±n：转到1500+n us，到位后按实测位置做SCK；返回 ServoSubmit_t */
 uint8_t  A_Servo_SetTravelEnd(uint8_t is_min);          /* AMI/AMX：行程一端收到当前位置 */
 uint8_t  A_Servo_SetPulseLimit(uint8_t is_min);         /* SMI/SMX：当前位置的脉宽设为可响应边界 */
 uint8_t  A_Servo_SaveStartup(void);                     /* 当前位置存为上电目标 */

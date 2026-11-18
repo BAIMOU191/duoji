@@ -59,7 +59,7 @@ static inline uint32_t Fx_Isqrt(uint32_t x)
     return r;
 }
 
-/* 64位整数平方根，向下取整；缩进时可丢被移出的低位精度 */
+/* 64位整数平方根，向下取整；超过32位时先右移，丢掉被移出的低位精度 */
 static inline uint32_t Fx_Isqrt64(uint64_t x)
 {
     uint8_t shift = 0U;

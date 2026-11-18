@@ -129,7 +129,7 @@ static void Iap_HwCapsFill(IAP_HwInfo_t *info)
     info->min_step_cdeg = MOTOR_MIN_STEP_CDEG;
 }
 
-/* 读硬件信息页；格式1兼容原4项，缺少的运动规格取当前固件固定出厂值。 */
+/* 读硬件信息页；旧格式页只有身份4项，运动规格取本固件标定常量 */
 uint8_t IAP_HwInfoRead(IAP_HwInfo_t *info)
 {
     const uint8_t *page = IAP_HWINFO_PAGE;
@@ -198,7 +198,7 @@ static void Iap_HwInfoBuild(uint8_t *bytes, const uint8_t *info)
     Iap_Put16(bytes + 9U,  hw.max_speed_dps);
     Iap_Put32(bytes + 11U, hw.max_accel_dps2);
     Iap_Put32(bytes + 15U, hw.max_decel_dps2);
-    Iap_Put32(bytes + 19U, hw.smooth_ms);
+    Iap_Put16(bytes + 19U, hw.smooth_ms);
     Iap_Put16(bytes + 23U, hw.min_step_cdeg);
     Iap_Put32(bytes + 28U, Iap_Crc32(bytes, 28U));
 }
@@ -301,8 +301,7 @@ void IAP_Rx_Reset(void)
     s_pos = 0U;
 }
 
-/* 硬件信息页出厂空白时，把 fw_hw 写进去 */
-/* 升级规则：除总线ID和波特率外一律采用新固件。硬件信息页同样按本固件重写(身份4项取本固件适用硬件，
+/* 硬件信息页按本固件建立。升级规则：除总线ID和波特率外一律采用新固件。硬件信息页同样按本固件重写(身份4项取本固件适用硬件，
  * 本固件不限型号时保留页里已有的身份)；内容一致不擦写。Boot 升级时会先擦除此页，WCH-Link 直接烧录则不会 */
 static void Iap_Provision(const uint8_t *fw_hw)
 {

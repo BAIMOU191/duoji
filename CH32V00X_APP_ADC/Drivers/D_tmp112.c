@@ -6,7 +6,7 @@
 static uint8_t TMP112_Get_Config(uint16_t *config);
 static uint8_t TMP112_Read_Temp_Raw(uint16_t *temp_raw);
 
-/* 读配置验证通信，再写默认配置(12位，连续，1Hz)；0=成功 */
+/* 读配置验证通信，再写默认配置(12位，连续转换，4Hz)；0=成功 */
 uint8_t D_TMP112_Init(void)
 {
     uint8_t  cfg_buf[2];

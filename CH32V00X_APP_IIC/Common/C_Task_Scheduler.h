@@ -1,16 +1,12 @@
+/* C_Task_Scheduler.h 协作式优先级任务调度器，1ms时基由中断驱动。
+ * 用 TASK_DEF 建任务表，C_TASK_INIT 整表注册；事件型(period=0)靠置run触发。 */
 #ifndef __C_TASK_SCHEDULER_H__
 #define __C_TASK_SCHEDULER_H__
 
 #include <stdint.h>
 #include <stddef.h>
 
-
 #define TASK_ARRAY_COUNT(a) ((uint8_t)(sizeof(a) / sizeof((a)[0])))
-
-
-/* 协作式优先级任务调度器，1ms时基由中断驱动。
- * 用 TASK_DEF 建任务表，C_TASK_INIT 整表注册；事件型(period=0)靠置run触发。
- */
 
 typedef struct {
     volatile uint8_t  run;      /* 就绪标志，置1等待调度 */

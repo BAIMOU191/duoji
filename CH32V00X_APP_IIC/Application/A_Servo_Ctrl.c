@@ -23,7 +23,6 @@
 _Static_assert(CFG_PWM_FULL == MOTOR_PWM_MAX, "CFG_PWM_FULL must match the driver PWM resolution");
 /* 纯磁编码版：反馈整圈回绕、整圈可测、无死区。若改这两项，下面的展开逻辑必须同步改 */
 _Static_assert(ENCODER_IS_CIRCULAR == 1 && ENCODER_HAS_DEADZONE == 0, "Magnetic encoder geometry mismatch");
-_Static_assert(TUNE_LOAD_RATIO_X10 <= POS_CTRL_LOAD_RATIO_MAX_X10 && CFG_LOAD_RATIO_MAX_X10 <= POS_CTRL_LOAD_RATIO_MAX_X10, "Invalid load inertia ratio");
 
 /* 电机标定参数(App_Model.h 电机标定区，标定固件生成) */
 static const MotorCal_t k_motor_cal = {
@@ -46,7 +45,6 @@ static struct {                                    /* 2. 算法链 */
     uint16_t saturation_ticks;  /* 输出饱和且跟踪落后、轨迹时钟被冻结的拍数，供堵转采样 */
     uint16_t tau_ms;            /* 机械时间常数 τ=ka/kv(ms)，平滑时间设0时采用；上电算一次 */
     uint8_t  hold_kp_slew_ms;
-    uint8_t  load_ratio_x10;    /* 当前生效的负载惯量比×10，运行参数变了等进保持再切换 */
 } s_loop;
 
 static struct {                                    /* 3. 输出级 */
@@ -87,7 +85,6 @@ uint8_t A_ServoCtrl_Init(ServoMode_t mode)
     Out_VbusUpdate(Out_BootBusCv());
     C_MotorModel_Init(&k_motor_cal);
     s_loop.tau_ms = (uint16_t)((C_MotorModel_TauUs() + 500) / 1000);
-    s_loop.load_ratio_x10 = g_runtime_config.run.load_ratio_x10;
     Loop_ObsConfigure();
     Loop_ObsInit(s_geom.angle_circ);
     C_PosCtrl_Init(C_MotorModel_Cal(), CTRL_VEL_NOISE_CDPS, TUNE_OBS_BW_HZ);
@@ -113,7 +110,7 @@ uint8_t A_ServoCtrl_IsTurns(void)
     return (uint8_t)(s_geom.mode == SERVO_MODE_TURNS_CW || s_geom.mode == SERVO_MODE_TURNS_CCW);
 }
 
-static uint16_t Servo_WrapAngle(int32_t a)
+static uint16_t Geom_WrapAngle(int32_t a)
 {
     while (a < 0) a += CDEG_RANGE;
     while (a >= CDEG_RANGE) a -= CDEG_RANGE;
@@ -121,7 +118,7 @@ static uint16_t Servo_WrapAngle(int32_t a)
 }
 
 /* 整圈坐标展开：把回绕值接到 near 所在的分支上 */
-static int32_t Servo_Unwrap(int32_t wrapped, int32_t near)
+static int32_t Geom_Unwrap(int32_t wrapped, int32_t near)
 {
     /* 每拍位移须小于半圈；9圈指令的连续坐标远小于int32/Q8上限。 */
     while (wrapped - near > CDEG_RANGE / 2) wrapped -= CDEG_RANGE;
@@ -145,7 +142,7 @@ static void Geom_DeriveCal(uint8_t kind, int32_t anchor, uint16_t nominal,
                            uint16_t *span_out, int32_t *offset_out)
 {
     *span_out = nominal; /* 整圈可测，无须按电位器两端收缩行程 */
-    *offset_out = Servo_WrapAngle(anchor - ((kind == SERVO_CAL_MID) ? nominal / 2
+    *offset_out = Geom_WrapAngle(anchor - ((kind == SERVO_CAL_MID) ? nominal / 2
                                             : (s_geom.reverse ? nominal : 0)));
 }
 
@@ -157,7 +154,6 @@ void A_ServoCtrl_SetMode(ServoMode_t mode)
     uint8_t  kind = g_config.cal_kind;
 
     if (!SERVO_MODE_IS_SUPPORTED(mode)) mode = SERVO_MODE_270_CW;
-    C_PosCtrl_LoadLearnReset();   /* 坐标变了，学到的角度-负载关系作废 */
     s_geom.mode    = mode;
     s_geom.reverse = (uint8_t)(((mode == SERVO_MODE_CUSTOM) ? g_config.custom_reverse : ((mode & 1U) == 0U))
                                ^ CFG_DIR_INVERT);
@@ -189,15 +185,15 @@ uint8_t A_ServoCtrl_ReadPosition(void)
     if (raw == ENCODER_ANGLE_ERROR) return 0U;
     s_geom.raw_angle  = raw;
     {   /* 整圈展开：跨零点按最短采样差累计，连续坐标交给闭环；多圈期间不折回单圈 */
-        int32_t wrapped = Servo_WrapAngle(raw - s_geom.offset_cdeg);
+        int32_t wrapped = Geom_WrapAngle(raw - s_geom.offset_cdeg);
         int32_t near = (s_geom.multiturn || s_geom.span_cdeg == CDEG_RANGE) && s_geom.circular_valid
                      ? s_geom.angle_circ : s_geom.span_cdeg / 2;
 
-        s_geom.angle_circ   = Servo_Unwrap(wrapped, near);
+        s_geom.angle_circ   = Geom_Unwrap(wrapped, near);
         s_geom.circular_valid = 1U;
     }
     s_geom.angle = (uint16_t)Fx_ClampRange(s_geom.multiturn
-                     ? Servo_WrapAngle(s_geom.angle_circ) : s_geom.angle_circ, 0, s_geom.span_cdeg);
+                     ? Geom_WrapAngle(s_geom.angle_circ) : s_geom.angle_circ, 0, s_geom.span_cdeg);
     return 1U;
 }
 
@@ -240,7 +236,7 @@ uint8_t A_ServoCtrl_SetCalAnchor(uint8_t kind)
     if (s_geom.mode == SERVO_MODE_CUSTOM)
     {
         if (span != g_config.custom_span_cdeg) return 0U;   /* 行程被收缩，custom_span表达不了 */
-        g_config.custom_offset_cdeg = Servo_WrapAngle(offset + CDEG_RANGE);
+        g_config.custom_offset_cdeg = Geom_WrapAngle(offset + CDEG_RANGE);
         g_config.cal_kind           = (uint8_t)SERVO_CAL_NONE;
         return 1U;
     }
@@ -257,10 +253,10 @@ uint8_t A_ServoCtrl_SetTravelEnd(uint8_t is_min)
     uint8_t  raise_low = (uint8_t)(is_min != s_geom.reverse);   /* 1=抬低端(零点跟着挪)，0=压高端 */
 
     if (!A_ServoCtrl_IsPosition() || (raw = A_Encoder_Read()) == ENCODER_ANGLE_ERROR) return 0U;
-    pos  = Fx_ClampRange(Servo_Unwrap(Servo_WrapAngle(raw - s_geom.offset_cdeg), s_geom.span_cdeg / 2), 0, s_geom.span_cdeg);
+    pos  = Fx_ClampRange(Geom_Unwrap(Geom_WrapAngle(raw - s_geom.offset_cdeg), s_geom.span_cdeg / 2), 0, s_geom.span_cdeg);
     span = (uint16_t)(raise_low ? s_geom.span_cdeg - pos : pos);
     if (span < SERVO_CUSTOM_SPAN_MIN) return 0U;   /* 先验证再动手：被拒的不改配置 */
-    g_config.custom_offset_cdeg = Servo_WrapAngle(s_geom.offset_cdeg + (raise_low ? pos : 0) + CDEG_RANGE);
+    g_config.custom_offset_cdeg = Geom_WrapAngle(s_geom.offset_cdeg + (raise_low ? pos : 0) + CDEG_RANGE);
     g_config.custom_span_cdeg   = span;
     g_config.custom_reverse     = (uint8_t)(s_geom.reverse ^ CFG_DIR_INVERT);   /* 存翻转前的原始方向 */
     g_config.servo_mode         = SERVO_MODE_CUSTOM;
@@ -327,38 +323,27 @@ void A_ServoCtrl_ApplyGains(void)
 {
     PosCtrlGains_t g = {
         .pos_bw = TUNE_POS_BW_RADS, .vel_bw = TUNE_VEL_BW_RADS,
-        .int_bw = TUNE_INT_BW_RADS, .load_ratio_x10 = TUNE_LOAD_RATIO_X10,
-        .ff_load_ratio_x10 = s_loop.load_ratio_x10
+        .int_bw = TUNE_INT_BW_RADS
     };
 
     (void)C_PosCtrl_SetGains(&g);
 }
 
-/* 观测器名义惯量：负载惯量比为0(扰动前馈关闭)时按固定整定值，否则按用户设的负载惯量比——
- * 扰动前馈要求模型惯量与实际一致，偏大时空载加减速会推过头 */
+/* 观测器名义惯量固定(TUNE_OBS_LOAD_RATIO_X10)：只影响速度估计，扰动估计不进输出 */
 static void Loop_ObsConfigure(void)
 {
     MotorCal_t observer_cal = *C_MotorModel_Cal();
-    uint32_t ratio = s_loop.load_ratio_x10 ? s_loop.load_ratio_x10 : TUNE_LOAD_RATIO_X10;
 
-    observer_cal.ka_nv = (int32_t)((int64_t)observer_cal.ka_nv * (10U + ratio) / 10);
+    observer_cal.ka_nv = (int32_t)((int64_t)observer_cal.ka_nv * (10U + TUNE_OBS_LOAD_RATIO_X10) / 10);
     C_SpeedObs_Configure(&observer_cal, TUNE_OBS_BW_HZ, TUNE_OBS_DIST_HZ, CTRL_VEL_NOISE_CDPS);
 }
 
-/* 保持参数：精度、积分时间立即生效(改积分时间不阶跃输出)；保持P每10ms最多变1‰/°；
- * 负载惯量比改观测器模型和前馈，等进保持(不在运动中)再切换 */
+/* 保持参数：到位精度、保持I立即生效(改I不阶跃输出)；保持P每10ms最多变1‰/°，避免力矩阶跃 */
 static void Loop_HoldParams(void)
 {
     const RunParams_t *r = &g_runtime_config.run;
     uint16_t target = r->hold_kp;
 
-    C_PosCtrl_SetLoadLearn((uint8_t)(r->load_learn != 0U && A_ServoCtrl_IsPosition()));
-    if (r->load_ratio_x10 != s_loop.load_ratio_x10 && C_PosCtrl_Reached())
-    {
-        s_loop.load_ratio_x10 = r->load_ratio_x10;
-        Loop_ObsConfigure();
-        A_ServoCtrl_ApplyGains();
-    }
     if (target != s_loop.hold_kp && ++s_loop.hold_kp_slew_ms >= HOLD_KP_SLEW_MS)
     {
         s_loop.hold_kp_slew_ms = 0U;
@@ -419,7 +404,7 @@ void A_ServoCtrl_SetMultiTurn(uint8_t active) { s_geom.multiturn = active; }
 /* 连续坐标接到 near 所在的那一圈；连续展开基准(circular_valid)保持不变 */
 static void Geom_Fold(int32_t near)
 {
-    s_geom.angle_circ = Servo_Unwrap(Servo_WrapAngle(s_geom.angle_circ), near);
+    s_geom.angle_circ = Geom_Unwrap(Geom_WrapAngle(s_geom.angle_circ), near);
     s_geom.angle      = (uint16_t)Fx_ClampRange(s_geom.angle_circ, 0, s_geom.span_cdeg);
 }
 
@@ -457,7 +442,6 @@ void A_ServoCtrl_Update(uint8_t measured)
     Loop_HoldParams();
     feedback.pos   = s_loop.obs.pos;
     feedback.vel   = s_loop.obs.vel;
-    feedback.dist  = s_loop.obs.dist;
     feedback.valid = measured;
     u_mv = C_PosCtrl_Update(&s_loop.ref, &feedback, s_out.limit_mv, &s_loop.dbg);
     A_ServoCtrl_Output(A_ServoCtrl_MvToDuty(u_mv * MOTOR_SIGN));

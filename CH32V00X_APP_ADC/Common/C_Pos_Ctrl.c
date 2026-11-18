@@ -1,5 +1,7 @@
-/* C_Pos_Ctrl.c 位置控制器：状态→律参数→前馈与反馈→起转补偿→限幅与积分。
- * 增益在 Init/SetGains/SetHold 换算；交接期间混合两种控制律。 */
+/* C_Pos_Ctrl.c 位置控制器(纯反馈)：状态→律参数→电机模型前馈与反馈→起转补偿→限幅与积分。
+ * 负载(重力、负载惯量、摩擦变化)全部由积分与保持律承担：不用扰动前馈、位置负载学习、负载惯量加速度前馈。
+ * 积分抗饱和：限幅时不往加深饱和的方向积；运动/收尾中回算只把积分往 0 退、不推成反号。
+ * 增益在 Init/SetGains/SetHold 换算；收尾→保持交接期间混合两种控制律。 */
 #include "C_Pos_Ctrl.h"
 #include "C_Fixed.h"
 #include <string.h>
@@ -11,19 +13,8 @@
 #define STICK_MOVE_MS  5U     /* 这么久没挪过最小可靠位移且估计速度低于噪声底，才算卡住 */
 #define STICK_ESC_MS   25U    /* 顶到起转电压后仍卡这么久，开始逐拍加码 */
 #define STICK_ESC_DIV  50     /* 加码每拍 fs/50；运动/保持中最多再加一个 fs，收尾中加到推动为止(上限半个可用电压) */
-/* 运动中积分按参考快慢分账：参考越快，这拍补的越是模型误差(∝v、a)，停下后要撤回；
- * 慢速时补的才是静载。"动态"份额 = min(1, |v_r|/ROLL_VEL + |a_r|/ROLL_ACC)，停下后按 2^ROLL_SHIFT ms 渐撤 */
-#define ROLL_VEL_CDPS   10000  /* 100°/s：再低会把匀速流式运动中学到的重力也当动态撤掉 */
-#define ROLL_ACC_CDPSS  30000  /* 300°/s² */
-#define ROLL_SHIFT          4
-#define ROLL_KV_Q8 ((int32_t)((65536UL * 256U + ROLL_VEL_CDPS / 2U) / ROLL_VEL_CDPS))
-#define ROLL_KA_Q8 ((int32_t)((65536UL * 256U + ROLL_ACC_CDPSS / 2U) / ROLL_ACC_CDPSS))
 #define HOLD_BLEED_DIV  4      /* 保持中托举力把轴推走一个最小可靠位移，积分退 fs/4 */
 #define HOLD_BLEED_MS 300      /* 推走要持续这么久且慢才算：余振半周期不能当成力过大 */
-#define DIST_FF_MS      60     /* 运动中扰动前馈低通时间常数 ms：滤电位器噪声，重力跟得上 */
-#define DIST_FF_SETTLE_MS 400  /* 收尾中扰动前馈低通时间常数 ms：慢，见 C_PosCtrl_Update */
-#define LOAD_LEARN_HOLD_MS 300   /* 保持中静止在窗内这么久才学位置负载 */
-#define LOAD_LEARN_DIV    2000   /* 每拍把积分的 1/它 转存进位置负载模型(约 2s 转完) */
 #define HOLD_LEAK_MS  1000     /* 保持中窗内静止时积分退向0的速度：每这么多ms退一个 fs；轴一沉就补回 */
 #define SETTLE_LEARN_X  6      /* 收尾中学托举力的速度 = 运动积分零点×它(只在窗外且没朝目标走时学) */
 #define MOVE_POS_BW_X   2      /* 运动段位置带宽最多 = ω_p×它(≤ω_v/2)：过冲主要在大角度运动段末形成；收尾仍用 ω_p */
@@ -32,11 +23,7 @@
 #define MOVE_MIX_SLEW_Q8    5      /* 运动中改目标时增益每拍最多变 5/256 份(约50ms走完×1↔×2)，不阶跃 */
 /* 每拍用到的常数除法改乘倒数(见 C_Fixed.h)：本芯片无除法指令，Update 里不出现运行时除法 */
 #define VEL_FILTER_RECIP     FX_RECIP(VEL_FILTER_MS + 1)
-#define DIST_FF_RECIP        FX_RECIP(DIST_FF_MS + 1)
-#define DIST_FF_SETTLE_RECIP FX_RECIP(DIST_FF_SETTLE_MS + 1)
 #define HOLD_BLEND_RECIP     FX_RECIP(HOLD_BLEND_MS)
-#define LOAD_LEARN_RECIP     FX_RECIP(LOAD_LEARN_DIV)
-#define DEG_RECIP            FX_RECIP(100)   /* 正弦表 1°=100厘度 一格 */
 
 static struct {
     int32_t kv_q16;          /* 速度反馈 Kv，mV/(厘度/s)，Q16 */
@@ -50,11 +37,10 @@ static struct {
     int32_t fric_inv_q16;    /* 库仑前馈过渡速度的倒数 */
     int32_t vel_noise, w_in; /* w_in：到位窗，也是保持窗 */
     int32_t ka_nv, kv_uv;
-    int32_t ka_load_q24;     /* 用户负载惯量加速前馈 = ka×负载惯量比，mV/(厘度/s²)，Q24 */
+    int32_t aw_q16;          /* 回算抗饱和每拍增益 ω_v·T，Q16 */
     int32_t leak_step_q16;   /* 保持中托举力每拍退的量 fs/HOLD_LEAK_MS，mV Q16 */
     int32_t esc_step_mv;     /* 起转加码每拍步长 fs/STICK_ESC_DIV，mV */
-    uint8_t dist_ff;         /* 1=启用运动段扰动前馈(负载惯量比>0) */
-    uint16_t precision, vel_bw_max;
+    uint16_t vel_bw_max;
     uint16_t hold_kp, hold_ki;   /* 保持 P(‰/°)、I(‰/(°·s))，‰=标定电压千分之一 */
     uint16_t cal_mv;
     int16_t fc_mv, fs_mv;
@@ -72,13 +58,11 @@ static struct {
     uint8_t  qualified;      /* 本条运动的到位资格(与当前控制律分开) */
     uint8_t  state;
     int32_t  hold_p;         /* 保持中 P 项输出 mV：转入运动时并入积分 */
-    int32_t  i_dyn_q16;      /* 本段运动按"动态"份额攒的积分，mV Q16：停下后撤回 */
     int32_t  hold_anchor;    /* 保持中上次退托举力(或进保持)时的位置 */
     uint8_t  hold_anchor_ok;
     uint8_t  leak_off;       /* 本次保持退托举力把轴退沉了：已补回，不再退 */
     int32_t  leak_anchor;    /* 进保持时的位置 */
     int32_t  leak_q16;       /* 本次保持已退掉的托举力(带原积分符号)，mV Q16 */
-    int32_t  dist_q8;        /* 扰动前馈低通状态，mV Q8 */
     uint16_t bleed_ms;       /* 保持中托举力持续推走轴的时长 */
     uint8_t  braking;        /* 保持中处于短路制动(带回差) */
     uint8_t  stall_hold;     /* 堵转保持：清托举力后不再用/学积分，直到下一段运动 */
@@ -115,7 +99,6 @@ static void PosCtrl_HoldGains(void)
     s_gain.kih_q20 = (int32_t)((((int64_t)s_gain.cal_mv * s_gain.hold_ki << 20) * HOLD_GAIN_X10) / 1000000000);   /* 1ms 一拍 */
 }
 
-
 uint8_t C_PosCtrl_SetGains(PosCtrlGains_t *g)
 {
     PosCtrlGains_t in = *g;
@@ -124,38 +107,22 @@ uint8_t C_PosCtrl_SetGains(PosCtrlGains_t *g)
     g->vel_bw = (uint16_t)Fx_ClampRange(g->vel_bw, 10, s_gain.vel_bw_max);
     g->pos_bw = (uint16_t)Fx_ClampRange(g->pos_bw, 1, g->vel_bw / 4);
     g->int_bw = (uint16_t)Fx_ClampRange(g->int_bw, 0, g->pos_bw);
-    if (g->load_ratio_x10 > POS_CTRL_LOAD_RATIO_MAX_X10) g->load_ratio_x10 = POS_CTRL_LOAD_RATIO_MAX_X10;
-    if (g->ff_load_ratio_x10 > POS_CTRL_LOAD_RATIO_MAX_X10) g->ff_load_ratio_x10 = POS_CTRL_LOAD_RATIO_MAX_X10;
-    s_gain.ka_load_q24 = (int32_t)(((int64_t)s_gain.ka_nv * g->ff_load_ratio_x10 << 24) / 10000000);   /* nV×比/10 → mV Q24 */
-    s_gain.dist_ff    = (uint8_t)(g->ff_load_ratio_x10 != 0U);
-
     /* 速度环：对象 1/(ka·s+kv)，极点落 ω_v ⇒ ka·ω_v=kv+Kv；Kv 至少 ka·ω_v/4 */
     kv_tot   = ((int64_t)s_gain.ka_nv * g->vel_bw * 65536) / 1000000;      /* ka·ω_v，Q16 */
     kv_place = kv_tot - ((int64_t)s_gain.kv_uv * 65536) / 1000;
     s_gain.kv_q16 = (int32_t)((kv_place > kv_tot / 4) ? kv_place : kv_tot / 4);
-    /* 固定负载惯量比只收敛外环带宽；电压前馈仍用原始标定模型 */
-    if (g->load_ratio_x10 != 0U)
-    {
-        int64_t damping = s_gain.kv_q16 + s_gain.kv_pos_q16;
-        int64_t inertia = (int64_t)s_gain.ka_nv * (10U + g->load_ratio_x10) * 65536;
-        int32_t max_pos_bw = (int32_t)(damping * 10000000 / inertia) / 4;
-
-        if (max_pos_bw < 1) max_pos_bw = 1;
-        if (g->pos_bw > max_pos_bw) g->pos_bw = (uint16_t)max_pos_bw;
-        if (g->int_bw > g->pos_bw) g->int_bw = g->pos_bw;
-    }
     s_gain.kp_q8  = g->pos_bw * 256;
     s_gain.kp_move_q8 = ((g->pos_bw * MOVE_POS_BW_X < g->vel_bw / 2) ? g->pos_bw * MOVE_POS_BW_X : g->vel_bw / 2) * 256;
     /* 积分零点按 ka·ω_v 放：Kv 取下限时积分不跟着变弱 */
     s_gain.ki_q20 = (int32_t)((kv_tot * g->int_bw * 16) / 1000);
+    s_gain.aw_q16 = (int32_t)(((int32_t)g->vel_bw << 16) / 1000);   /* 回算抗饱和每拍增益 ω_v·T */
     PosCtrl_HoldGains();
     return (uint8_t)(memcmp(&in, g, sizeof(in)) != 0);
 }
 
 void C_PosCtrl_SetHold(uint16_t precision, uint16_t hold_kp, uint16_t hold_ki)
 {
-    if (precision == s_gain.precision && hold_kp == s_gain.hold_kp && hold_ki == s_gain.hold_ki) return;
-    s_gain.precision = precision;
+    if ((int32_t)precision == s_gain.w_in && hold_kp == s_gain.hold_kp && hold_ki == s_gain.hold_ki) return;
     s_gain.w_in      = precision;   /* 唯一窗口：到位窗=保持窗，下限由配置层保证 */
     s_gain.hold_kp   = hold_kp;
     s_gain.hold_ki   = hold_ki;
@@ -173,9 +140,7 @@ void C_PosCtrl_Reset(void)
 void C_PosCtrl_StallHold(void)
 {
     s_ctrl.integral_q16 = 0;
-    s_ctrl.i_dyn_q16    = 0;
     s_ctrl.hold_p       = 0;
-    s_ctrl.dist_q8      = 0;
     s_ctrl.stall_hold   = 1U;
     s_ctrl.state        = PC_HOLD;
     s_ctrl.qualified    = 1U;
@@ -204,7 +169,7 @@ void C_PosCtrl_BeginMotion(void)
  * "要求动"=运动中参考起步/匀速，或收尾/保持时误差超窗(往窗内推)。
  * 与加大积分不同：只卡住时加、与误差大小无关、一动清零——不会攒力冲过静摩擦。以积分为基准(带载时托着负载)。
  * 卡住计时每拍都更新，不在运动中也要调用 */
-static int32_t PosCtrl_Stiction(const PosCtrlFeedback_t *fb, int32_t demand, int32_t u, int32_t load, int32_t boost_max)
+static int32_t PosCtrl_Stiction(const PosCtrlFeedback_t *fb, int32_t demand, int32_t u, int32_t boost_max)
 {
     int32_t need;
 
@@ -219,18 +184,8 @@ static int32_t PosCtrl_Stiction(const PosCtrlFeedback_t *fb, int32_t demand, int
     }
     if (s_ctrl.boost > boost_max) s_ctrl.boost = boost_max;   /* 收尾里攒的加码不带进运动/保持 */
     if (s_ctrl.still_ms >= STICK_ESC_MS && s_ctrl.boost < boost_max) s_ctrl.boost += s_gain.esc_step_mv;
-    need = Fx_MulShift(s_ctrl.integral_q16, 1, 16) + load + demand * s_gain.fs_mv;   /* 托举力=积分+扰动前馈 */
+    need = Fx_MulShift(s_ctrl.integral_q16, 1, 16) + demand * s_gain.fs_mv;   /* 托举力=积分 */
     return (((demand > 0) ? (u < need) : (u > need)) ? need - u : 0) + demand * s_ctrl.boost;
-}
-
-/* 本拍积分增量里"动态"的份额 Q16：参考越快、加减速越急越接近1 */
-static int32_t PosCtrl_DynShare(const TrajRef_t *ref)
-{
-    int32_t v = Fx_Abs32(ref->vel), a = Fx_Abs32(ref->acc), share;
-
-    if (v >= (int32_t)ROLL_VEL_CDPS || a >= (int32_t)ROLL_ACC_CDPSS) return 65536;
-    share = ((v * ROLL_KV_Q8) >> 8) + ((a * ROLL_KA_Q8) >> 8);
-    return (share > 65536) ? 65536 : share;
 }
 
 /* 参考在动用 MOVE，参考结束进 SETTLE；到位资格与进入保持律分别判断。
@@ -341,131 +296,28 @@ static void PosCtrl_HoldLeak(const PosCtrlFeedback_t *fb, int32_t e)
     s_ctrl.leak_q16 += s * step;
 }
 
-/* 位置负载模型 L(θ)=A·cosθ+B·sinθ+C：随角度变化的静载(任意安装方向的重力、恒定偏载)。单关节重力是本关节角度
- * 的正弦，幅值和相位都在 A、B 里，不需要知道竖直在哪；没有这类负载时学到约0。前馈按参考角度给，到目标前力已备好，
- * 不用靠位置误差和慢积分去攒(倾斜目标冲过头再回来)。保持中静止且在窗内时，每拍把积分的 1/LOAD_LEARN_DIV 按角度转存
- * 进模型、同时从积分扣掉同样的力(输出不跳)；被掰出窗、堵转保持时不学。只存内存，卸力不清，坐标变化时清 */
-static const int16_t k_sin_q14[91] = {0,286,572,857,1143,1428,1713,1997,2280,2563,2845,3126,3406,3686,3964,4240,4516,4790,5063,5334,5604,5872,6138,6402,6664,6924,7182,7438,7692,7943,8192,8438,8682,8923,9162,9397,9630,9860,10087,10311,10531,10749,10963,11174,11381,11585,11786,11982,12176,12365,12551,12733,12911,13085,13255,13421,13583,13741,13894,14044,14189,14330,14466,14598,14726,14849,14968,15082,15191,15296,15396,15491,15582,15668,15749,15826,15897,15964,16026,16083,16135,16182,16225,16262,16294,16322,16344,16362,16374,16382,16384};
-
-static struct {
-    int32_t  a_q8, b_q8, c_q8;   /* mV Q8 */
-    uint16_t hold_ms;            /* 保持中静止在窗内的时长 */
-    uint8_t  enable;
-} s_load;
-
-/* sin(cdeg)，Q14；1° 一格线性插值。每拍调用：回绕用加减(多圈坐标也只几圈)，分格与插值用乘倒数，
- * a≤9000、插值积≤286×99 都在 Fx_UDivR 的精确范围内，结果与整除相同 */
-static int32_t PosCtrl_SinQ14(int32_t cdeg)
-{
-    int32_t a = cdeg, sign = 1, i, frac;
-
-    while (a >= 36000) a -= 36000;
-    while (a < 0) a += 36000;
-    if (a >= 18000) { a -= 18000; sign = -1; }
-    if (a > 9000) a = 18000 - a;
-    i = (int32_t)Fx_UDivR((uint32_t)a, DEG_RECIP);
-    frac = a - i * 100;
-    return sign * (k_sin_q14[i] + ((i < 90) ? (int32_t)Fx_UDivR((uint32_t)((k_sin_q14[i + 1] - k_sin_q14[i]) * frac), DEG_RECIP) : 0));
-}
-
-/* 模型在 pos 处的值，mV */
-static int32_t PosCtrl_LoadModel(int32_t pos)
-{
-    return (int32_t)(((int64_t)s_load.a_q8 * PosCtrl_SinQ14(pos + 9000) + (int64_t)s_load.b_q8 * PosCtrl_SinQ14(pos)) >> 22)
-           + s_load.c_q8 / 256;
-}
-
-/* 位置负载前馈，mV；关闭或堵转保持时为0 */
-static int32_t PosCtrl_LoadFF(int32_t pos, int32_t limit_mv)
-{
-    return (s_load.enable && !s_ctrl.stall_hold) ? Fx_Clamp32(PosCtrl_LoadModel(pos), limit_mv / 2) : 0;
-}
-
-/* 保持中学习，见 s_load 说明 */
-static void PosCtrl_LoadLearn(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int32_t e)
-{
-    int32_t dk, lim = (int32_t)s_gain.cal_mv << 7;   /* 单项上限：标定电压一半，Q8 */
-
-    if (!s_load.enable || s_ctrl.stall_hold || !fb->valid || Fx_Abs32(fb->vel) > s_gain.vel_noise || Fx_Abs32(e) > s_gain.w_in)
-    {
-        s_load.hold_ms = 0U;
-        return;
-    }
-    if (s_load.hold_ms < LOAD_LEARN_HOLD_MS) { s_load.hold_ms++; return; }
-    dk = Fx_DivR(s_ctrl.integral_q16 / 256, LOAD_LEARN_RECIP);   /* 本拍转存量 积分/LOAD_LEARN_DIV，mV Q8(两级向0取整=一次整除) */
-    if (dk == 0) return;
-    s_load.a_q8 = Fx_Clamp32(s_load.a_q8 + (int32_t)(((int64_t)dk * PosCtrl_SinQ14(ref->pos + 9000)) >> 14), lim);
-    s_load.b_q8 = Fx_Clamp32(s_load.b_q8 + (int32_t)(((int64_t)dk * PosCtrl_SinQ14(ref->pos)) >> 14), lim);
-    s_load.c_q8 = Fx_Clamp32(s_load.c_q8 + dk, lim);
-    s_ctrl.integral_q16 -= 2 * dk * 256;   /* 本角度上模型增加 dk·(cos²+sin²)+dk = 2dk */
-}
-
-void C_PosCtrl_SetLoadLearn(uint8_t enable) { s_load.enable = (uint8_t)(enable != 0U); }
-
-void C_PosCtrl_LoadLearnReset(void)
-{
-    s_load.a_q8 = s_load.b_q8 = s_load.c_q8 = 0;
-    s_load.hold_ms = 0U;
-}
-
-/* 扰动前馈量(已低通) mV；堵转保持不托负载 */
-static int32_t PosCtrl_DistFF(int32_t limit_mv)
-{
-    return s_ctrl.stall_hold ? 0 : Fx_Clamp32(s_ctrl.dist_q8 / 256, limit_mv / 2);
-}
-
-/* 积分加 di(mV Q16)，幅值≤半个可用电压；返回实际加上的量 */
-static int32_t PosCtrl_IntegralAdd(int64_t di, int32_t limit_mv)
+/* 积分加 di(mV Q16)，幅值≤半个可用电压 */
+static void PosCtrl_IntegralAdd(int64_t di, int32_t limit_mv)
 {
     int64_t i_lim = (int64_t)limit_mv << 15, next = s_ctrl.integral_q16 + di;
-    int32_t prev = s_ctrl.integral_q16;
 
     s_ctrl.integral_q16 = (int32_t)((next > i_lim) ? i_lim : ((next < -i_lim) ? -i_lim : next));
-    return s_ctrl.integral_q16 - prev;
 }
 
 int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int32_t limit_mv, PosCtrlDbg_t *dbg)
 {
     int32_t e = ref->pos - fb->pos;
-    int32_t u_ff = 0, u_fb, u_i, u_d, u_l, u_stick, desired, output, demand = 0, i_in, dyn_share = 0;
+    int32_t u_ff = 0, u_fb, u_i, u_stick, desired, output, demand = 0, i_in;
     int64_t di;   /* 本拍积分增量，mV Q16 */
     uint8_t prev_state = s_ctrl.state;
 
-    /* 学习关闭时把模型并入积分后清零，输出不跳 */
-    if (!s_load.enable && (s_load.a_q8 | s_load.b_q8 | s_load.c_q8) != 0)
-    {
-        PosCtrl_IntegralAdd((int64_t)Fx_Clamp32(PosCtrl_LoadModel(ref->pos), limit_mv / 2) << 16, limit_mv);
-        C_PosCtrl_LoadLearnReset();
-    }
-    u_l = PosCtrl_LoadFF(ref->pos, limit_mv);
-
-    /* 扰动前馈(负载惯量比>0 才启用，此时观测器惯量与负载相符)：运动中跟上随角度快变的重力(过竖直时半秒内反号，
-     * 积分跟不上)；收尾中用慢低通——负载已不变，臂的弹性模态被刚体观测器当扰动估出来，快了会当弹簧来回摆；
-     * 进保持并入积分(粘住时扰动不可观测)，保持中为0，起步再交还给前馈(见下面的交接)。负载惯量比为0时恒为0 */
-    if (s_gain.dist_ff && s_ctrl.state != PC_HOLD)
-        s_ctrl.dist_q8 += Fx_DivR((fb->dist - u_l) * 256 - s_ctrl.dist_q8,
-                                  (s_ctrl.state == PC_MOVE) ? DIST_FF_RECIP : DIST_FF_SETTLE_RECIP);   /* 只跟模型没补到的部分 */
-    if (!ref->done && s_ctrl.state != PC_MOVE) s_ctrl.i_dyn_q16 = 0;   /* 新一段运动重新分账 */
     PosCtrl_State(ref, fb, e);
     /* 无扰切换：出保持把窗外托着负载的保持 P 并入积分(新运动从实测位置起步、误差≈0，不并入则这份力一拍消失，负载先掉再追) */
     if (s_ctrl.state != PC_HOLD && prev_state == PC_HOLD)
         PosCtrl_IntegralAdd((int64_t)s_ctrl.hold_p << 16, limit_mv);
-    /* 进保持把扰动前馈并入积分后清零；进运动把积分里的托举力交给前馈作初值，此后由前馈跟踪负载，
-     * 否则两者同时托负载、起步一冲。两次交接本拍输出都不变 */
-    if (s_ctrl.state == PC_HOLD && prev_state != PC_HOLD)
-    {
-        PosCtrl_IntegralAdd((int64_t)PosCtrl_DistFF(limit_mv) << 16, limit_mv);
-        s_ctrl.dist_q8 = 0;
-    }
-    if (s_ctrl.state == PC_MOVE && prev_state != PC_MOVE && s_gain.dist_ff && !s_ctrl.stall_hold)
-    {
-        s_ctrl.dist_q8 += Fx_MulShift(s_ctrl.integral_q16, 1, 8);
-        s_ctrl.integral_q16 = 0;
-    }
     if (s_ctrl.state != PC_HOLD)
     {
         s_ctrl.hold_anchor_ok = s_ctrl.leak_off = s_ctrl.braking = 0U;
-        s_load.hold_ms = 0U;
         s_ctrl.leak_q16 = 0; s_ctrl.bleed_ms = 0U;
     }
     /* 仅运动律比例速度反馈用滤波残差；积分、状态判定和收尾用原观测量 */
@@ -486,13 +338,11 @@ int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int3
         int32_t frac = Fx_Clamp32(ref->vel * s_gain.fric_inv_q16, 65536);   /* 平滑符号，Q16 */
 
         u_ff = C_MotorModel_Feedforward(ref->vel + Fx_MulShift(ref->acc, s_gain.delay_q16, 16), ref->acc)
-             + Fx_MulShift(s_gain.fc_mv, frac, 16)
-             + Fx_MulShift(s_gain.ka_load_q24, ref->acc, 24);   /* 用户负载惯量 */
+             + Fx_MulShift(s_gain.fc_mv, frac, 16);
         i_in = v_cmd - fb->vel;
         u_fb = Fx_MulShift(s_gain.kv_q16, v_pos + s_ctrl.vel_error_q8 / 256, 16)
              + (int32_t)(((int64_t)s_gain.kv_pos_q16 * v_pos) / 65536);
         di = ((int64_t)s_gain.ki_q20 * i_in) >> 4;
-        dyn_share = PosCtrl_DynShare(ref);
         /* 只在参考起步/匀速(acc·v≥0)且指令速度超噪声底、未超前一个到位窗时要求动；减速段低速不是卡住 */
         if (Fx_Abs32(v_cmd) > s_gain.vel_noise && (int64_t)ref->acc * ref->vel >= 0
             && (int64_t)Fx_Sign32(v_cmd) * e >= -s_gain.w_in) demand = Fx_Sign32(v_cmd);
@@ -531,7 +381,6 @@ int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int3
     default:   /* PC_HOLD：保持到下一段运动，见 PosCtrl_HoldLaw */
         PosCtrl_HoldBleed(fb);
         PosCtrl_HoldLeak(fb, e);
-        PosCtrl_LoadLearn(ref, fb, e);
         s_ctrl.hold_p = PosCtrl_HoldLaw(e, &di);
         u_fb = s_ctrl.hold_p;
         break;
@@ -540,14 +389,13 @@ int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int3
     /* 堵转保持：积分托举力清零且不再积累，出力只靠窗外弹簧/起转补偿 */
     if (s_ctrl.stall_hold) { di = 0; u_i = 0; }
     else                   u_i = Fx_MulShift(s_ctrl.integral_q16, 1, 16);
-    u_d = ((s_ctrl.state == PC_HOLD) ? 0 : PosCtrl_DistFF(limit_mv)) + u_l;   /* 扰动前馈 + 位置负载前馈 */
     /* 收尾/保持时卡在窗外：P 和慢积分都推不动静摩擦，同样做起转补偿。保持中出窗再多一个最小可靠位移才补(回差)：
      * 停在窗边时读数噪声让它进进出出，每次都补一下会零星抽动 */
     if (s_ctrl.state != PC_MOVE && fb->valid
         && Fx_Abs32(e) > s_gain.w_in + ((s_ctrl.state == PC_HOLD) ? (int32_t)s_gain.min_step : 0)) demand = Fx_Sign32(e);
     /* 收尾卡在窗外时重力+静摩擦可能 > 积分+2fs，加码不封顶到一个 fs，加到推动为止 */
-    u_stick = PosCtrl_Stiction(fb, demand, u_ff + u_fb + u_i + u_d, u_d, (s_ctrl.state == PC_SETTLE) ? limit_mv / 2 : s_gain.fs_mv);
-    desired = u_ff + u_fb + u_i + u_d + u_stick;
+    u_stick = PosCtrl_Stiction(fb, demand, u_ff + u_fb + u_i, (s_ctrl.state == PC_SETTLE) ? limit_mv / 2 : s_gain.fs_mv);
+    desired = u_ff + u_fb + u_i + u_stick;
     /* 不值得驱动就短路制动；带回差(fc/2 进、fc 出)：噪声推着过门槛会 0↔几十PWM 来回翻 */
     if (s_ctrl.state == PC_HOLD)
     {
@@ -556,20 +404,24 @@ int32_t C_PosCtrl_Update(const TrajRef_t *ref, const PosCtrlFeedback_t *fb, int3
     }
     output = Fx_Clamp32(desired, limit_mv);
 
-    /* 积分：无效采样冻结；输出限幅时只允许往回退 */
-    if (fb->valid && di != 0 && !((di > 0 && desired > output) || (di < 0 && desired < output)))
+    /* 积分：无效采样冻结。限幅时不往加深饱和的方向积；运动/收尾中再回算 (限幅后−限幅前)·ω_v·T，
+     * 只把积分往 0 退、最多退到 0：饱和多由前馈和速度反馈造成，普通回算会把积分推成反向力，停下后负载回落或冲过。
+     * 保持中只做前一条 */
+    if (fb->valid)
     {
-        /* 只记实际进积分的量：顶在限幅上不多记，撤回时才不会撤成反号 */
-        s_ctrl.i_dyn_q16 += (int32_t)(((int64_t)PosCtrl_IntegralAdd(di, limit_mv) * dyn_share) >> 16);
-    }
-    /* 停下后按 2^ROLL_SHIFT ms 渐撤运动中攒的动态积分(模型误差)，输出不跳 */
-    if (s_ctrl.state != PC_MOVE && s_ctrl.i_dyn_q16 != 0)
-    {
-        int32_t step = s_ctrl.i_dyn_q16 >> ROLL_SHIFT;
+        int64_t corr = 0;
 
-        if (step == 0) step = s_ctrl.i_dyn_q16;
-        s_ctrl.i_dyn_q16 -= step;
-        PosCtrl_IntegralAdd(-(int64_t)step, limit_mv);
+        if ((di > 0 && desired > output) || (di < 0 && desired < output)) di = 0;
+        if (s_ctrl.state != PC_HOLD && !s_ctrl.stall_hold)
+        {
+            corr = (int64_t)(output - desired) * s_gain.aw_q16;
+            if (corr != 0 && (int64_t)s_ctrl.integral_q16 * corr < 0)
+            {
+                if ((corr < 0 ? -corr : corr) > Fx_Abs32(s_ctrl.integral_q16)) corr = -(int64_t)s_ctrl.integral_q16;
+            }
+            else corr = 0;
+        }
+        if (di + corr != 0) PosCtrl_IntegralAdd(di + corr, limit_mv);
     }
 
     if (dbg)

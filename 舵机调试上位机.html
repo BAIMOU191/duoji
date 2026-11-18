@@ -141,6 +141,7 @@ hr{border:0;border-top:1px solid var(--line2);margin:8px 0}
         <label>周期 <input type="number" id="inPeriod" min="10" max="2000" value="50" style="width:60px">ms</label>
         <label title="每 500ms 附带查询 CMD01 工作状态/故障 与 C8 堵转（仅二进制）"><input type="checkbox" id="chkExtra" checked> 附带状态位</label>
         <label>窗口 <select id="selWin"><option>5</option><option selected>10</option><option>20</option><option>30</option><option>60</option><option>120</option><option>300</option></select>s</label>
+        <label title="Y 轴固定量程，0 在中间；自动 = 按出现过的最大幅值放大、不缩小（清空或重选后重新计）">Y量程 ± <select id="selY"><option value="0">自动</option><option>100</option><option>200</option><option>500</option><option>1000</option><option>2000</option><option selected>5000</option><option>10000</option><option>20000</option><option>50000</option></select></label>
         <button id="btnFreeze">冻结视图</button>
         <button id="btnClear">清空</button>
         <button id="btnCsv">导出CSV</button>
@@ -154,7 +155,6 @@ hr{border:0;border-top:1px solid var(--line2);margin:8px 0}
       <div class="tiles">
         <div class="tile"><div class="k">目标位置</div><div class="v" id="vTgt">—</div><div class="s" id="sTgt"></div></div>
         <div class="tile"><div class="k">实际位置</div><div class="v" id="vPos">—</div><div class="s" id="sPos"></div></div>
-        <div class="tile"><div class="k">位置误差 (目标−实际)</div><div class="v" id="vErr">—</div><div class="s" id="sErr"></div></div>
         <div class="tile"><div class="k">速度</div><div class="v" id="vSpd">—</div><div class="s">°/s</div></div>
         <div class="tile"><div class="k">扭矩</div><div class="v" id="vTrq">—</div><div class="s">%</div></div>
         <div class="tile"><div class="k">电流</div><div class="v" id="vCur">—</div><div class="s">mA</div></div>
@@ -182,8 +182,8 @@ hr{border:0;border-top:1px solid var(--line2);margin:8px 0}
         <span class="mono mut" id="posConv" style="min-width:120px"></span>
       </div>
       <div class="row">
-        <label>时间 <input type="number" id="inTime" min="0" max="65535" value="1000">ms</label>
-        <label data-proto-only="text" class="hidden" title="仅磁编码版，明文 nnnnNnTnnnn，T 为每圈时间">额外圈数 N <input type="number" id="inTurns" min="0" max="9" value="0" style="width:46px"></label>
+        <label title="位置模式为运动时间 ms(0=最快)；定圈模式为圈数、定时模式为秒(0=一直转)">时间 <input type="number" id="inTime" min="0" max="65535" value="1000"><span id="timeUnit">ms</span></label>
+        <label title="仅磁编码版：额外整圈数 0~9，此时时间为每圈时间；明文 nnnnNnTnnnn，二进制写地址 92">额外圈数 N <input type="number" id="inTurns" min="0" max="9" value="0" style="width:46px"></label>
         <button class="pri" id="btnMove">发送运动</button>
       </div>
       <div class="row">
@@ -239,6 +239,10 @@ hr{border:0;border-top:1px solid var(--line2);margin:8px 0}
       <div class="note">标定结果写 Flash。点击前会再确认一次。</div>
       <div class="sub">标定（二进制 8B / 明文）</div>
       <div class="btns" id="calBtns"></div>
+      <div class="row">
+        <label>中点微调 <input type="number" id="inTrim" min="-999" max="999" value="0" style="width:70px"> µs</label><button id="btnTrim">微调中点</button>
+        <span class="mut">先转到 1500+n µs，到位后实测位置记为新中点（二进制 91 / 明文 SCK±nnn）</span>
+      </div>
       <div class="sub">模式 / 上电</div>
       <div class="row">
         <label>工作模式 <select id="selMode"></select></label><button id="btnMode">写入</button>
@@ -260,6 +264,11 @@ hr{border:0;border-top:1px solid var(--line2);margin:8px 0}
         <span class="mut">恢复默认的方式</span>
         <label><input type="radio" name="rstWay" value="cmd" checked> CMD 07/08</label>
         <label><input type="radio" name="rstWay" value="8c"> 写 8C=2/3</label>
+      </div>
+      <div class="sub" data-proto-only="bin">主/从（CMD 04，存 Flash）</div>
+      <div class="btns" data-proto-only="bin">
+        <button id="btnSlave" class="danger" title="CMD 04 DATA=1：之后明文/二进制都不应答">设为从舵机（不再应答）</button>
+        <button id="btnMaster" title="CMD 04 DATA=0：恢复正常应答">设为主舵机（恢复应答）</button>
       </div>
     </div>
   </section>
@@ -290,7 +299,7 @@ hr{border:0;border-top:1px solid var(--line2);margin:8px 0}
         <div class="sub">二进制帧构造</div>
         <div class="row">
           <label>ID <input type="number" id="rbId" min="0" max="255" value="0" style="width:58px"></label>
-          <label>CMD <select id="rbCmd"><option value="1">01 简要状态</option><option value="2" selected>02 读参数</option><option value="3">03 写参数</option><option value="4">04 预留</option><option value="5">05 预留</option><option value="6">06 预留</option><option value="7">07 恢复默认(保留ID)</option><option value="8">08 全部恢复</option><option value="9">09 重启(预留)</option><option value="-1">自定义…</option></select></label>
+          <label>CMD <select id="rbCmd"><option value="1">01 简要状态</option><option value="2" selected>02 读参数</option><option value="3">03 写参数</option><option value="4">04 主/从设置</option><option value="5">05 预留</option><option value="6">06 预留</option><option value="7">07 恢复默认(保留ID)</option><option value="8">08 全部恢复</option><option value="9">09 重启(预留)</option><option value="-1">自定义…</option></select></label>
           <input type="text" id="rbCmdHex" placeholder="CMD hex" style="width:60px" hidden>
           <label>DATA <input type="text" id="rbData" class="mono" value="C9" placeholder="hex，如 24 32" style="width:160px"></label>
         </div>
@@ -394,8 +403,6 @@ const P = [
  {a:0x47,name:'最低工作电压',n:1,rw:'RW',def:'60/90',min:()=>vMin(),max:()=>vMax(),unit:'0.1V',desc:'须比最高电压低 ≥0.5V'},
  {a:0x48,name:'最高工作电压',n:1,rw:'RW',def:'90/130',min:()=>vMin(),max:()=>vMax(),unit:'0.1V',desc:'须比最低电压高 ≥0.5V'},
  {a:0x49,name:'最小启动扭矩',n:1,rw:'RW',def:0,min:0,max:100,unit:'%',desc:'0 = 关闭'},
- {a:0x4A,name:'负载惯量比',n:1,rw:'RW',def:0,min:0,max:40,unit:'×10',desc:'0 = 扰动前馈关闭'},
- {a:0x4B,name:'负载自学习',n:1,rw:'RW',def:1,min:0,max:1,desc:'1 开，0 关'},
  {sec:'RAM 区（仅本次上电有效；80/81/8B/8C 动作命令在上方面板）'},
  {a:0x82,name:'扭矩模式',n:1,rw:'RW',def:1,min:0,max:2,desc:'0 自由释放，1 正常，2 自定义阻尼'},
  {a:0x83,name:'阻尼比例',n:1,rw:'RW',def:100,min:0,max:100,unit:'%',desc:'扭矩模式 2 时使用'},
@@ -408,8 +415,6 @@ const P = [
  {a:0x8A,name:'实时保持 P',n:1,rw:'RW',def:'F35',min:0,max:100,unit:'‰/°'},
  {a:0x8E,name:'实时到位精度',n:2,rw:'RW',def:'F37',min:()=>info[8]!=null?Math.ceil(info[8]*1.5):0,max:500,unit:'0.01°'},
  {a:0x8F,name:'实时保持 I',n:1,rw:'RW',def:'F38',min:0,max:100,unit:'‰/(°·s)'},
- {a:0x90,name:'实时负载惯量比',n:1,rw:'RW',def:'F4A',min:0,max:40,unit:'×10'},
- {a:0x91,name:'实时负载自学习',n:1,rw:'RW',def:'F4B',min:0,max:1},
  {sec:'实时状态（只读）'},
  {a:0xC0,name:'工作状态',n:1,rw:'R',fmt:v=>v+' '+(WORK_STATE[v]||'?')},
  {a:0xC1,name:'故障状态',n:2,rw:'R',unit:'位掩码',fmt:v=>v+(v?' '+faultText(v):' 无')},
@@ -629,10 +634,13 @@ const writeP = (a, v, n, opt) => binTx(3, [a, ...(Array.isArray(v) ? v : toLe(v,
 
 /* 描述帧（日志用） */
 function describeBinReq(cmd, d){
-  const nm = {1:'简要状态',2:'读',3:'写',4:'预留04',5:'预留05',6:'预留06',7:'恢复默认(保留ID)',8:'全部恢复默认',9:'重启(预留)'}[cmd] || ('CMD ' + hex2(cmd));
-  if ((cmd === 2 || cmd === 3) && d.length){ const p = PD[d[0]]; const pn = p ? p.name : ({0x80:'运动目标',0x81:'运动动作',0x8B:'校准动作',0x8C:'系统动作'})[d[0]] || '';
+  if (cmd === 4 && d.length === 1) return '主/从设置 = ' + (d[0] === 1 ? '从（此后不应答）' : d[0] === 0 ? '主' : d[0]);
+  const nm = {1:'简要状态',2:'读',3:'写',4:'主/从设置',5:'预留05',6:'预留06',7:'恢复默认(保留ID)',8:'全部恢复默认',9:'重启(预留)'}[cmd] || ('CMD ' + hex2(cmd));
+  if ((cmd === 2 || cmd === 3) && d.length){ const p = PD[d[0]]; const pn = p ? p.name : ({0x80:'运动目标',0x81:'运动动作',0x8B:'校准动作',0x8C:'系统动作',0x90:'多圈运动',0x91:'中点微调'})[d[0]] || '';
     let s = nm + ' ' + hex2(d[0]) + (pn ? ' ' + pn : '');
-    if (cmd === 3 && d.length > 1){ const v = d.slice(1); s += d[0] === 0x80 && v.length === 4 ? ` = 位置${le(v.slice(0,2))} 时间${le(v.slice(2,4))}ms` : ' = ' + le(v, p && p.signed); }
+    if (cmd === 3 && d[0] === 0x91 && d.length === 3) return s + ` = ${le(d.slice(1), true)}µs`;
+    if (cmd === 3 && d.length > 1){ const v = d.slice(1); s += d[0] === 0x80 && v.length === 4 ? ` = 位置${le(v.slice(0,2))} 时间${le(v.slice(2,4))}ms`
+       : d[0] === 0x90 && v.length === 5 ? ` = 位置${le(v.slice(0,2))} 额外${v[2]}圈 每圈${le(v.slice(3,5))}ms` : ' = ' + le(v, p && p.signed); }
     return s; }
   return nm;
 }
@@ -672,7 +680,6 @@ function logRx(f, desc, poll, lat, warn){ logLine(warn ? 'err' : 'rx', hexs(f), 
 const CH = [
   {k:'tgt', name:'目标位置', unit:'码', col:'--c2', dec:0, sc:1},
   {k:'pos', name:'实际位置', unit:'码', col:'--c1', dec:0, sc:1},
-  {k:'err', name:'位置误差', unit:'码', col:'--c5', dec:0, sc:10},
   {k:'spd', name:'速度', unit:'°/s', col:'--c3', dec:1, sc:10},
   {k:'trq', name:'扭矩', unit:'%', col:'--c4', dec:0, sc:10},
   {k:'cur', name:'电流', unit:'mA', col:'--c7', dec:0, sc:1},
@@ -684,7 +691,7 @@ const D = { t:[] }; CH.forEach(c => D[c.k] = []);
 const visCh = Object.fromEntries(CH.map(c => [c.k, true]));
 const scCh = Object.fromEntries(CH.map(c => [c.k, c.sc]));
 const chipVal = {};
-let view = { win:10, frozen:false, end:0 }, hoverT = null, dirty = true;
+let view = { win:10, frozen:false, end:0, yFix:5000, yAuto:0 }, hoverT = null, dirty = true;   /* yFix=0 为自动(只放大) */
 function pushSample(s){
   const t = (now() - T0) / 1000;
   D.t.push(t); CH.forEach(c => D[c.k].push(s[c.k] != null ? s[c.k] : NaN));
@@ -705,7 +712,7 @@ function buildChart(){
     const w = document.createElement('span'); w.className = 'chip';
     w.innerHTML = `<label><input type="checkbox" checked><span class="sw" style="background:var(${c.col})"></span>${c.name}</label><select title="显示倍率（只影响画图，数值显示真实值）"></select><span class="cv mono"></span>`;
     const sel = w.querySelector('select'); SCALES.forEach(([v, n]) => sel.add(new Option(n, v))); sel.value = c.sc;
-    sel.onchange = () => { scCh[c.k] = +sel.value; dirty = true; };
+    sel.onchange = () => { scCh[c.k] = +sel.value; view.yAuto = 0; dirty = true; };
     w.querySelector('input').addEventListener('change', e => { visCh[c.k] = e.target.checked; w.classList.toggle('off', !e.target.checked); dirty = true; });
     chipVal[c.k] = w.querySelector('.cv');
     chips.appendChild(w);
@@ -726,11 +733,15 @@ function drawAll(){
   const pw = W - PL - PR, ph = H - PT - PB;
   const chs = CH.filter(c => visCh[c.k]);
   const i0 = Math.max(0, lb(D.t, t0) - 1), i1 = Math.min(D.t.length, lb(D.t, t1) + 1);
-  let mn = Infinity, mx = -Infinity;
-  chs.forEach(c => { const a = D[c.k], k = scCh[c.k]; for (let i = i0; i < i1; i++){ const v = a[i] * k; if (v === v){ if (v < mn) mn = v; if (v > mx) mx = v; } } });
-  if (mn === Infinity){ mn = 0; mx = 100; }
-  if (mx - mn < 10){ const c = (mx + mn) / 2; mn = c - 5; mx = c + 5; }
-  const padv = (mx - mn) * 0.06; mn -= padv; mx += padv;
+  /* Y 轴对称、0 在中间：固定量程不随数据跳；自动档按 1-2-5 档位只放大不缩小 */
+  let R = view.yFix;
+  if (!R){
+    let amax = 0;
+    chs.forEach(c => { const a = D[c.k], k = scCh[c.k]; for (let i = i0; i < i1; i++){ const v = Math.abs(a[i] * k); if (v > amax) amax = v; } });
+    if (amax * 1.05 > view.yAuto){ let r = 10; while (r < amax * 1.05) r = (String(r)[0] === '2') ? r / 2 * 5 : r * 2; view.yAuto = r; }
+    R = view.yAuto || 10;
+  }
+  const mn = -R, mx = R;
   const X = t => PL + (t - t0) / (t1 - t0) * pw, Y = v => PT + (mx - v) / (mx - mn) * ph;
   ctx.font = '11px ' + getComputedStyle(document.body).fontFamily; ctx.lineWidth = 1;
   const ys = niceStep(mx - mn, 8); ctx.strokeStyle = cGrid; ctx.fillStyle = cAxis; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
@@ -768,6 +779,15 @@ window.addEventListener('resize', () => dirty = true);
  *  实时状态显示
  * ==================================================================== */
 let lastSampleT = 0;
+/* 时间框单位随模式：位置模式 ms，定圈(9/10)=圈数，定时(11/12)=秒；固件按这个单位解释 0x80 与明文 T 字段 */
+let timeUnit = 'ms';
+function updTimeUnit(){
+  const u = (curMode === 9 || curMode === 10) ? '圈' : (curMode === 11 || curMode === 12) ? '秒' : 'ms';
+  if (u === timeUnit) return;
+  timeUnit = u;
+  $('timeUnit').textContent = u === 'ms' ? 'ms' : u + '（0=一直转）';
+  $('inTime').value = u === 'ms' ? 1000 : 1;
+}
 function angleText(code){ const r = MODE_RANGE[curMode]; if (!r || code !== code) return ''; return ' ≈' + ((codeToUs(code) - 1500) / 2000 * r).toFixed(1) + '°'; }
 function updateTiles(s){
   lastSampleT = now();
@@ -775,7 +795,6 @@ function updateTiles(s){
   const f = (v, d) => v == null || v !== v ? '—' : v.toFixed(d);
   set('vTgt', f(s.tgt, 0)); set('sTgt', s.tgt === s.tgt && s.tgt != null ? codeToUs(s.tgt).toFixed(1) + 'µs' : '');
   set('vPos', f(s.pos, 0)); set('sPos', s.pos === s.pos && s.pos != null ? codeToUs(s.pos).toFixed(1) + 'µs' + angleText(s.pos) : '');
-  set('vErr', f(s.err, 0)); set('sErr', s.err === s.err && s.err != null ? (s.err * 2000 / 4095).toFixed(2) + 'µs' : '');
   set('vSpd', f(s.spd, 1)); set('vTrq', f(s.trq, 0)); set('vCur', f(s.cur, 0)); set('vTmp', f(s.tmp, 1)); set('vVol', f(s.vol, 2));
 }
 function setStatusBits(state, fault, stall){
@@ -819,7 +838,7 @@ async function doPoll(per){
     const r = await readP(0xC9, { poll:true });
     if (r.ok && r.st === 0 && r.data.length >= 15 && r.data[0] === 0xC9){
       const c = c9Parse(r.data.slice(1));
-      pushSample({ tgt:c.tgt, pos:c.pos, err:c.tgt - c.pos, spd:c.spd / 10, trq:c.trq, cur:c.cur, tmp:c.tmp / 10, vol:c.vol / 100 });
+      pushSample({ tgt:c.tgt, pos:c.pos, spd:c.spd / 10, trq:c.trq, cur:c.cur, tmp:c.tmp / 10, vol:c.vol / 100 });
     }
     if ($('chkExtra').checked && pollTick % Math.max(1, Math.round(500 / per)) === 0){
       const s = await binTx(1, [], { poll:true });
@@ -843,8 +862,13 @@ function posCode(){ return clamp(+$('inPos').value | 0, 0, 4095); }
 function updPosConv(){ const c = posCode(); $('posConv').textContent = codeToUs(c).toFixed(1) + 'µs' + angleText(c) + (proto === 'text' ? ' → ' + pad(clamp(Math.round(codeToUs(c)), 500, 2500), 4) : ''); }
 async function sendMove(code, ms, quiet){
   code = clamp(code | 0, 0, 4095); ms = Math.max(0, ms | 0);
-  if (proto === 'bin'){ const r = await writeP(0x80, [...toLe(code, 2), ...toLe(Math.min(ms, 65535), 2)], 0); if (!quiet) showResult('运动', r); return r; }
-  const us = clamp(Math.round(codeToUs(code)), 500, 2500), t = Math.min(ms, 9999), n = +$('inTurns').value | 0;
+  const n = clamp(+$('inTurns').value | 0, 0, 9);
+  if (proto === 'bin'){
+    const r = n > 0 ? await writeP(0x90, [...toLe(code, 2), n, ...toLe(Math.min(ms, 65535), 2)], 0)   /* 多圈：位置2B+圈数1B+每圈时间2B */
+                    : await writeP(0x80, [...toLe(code, 2), ...toLe(Math.min(ms, 65535), 2)], 0);
+    if (!quiet) showResult(n > 0 ? '多圈运动' : '运动', r); return r;
+  }
+  const us = clamp(Math.round(codeToUs(code)), 500, 2500), t = Math.min(ms, 9999);
   const body = n > 0 ? `${pad(us,4)}N${clamp(n,0,9)}T${pad(t,4)}` : `${pad(us,4)}T${pad(t,4)}`;
   return txtTx(body, { expect:false });
 }
@@ -961,12 +985,12 @@ async function writeRow(d, value){
 async function afterWrite(a, v){
   if (a === 0x20){ $('inId').value = v; $('rbId').value = v; logLine('info', '目标ID 已切换为 ' + v); }
   if (a === 0x21){ await sleep(30); await changeBaud(BAUDS[v-1]); }
-  if (a === 0x22){ curMode = v; updPosConv(); }
+  if (a === 0x22){ curMode = v; updPosConv(); updTimeUnit(); }
   if (rowEls[a] && (proto === 'bin' || PD[a].txt)) await readRow(PD[a]);
 }
 function noteInfo(a, v){
   if (a <= 0x10) info[a] = v;
-  if (a === 0x22) curMode = v;
+  if (a === 0x22){ curMode = v; updTimeUnit(); }
   if (a === 0x00 && $('selDev').value === 'auto'){ devType = (v === 2 || v === 4) ? 'mag' : 'pot'; buildModeSel(); }
   if (a <= 0x08 || a === 0x10) { refreshTable(); renderDevInfo(); }
 }
@@ -1060,7 +1084,8 @@ function buildModeSel(){
   modes.forEach(m => s.add(new Option(m + ' ' + MODE_NAMES[m], m)));
   if (keep) s.value = keep;
   PD[0x22].max = 12;
-  $('moveHint').textContent = devType === 'mag' ? '磁编码版：明文支持多圈 N' : '';
+  $('moveHint').textContent = devType === 'mag' ? '磁编码版：支持多圈 N（明文 N 字段 / 二进制地址 92）' : '';
+  $('inTurns').disabled = devType !== 'mag'; if (devType !== 'mag') $('inTurns').value = 0;   /* 多圈仅磁编码版 */
 }
 
 /* ====================================================================
@@ -1119,7 +1144,7 @@ async function testsBin(add){
   ab(); let r = await binTx(1, []);
   add('CMD01 简要状态', r.ok && r.st === 0 && r.data.length === 2, r.ok ? `${stOf(r)} LEN=${r.data.length + 1} 状态=${r.data[0]} 故障=${r.data[1]} ${r.lat.toFixed(1)}ms` : stOf(r));
   // 3. 全部可读参数
-  const groups = [['设备信息 00～10', d => d.a <= 0x10], ['Flash 参数 20～4B', d => d.a >= 0x20 && d.a < 0x80], ['RAM 参数 82～91', d => d.a >= 0x80 && d.a < 0xC0], ['实时状态 C0～C9', d => d.a >= 0xC0]];
+  const groups = [['设备信息 00～10', d => d.a <= 0x10], ['Flash 参数 20～49', d => d.a >= 0x20 && d.a < 0x80], ['RAM 参数 82～8F', d => d.a >= 0x80 && d.a < 0xC0], ['实时状态 C0～C9', d => d.a >= 0xC0]];
   const vals = {};
   for (const [gname, f] of groups){
     const bad = []; let n = 0;
@@ -1175,7 +1200,6 @@ async function testsBin(add){
   if (r.ok){ const exp = 100 + 2 * r.id; const lat = r.lat - byteMs(9);
     add('广播读 C9 应答延时 ≈100ms+ID×2ms', lat >= exp - 5 && lat <= exp + 25, `收到 ${r.replies.length} 台：` + r.replies.map(x => `ID${x.id} ${x.lat.toFixed(0)}ms`).join('，') + `；本机期望约 ${exp}ms`); }
   else add('广播读 C9 应答延时', false, stOf(r));
-  ab(); r = await binTx(3, [0x20, tid()], { id:255 }); add('广播写 ID(20) → 04 拒绝', r.ok && r.st === 4, '实际 ' + stOf(r));
 }
 async function testsText(add){
   const ab = () => { if (testAbort || !link) throw new Error('已中止'); };
@@ -1216,9 +1240,9 @@ class SimServo {
   constructor(emit){
     this.emit = emit; this.id = 0; this.buf = []; this.type = $('selDev').value === 'mag' ? 2 : 1;
     this.p = { 0x00:this.type, 0x01:10, 0x02:12, 0x03:30, 0x04:300, 0x05:3000, 0x06:3000, 0x07:60, 0x08:20,
-      0x20:0, 0x21:5, 0x22:1, 0x23:1, 0x24:100, 0x25:2048, 0x30:270, 0x31:2100, 0x32:2100, 0x33:100, 0x34:150, 0x35:80, 0x37:this.type === 2 ? 30 : 50, 0x38:0,
-      0x40:3000, 0x41:30, 0x42:500, 0x43:250, 0x44:32, 0x45:5, 0x46:15, 0x47:90, 0x48:130, 0x49:0, 0x4A:0, 0x4B:1, 0x82:1, 0x83:100 };
-    this.F2R = {0x24:0x84,0x30:0x85,0x31:0x86,0x32:0x87,0x33:0x88,0x34:0x89,0x35:0x8A,0x37:0x8E,0x38:0x8F,0x4A:0x90,0x4B:0x91};
+      0x20:0, 0x21:5, 0x22:1, 0x23:1, 0x24:100, 0x25:2048, 0x30:270, 0x31:2100, 0x32:2100, 0x33:100, 0x34:150, 0x35:80, 0x37:50, 0x38:0,
+      0x40:3000, 0x41:30, 0x42:500, 0x43:500, 0x44:32, 0x45:5, 0x46:15, 0x47:90, 0x48:130, 0x49:0, 0x82:1, 0x83:100 };
+    this.F2R = {0x24:0x84,0x30:0x85,0x31:0x86,0x32:0x87,0x33:0x88,0x34:0x89,0x35:0x8A,0x37:0x8E,0x38:0x8F};
     for (const f in this.F2R) this.p[this.F2R[f]] = this.p[f];
     this.pos = 2048; this.tgt = 2048; this.v = 0; this.vT = 0; this.paused = false; this.stopped = false; this.tmp = 265; this.cur = 0; this.trq = 0; this.fault = 0; this.lastA = 0;
     this.timer = setInterval(() => this.step(0.01), 10);
@@ -1240,6 +1264,7 @@ class SimServo {
     cur = clamp(cur, -2500 * tl, 2500 * tl) + (Math.random() - .5) * 30;
     this.cur = Math.round(cur); this.trq = Math.round(this.cur / 25);
     this.tmp += ((265 + Math.abs(this.cur) * 0.02) - this.tmp) * 0.002;
+    if (this.trim && this.state === 0){ this.trim = false; this.pos = this.tgt = 2048; }   /* 微调到位：该处成为新中点 */
   }
   c9(){ return [...toLe(Math.round(this.tgt),2), ...toLe(Math.round(this.pos),2), ...toLe(this.trq,2), ...toLe(Math.round(this.v / (4095 / (MODE_RANGE[this.p[0x22]] || 270)) * 10),2), ...toLe(this.cur,2), ...toLe(Math.round(this.tmp),2), ...toLe(Math.round(1200 - Math.abs(this.cur) * 0.05 + (Math.random() - .5) * 4),2)]; }
   hostWrite(u8){
@@ -1255,7 +1280,7 @@ class SimServo {
     if (B[0] === 0x23){ if (b === 0x21){ this.text(String.fromCharCode(...B)); this.buf = []; } else if (B.length > 40) this.buf = []; return; }
     this.buf = [];
   }
-  send(bytes, bc){ const delay = bc ? 100 + this.id * 2 : 1 + Math.random() * 1.5; setTimeout(() => this.emit(Uint8Array.from(bytes)), delay); }
+  send(bytes, bc){ if (this.slave) return; const delay = bc ? 100 + this.id * 2 : 1 + Math.random() * 1.5; setTimeout(() => this.emit(Uint8Array.from(bytes)), delay); }
   bin(f){
     const n = f[4], id = f[2], cmd = f[3];
     if (f[6 + n] !== 0x66 || f[7 + n] !== 0xAA || crc8(f.slice(2, 5 + n)) !== f[5 + n]) return;
@@ -1264,9 +1289,10 @@ class SimServo {
     switch (cmd){
       case 1: if (n) st = 2; else out = [this.state, this.fault & 0xFF]; break;
       case 2: if (n !== 1) st = 2; else { const r = this.read(d[0]); st = r.st; out = r.st ? [] : [d[0], ...r.out]; } break;
-      case 3: if (n < 2) st = 2; else if (bc && (d[0] === 0x20 || (d[0] === 0x8C && d[1] === 3))) st = 4; else st = this.write(d[0], d.slice(1)); break;
-      case 7: case 8: if (n) st = 2; else if (bc && cmd === 8) st = 4; else this.reset(cmd === 7); break;
-      case 4: case 5: case 6: case 9: st = 7; break;
+      case 3: if (n < 2) st = 2; else st = this.write(d[0], d.slice(1)); break;
+      case 7: case 8: if (n) st = 2; else this.reset(cmd === 7); break;
+      case 4: if (n !== 1) st = 2; else if (d[0] > 1) st = 3; else this.slave = d[0]; break;   /* 置从后本帧起不应答 */
+      case 5: case 6: case 9: st = 7; break;
       default: st = 1;
     }
     const body = [this.id, cmd | 0x80, 1 + out.length, st, ...out];
@@ -1282,8 +1308,10 @@ class SimServo {
     const v = a >= 0xC0 ? rt[a] : this.p[a];
     return { st:0, out:toLe(v ?? 0, d.n) };
   }
-  writeSize(a){ if (a === 0x80) return 4; if (a === 0x81 || a === 0x8B || a === 0x8C) return 1; const d = PD[a]; return d && d.rw === 'RW' ? d.n : 0; }
+  writeSize(a){ if (a === 0x80) return 4; if (a === 0x90) return 5; if (a === 0x91) return 2; if (a === 0x81 || a === 0x8B || a === 0x8C) return 1; const d = PD[a]; return d && d.rw === 'RW' ? d.n : 0; }
   write(a, bytes){
+    if (a === 0x90 && this.type !== 2) return 7;   /* 多圈仅磁编码版 */
+    if (a === 0x80 || a === 0x90 || a === 0x81) this.trim = false;   /* 新指令作废未完成的中点微调 */
     const size = this.writeSize(a);
     if (!size) return (a < 0x20 || a >= 0x80) ? 6 : 3;
     if (bytes.length !== size) return 2;
@@ -1292,6 +1320,12 @@ class SimServo {
       case 0x80: { const pos = le(bytes.slice(0,2)), T = le(bytes.slice(2,4)); if (pos > 4095) return 3; if (this.p[0x82] !== 1) return 4;
         const range = MODE_RANGE[this.p[0x22]] || 270; this.tgt = pos; this.paused = false;
         const Tm = Math.max(T, this.p[0x89]); this.vT = Tm ? Math.abs(pos - this.pos) / (Tm / 1000) * 1.3 : 0; void range; return 0; }
+      case 0x91: { const n = (v ^ 0x8000) - 0x8000; if (n < -999 || n > 999) return 3; if (this.p[0x82] !== 1) return 4;   /* 中点微调：仿真只转到 1500+n，不改坐标 */
+        this.tgt = Math.round((1000 + n) * 4095 / 2000); this.paused = false; this.vT = 0; this.trim = true; return 0; }
+      case 0x90: { const pos = le(bytes.slice(0,2)), n = bytes[2], T = le(bytes.slice(3,5)), m = this.p[0x22];
+        if (pos > 4095 || n > 9) return 3; if (this.p[0x82] !== 1 || !(m <= 8 || m === 13)) return 4;
+        this.tgt = pos; this.paused = false; const Tm = Math.max(T * (n + 1), this.p[0x89]);   /* 仿真只走到终点，不模拟额外整圈 */
+        this.vT = Tm ? Math.abs(pos - this.pos) / (Tm / 1000) * 1.3 : 0; return 0; }
       case 0x81: if (v === 1) this.paused = false; else if (v === 2) this.paused = true; else if (v === 3){ this.tgt = this.pos; this.paused = false; } else return 3; return 0;
       case 0x8B: return v >= 1 && v <= 7 ? 0 : 3;
       case 0x8C: if (v === 1) return 0; if (v === 2 || v === 3){ setTimeout(() => this.reset(v === 2), 3); return 0; } return 3;
@@ -1304,7 +1338,7 @@ class SimServo {
     if (a === 0x20) setTimeout(() => { this.id = v; }, 0), this.id = v;
     return 0;
   }
-  reset(keepId){ const id = this.id; const s = new SimServo(() => {}); s.stop(); this.p = s.p; this.id = keepId ? id : 0; this.p[0x20] = this.id; }
+  reset(keepId){ const id = this.id, sl = this.slave; const s = new SimServo(() => {}); s.stop(); this.p = s.p; this.id = keepId ? id : 0; this.slave = keepId ? sl : 0; this.p[0x20] = this.id; }
   text(s){
     const m = /^#(\d{3})P(.*)!$/.exec(s); if (!m) return;
     const id = +m[1], b = m[2]; if (id !== this.id && id !== 255) return;
@@ -1312,9 +1346,9 @@ class SimServo {
     let mm;
     if ((mm = /^(\d{4})T(\d{4})$/.exec(b)) || (this.type === 2 && (mm = /^(\d{4})N\dT(\d{4})$/.exec(b)))){ const us = +mm[1]; if (us >= 500 && us <= 2500) this.write(0x80, [...toLe(usToCode(us),2), ...toLe(+mm[2],2)]); return; }
     const okIf = st => { if (st === 0) rep('OK'); };
-    if (b === 'VER') return rep('Servo-V1.1.0');
+    if (b === 'VER') return rep('Servo-V1.0.0');
     if (b === 'ID') return rep('');
-    if ((mm = /^ID(\d{3})$/.exec(b))){ if (bc) return; return okIf(this.write(0x20, [+mm[1]])); }
+    if ((mm = /^ID(\d{3})$/.exec(b))) return okIf(this.write(0x20, [+mm[1]]));
     if (b === 'BD') return rep('BAUD' + BAUDS[this.p[0x21]-1]);
     if ((mm = /^BD(\d)$/.exec(b))) return okIf(this.write(0x21, [+mm[1]]));
     if (b === 'MOD') return rep('MOD' + this.p[0x22]);
@@ -1332,9 +1366,10 @@ class SimServo {
     if (b === 'ULK'){ this.p[0x82] = 0; return rep('OK'); }
     if (b === 'ULM'){ this.p[0x83] = 100; this.p[0x82] = 2; return rep('OK'); }
     if (b === 'ULR'){ this.p[0x82] = 1; this.tgt = this.pos; return rep('OK'); }
+    if ((mm = /^SCK([+-])(\d{3})$/.exec(b))) return okIf(this.write(0x91, toLe(((mm[1] === '-' ? -1 : 1) * +mm[2]) & 0xFFFF, 2)));
     if (['SCK','SCZ','AMI','AMX','SMI','SMX','CSD'].includes(b)) return rep('OK');
     if (b === 'CLE0'){ rep('OK'); this.reset(true); return; }
-    if (b === 'CLE'){ if (bc) return; rep('OK'); this.reset(false); return; }
+    if (b === 'CLE'){ rep('OK'); this.reset(false); return; }
   }
 }
 
@@ -1352,8 +1387,9 @@ $('segProto').onclick = e => { if (e.target.dataset.p) setProto(e.target.dataset
 $('selDev').onchange = e => { if (e.target.value !== 'auto') devType = e.target.value; else if (info[0] != null) devType = (info[0] === 2 || info[0] === 4) ? 'mag' : 'pot'; buildModeSel(); renderDevInfo(); };
 $('btnPoll').onclick = () => polling ? stopPoll() : startPoll();
 $('selWin').onchange = e => { view.win = +e.target.value; dirty = true; };
+$('selY').onchange = e => { view.yFix = +e.target.value; view.yAuto = 0; dirty = true; };
 $('btnFreeze').onclick = () => { view.frozen = !view.frozen; view.end = viewRange()[1]; if (!view.frozen) view.end = 0; $('btnFreeze').classList.toggle('on', view.frozen); $('btnFreeze').textContent = view.frozen ? '恢复滚动' : '冻结视图'; dirty = true; };
-$('btnClear').onclick = () => { D.t.length = 0; CH.forEach(c => D[c.k].length = 0); dirty = true; };
+$('btnClear').onclick = () => { D.t.length = 0; CH.forEach(c => D[c.k].length = 0); view.yAuto = 0; dirty = true; };
 $('btnCsv').onclick = () => {
   const head = ['time_s', ...CH.map(c => `${c.k}(${c.unit})`)].join(',');
   const rows = D.t.map((t, i) => [t.toFixed(3), ...CH.map(c => { const v = D[c.k][i]; return v === v ? v : ''; })].join(','));
@@ -1411,6 +1447,30 @@ async function factory(keepId){
   }
 }
 $('btnRstKeep').onclick = () => factory(true);
+/* 中点微调：受理即应答，校准在到位后才写；二进制模式等到位(C0=0)后读位置确认 */
+$('btnTrim').onclick = async () => {
+  const n = Math.trunc(+$('inTrim').value);
+  if (!(n >= -999 && n <= 999)) { showResult('中点微调', { err:'微调量须在 -999～999 µs' }); return; }
+  const name = '中点微调 ' + (n >= 0 ? '+' : '') + n + 'µs';
+  const r = await act(name, () => writeP(0x91, n & 0xFFFF, 2), 'SCK' + (n < 0 ? '-' : '+') + pad(Math.abs(n), 3),
+    `舵机会先按当前校准转到 ${1500 + n}µs，到位后把该位置记为新的 1500µs 中点，结果写入 Flash。确定？`);
+  if (!okR(r) || r.noReply || proto !== 'bin') return;
+  for (let i = 0; i < 50; i++) { await sleep(100); const st = await readP(0xC0); if (st.ok && st.st === 0 && st.data[1] === 0) break; }
+  const q = await readP(0xC2);
+  if (q.ok && q.st === 0) { const c = le(q.data.slice(1)); $('queryOut').textContent += `\n完成后位置码 ${c}（${codeToUs(c).toFixed(1)}µs，应≈1500）`; }
+};
+/* 主/从：置从后舵机连本条也不应答，只发不等 */
+$('btnSlave').onclick = async () => {
+  if (!confirm('设为从舵机：之后该舵机明文、二进制都不再应答（本条也不应答），指令照常执行，设置存 Flash。\n'
+    + '用于两台同 ID 并联只留一台应答。恢复：对该 ID 发“设为主舵机”或 CMD 08。确定？')) return;
+  if (polling) stopPoll();
+  const id = tid();
+  const r = await txn({ kind:'bin', bytes:buildBin(id, 4, [1]), cmd:4, expect:false, bcast:id === 255, desc:describeBinReq(4, [1]) });
+  const t = okR(r) ? '已发送；该舵机此后不再应答，查询会超时' : resText(r);
+  $('queryOut').textContent = '设为从舵机：' + t; $('rawOut').textContent = '设为从舵机：' + t;
+  if (okR(r)) logLine('info', `ID${id} 已设为从舵机，此后不再应答`);
+};
+$('btnMaster').onclick = () => act('设为主舵机', () => binTx(4, [0]), null, null);
 $('btnRstAll').onclick = () => factory(false);
 // 参数表
 $('btnReadInfo').onclick = () => readGroup(d => d.a <= 0x10);

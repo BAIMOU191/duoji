@@ -4,7 +4,7 @@
 #include "C_Traj_Planner.h"   /* 平滑时间、最短运动时间的上限以规划器为准 */
 
 /* A_Config.h —— 固件常量与掉电保存参数。电位器版与磁编码版此文件相同，随编码器/型号变化的数据只在 App_Model.h。
- *   1. 版本与型号            5. 用户参数：出厂值与范围(对外，参数表 20~4B / 80~91)
+ *   1. 版本与型号            5. 用户参数：出厂值与范围(对外，参数表 20~49 / 80~91)
  *   2. 板级硬件              6. 工作模式、校准、上电动作(对外编号)
  *   3. 内部单位与坐标        7. 参数存储结构与接口
  *   4. 控制器整定(不对外)
@@ -67,10 +67,11 @@
 /* 速度环带宽受纯延迟限制 ω_v·延迟 ≤ 1/3(与 C_PosCtrl_Init 同一公式)，另受编码器带宽上限 */
 #define TUNE_VEL_BW_DELAY_MAX  ((MOTOR_DELAY_US > 333) ? 1000000U / (3U * MOTOR_DELAY_US) : 1000U)
 #define TUNE_VEL_BW_RADS       ((TUNE_VEL_BW_DELAY_MAX < ENCODER_TUNE_VEL_BW_CAP) ? TUNE_VEL_BW_DELAY_MAX : ENCODER_TUNE_VEL_BW_CAP)  /** 速度环带宽 ω_v，rad/s */
-#define TUNE_POS_BW_RADS       ((TUNE_VEL_BW_RADS / 4U < 20U) ? TUNE_VEL_BW_RADS / 4U : 20U)  /** 位置环带宽 ω_p，rad/s：≤ ω_v/4 */
+/* 位置环带宽随编码器与型号见 App_Model.h；运动段位置增益另按距离 ×1~×2(见 C_Pos_Ctrl.c MOVE_POS_BW_X) */
+#define TUNE_POS_BW_RADS       ENCODER_TUNE_POS_BW_RADS  /** 位置环带宽 ω_p，rad/s：≤ ω_v/4 */
 #define TUNE_INT_BW_RADS         5U  /** 速度积分零点 ω_i，rad/s，≤ ω_p */
-/* 负载惯量比：J_load/J_motor×10，10=负载惯量等于电机自身。只供观测器模型和位置环带宽收敛，不改轨迹限值和前馈 */
-#define TUNE_LOAD_RATIO_X10     20U
+/* 观测器名义惯量 = 电机惯量×(1 + 本值/10)：只影响速度估计，扰动估计不进输出 */
+#define TUNE_OBS_LOAD_RATIO_X10 20U
 
 
 /* ==================== 5. 用户参数：出厂值与范围(对外) ====================
@@ -80,7 +81,7 @@
 #define CFG_BAUD_DEFAULT             5U   /** 21 波特率档位 1~8，5=115200 */
 #define CFG_BAUD_MIN                 1U
 #define CFG_BAUD_MAX                 8U
-/* ---- 24/84 扭矩：百分比0-100，分母是额定堵转电流 TORQUE_STALL_CURRENT_MA ---- */
+/* ---- 24/84 扭矩上限、49 最小启动扭矩：百分比0-100，分母是额定堵转电流 TORQUE_STALL_CURRENT_MA ---- */
 #define TORQUE_MAX_PERCENT         100U   /** 扭矩百分比满量程，也是出厂值与可设上限 */
 /* ---- 30~38 运动(V/A/D 写0=按额定；平滑写0=自动取τ) ---- */
 #define CFG_TRAJ_VMAX_MAX_DPS      MOTOR_RATED_VEL_DPS   /** 30 最大速度上限=额定能力，°/s */
@@ -139,12 +140,6 @@
 #define PROT_VOLTAGE_TOL_LO_DV           1U  /** 欠压动作线 = 设置下限 - 本值 */
 #define PROT_VOLTAGE_TOL_HI_DV           1U  /** 过压动作线 = 设置上限 + 本值 */
 #define PROT_VOLTAGE_HYST_DV             2U  /** 恢复回差 */
-/* ---- 49 最小启动扭矩，百分比0-100；0=关闭门槛 ---- */
-/* ---- 4A/90 负载惯量比×10；0=空载/轻载，扰动前馈关闭 ---- */
-#define CFG_DEF_LOAD_RATIO_X10           0U
-#define CFG_LOAD_RATIO_MAX_X10          40U  /** 4.0 */
-/* ---- 4B/91 位置负载(重力)自学习：1=开 0=关 ---- */
-#define CFG_DEF_LOAD_LEARN               1U
 
 
 /* ==================== 6. 工作模式、校准、上电动作(对外编号) ====================
@@ -214,8 +209,6 @@ typedef struct {
     uint8_t  voltage_min_dv;           /** 47 最低工作电压，0.1V */
     uint8_t  voltage_max_dv;           /** 48 最高工作电压，0.1V */
     uint8_t  min_start_torque_pct;     /** 49 最小启动扭矩，%；0=关闭门槛 */
-    uint8_t  load_ratio_x10;           /** 4A/90 负载惯量比 J负载/J电机×10；0=扰动前馈关闭 */
-    uint8_t  load_learn;               /** 4B/91 位置负载(重力)自学习：1=开 0=关 */
     uint8_t  reserved;                 /** 补齐偶数字节，恒为0 */
 } RunParams_t;
 
@@ -228,6 +221,8 @@ typedef struct {
     uint8_t  boot_mode;            /** 23 上电动作，见ServoBootMode_t，1~3 */
     uint8_t  cal_kind;             /** ServoCalKind_t，0=未校准 */
     uint8_t  custom_reverse;       /** 自定义模式方向(未经 CFG_DIR_INVERT 翻转的原始值) */
+    uint8_t  slave_mode;           /** 从机模式(二进制CMD 04)：1=明文/二进制一律不应答；07恢复默认保留，换固件回0 */
+    uint8_t  reserved_cfg;         /** 补齐偶数字节(image_tag前无填充)，恒为0 */
     uint16_t startup_q3;           /** 25 上电目标脉宽，Q3(1/8us)，Q3_MIN~Q3_MAX */
     uint16_t pulse_lo_q3;          /** SMI 标定的脉冲下界，Q3 */
     uint16_t pulse_hi_q3;          /** SMX 标定的脉冲上界，Q3，须 > pulse_lo_q3 */

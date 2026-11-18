@@ -7,16 +7,16 @@
 
 固件文件是 fw_pack.py 打包出的加密升级文件(*_upgrade.bin)，本脚本只负责传输，不需要也不接触密钥。
 依赖：pyserial（pip install pyserial）
-协议见《舵机IAP升级协议与流程.html》。
+协议见《IAP升级协议与流程.html》。
 
 升级保留舵机 ID 和波特率，其他配置及硬件能力使用新固件默认值。
 """
 
 # ============================== 配置 ==============================
-PORT      = 'COM141'                                        # 串口号
-SERVO_ID  = 0                                         # 舵机 ID，0~254
-APP_BAUD  = 115200                                        # 舵机当前的波特率
-FW_FILE   = r'CH32V00X_APP_ADC\obj\CH32V00X_APP_upgrade.bin'  # 要烧录的加密升级文件(fw_pack.py 生成)
+PORT     = 'COM141'                                             # 串口号
+SERVO_ID = 2                                                    # 舵机 ID，0~254
+APP_BAUD = 115200                                               # 舵机当前的波特率
+FW_FILE  = r'CH32V00X_APP_ADC\obj\CH32V00X_APP_upgrade.bin'     # 要烧录的加密升级文件(fw_pack.py 生成)
 # ==================================================================
 
 import argparse

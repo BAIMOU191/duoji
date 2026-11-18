@@ -18,7 +18,7 @@
 #define APP_MODEL_T1_H10_V12_Q45    7   /* 电位器 12V 45kg */
 #define APP_MODEL_T3_H10_V8_Q15     8   /* 电位器 8V 15kg */
 
-#define APP_MODEL  APP_MODEL_T1_H10_V8_Q20
+#define APP_MODEL  APP_MODEL_T1_H10_V12_Q35
 
 
 /* ==================== 2. 编码器相关常量(本工程共用) ====================
@@ -29,8 +29,16 @@
 #define ENCODER_POT_ADC_FLOAT     100U   /** 低于它=抽头悬空=在死区里(整数计数) */
 /* 控制器整定里随编码器变化的部分(A_Config.h 第4节引用)：带宽越高电位器噪声放大越多 */
 #define ENCODER_TUNE_OBS_BW_HZ      12   /** 观测器位置/速度极点(Hz) */
-#define ENCODER_TUNE_VEL_BW_CAP     70U  /** 速度环带宽上限(rad/s)，另受纯延迟限制 */
-#define ENCODER_DEF_RESOLUTION_CDEG 50U  /** 到位精度出厂值(厘度)：电位器噪声大，取得比磁编码宽 */
+#define ENCODER_TUNE_VEL_BW_CAP     60U  /** 速度环带宽上限(rad/s)，另受纯延迟限制 */
+/* 位置环带宽 ω_p(rad/s)：按负载惯量比约2的串级上限 (Kv+kv)/(3·ka)/4 取整；12V 35/45kg 反电势相对惯量大、速度环阻尼强，可取高些 */
+#if APP_MODEL == APP_MODEL_T1_H10_V12_Q35
+#define ENCODER_TUNE_POS_BW_RADS     7U
+#elif APP_MODEL == APP_MODEL_T1_H10_V12_Q45
+#define ENCODER_TUNE_POS_BW_RADS     6U
+#else
+#define ENCODER_TUNE_POS_BW_RADS     5U
+#endif
+#define ENCODER_DEF_RESOLUTION_CDEG 50U  /** 到位精度出厂值(厘度)：不小于编码器噪声与最小可靠位移决定的下限 */
 
 
 /* ==================== 3. 型号表 ==================== */
@@ -46,18 +54,18 @@
 /* ---- 电机标定（标定固件打印，整节替换） ----
  * 电压域模型 U = kv·ω + ka·α + fc·sgn(ω)，静止且 |U| < fs 时粘住；参数与母线电压无关，
  * 运行时电压按实测母线换算成占空比。额定能力为标定电压下的值(已留10%余量)，只用于配置校验与出厂默认值。 */
-#define MOTOR_CAL_MV              7640   /* 标定电压，mV */
-#define MOTOR_KV_UV                250   /* 反电势斜率，µV/(厘度/s) */
-#define MOTOR_KA_NV               6829   /* 加速系数，nV/(厘度/s²) */
-#define MOTOR_FC_MV                313   /* 动摩擦，mV */
-#define MOTOR_FS_MV                546   /* 起转电压，mV */
-#define MOTOR_DELAY_US            3206   /* 输入到响应的纯延迟，µs */
-#define MOTOR_NOISE_CDEG             6   /* 静止读数噪声幅值(±)，厘度 */
+#define MOTOR_CAL_MV              7638   /* 标定电压，mV */
+#define MOTOR_KV_UV                249   /* 反电势斜率，µV/(厘度/s) */
+#define MOTOR_KA_NV               7126   /* 加速系数，nV/(厘度/s²) */
+#define MOTOR_FC_MV                240   /* 动摩擦，mV */
+#define MOTOR_FS_MV                556   /* 起转电压，mV */
+#define MOTOR_DELAY_US            2259   /* 输入到响应的纯延迟，µs */
+#define MOTOR_NOISE_CDEG             5   /* 静止读数噪声幅值(±)，厘度 */
 #define MOTOR_MIN_STEP_CDEG          9   /* 最小可靠位移，厘度 */
 #define MOTOR_SIGN                   1   /* 正电压使输出轴角度增大 = 1 */
-#define MOTOR_RATED_VEL_DPS        260   /* 额定最高速度，度/秒 */
-#define MOTOR_RATED_ACC_DPS2      8000   /* 额定零速加速度，度/秒² */
-#define MOTOR_RATED_DEC_DPS2      8000   /* 额定低速减速度，度/秒² */
+#define MOTOR_RATED_VEL_DPS        230   /* 额定最高速度，度/秒 */
+#define MOTOR_RATED_ACC_DPS2      7500   /* 额定零速加速度，度/秒² */
+#define MOTOR_RATED_DEC_DPS2      7500   /* 额定低速减速度，度/秒² */
 
 /* ---- 电位器标定（单台实测，整节替换） ---- */
 #define ENCODER_POT_ADC_MIN         350U  /** 0度对应的实测ADC计数(整数，不带Q4) */
@@ -79,18 +87,18 @@
 /* ---- 电机标定（标定固件打印，整节替换） ----
  * 电压域模型 U = kv·ω + ka·α + fc·sgn(ω)，静止且 |U| < fs 时粘住；参数与母线电压无关，
  * 运行时电压按实测母线换算成占空比。额定能力为标定电压下的值(已留10%余量)，只用于配置校验与出厂默认值。 */
-#define MOTOR_CAL_MV              7692   /* 标定电压，mV */
-#define MOTOR_KV_UV                254   /* 反电势斜率，µV/(厘度/s) */
-#define MOTOR_KA_NV               5244   /* 加速系数，nV/(厘度/s²) */
-#define MOTOR_FC_MV                440   /* 动摩擦，mV */
-#define MOTOR_FS_MV                517   /* 起转电压，mV */
-#define MOTOR_DELAY_US            4940   /* 输入到响应的纯延迟，µs */
-#define MOTOR_NOISE_CDEG             5   /* 静止读数噪声幅值(±)，厘度 */
-#define MOTOR_MIN_STEP_CDEG          8   /* 最小可靠位移，厘度 */
-#define MOTOR_SIGN                  -1   /* 正电压使输出轴角度增大 = 1 */
-#define MOTOR_RATED_VEL_DPS        200   /* 额定最高速度，度/秒 */
-#define MOTOR_RATED_ACC_DPS2      7500   /* 额定零速加速度，度/秒² */
-#define MOTOR_RATED_DEC_DPS2      7500   /* 额定低速减速度，度/秒² */
+#define MOTOR_CAL_MV              7695   /* 标定电压，mV */
+#define MOTOR_KV_UV                339   /* 反电势斜率，µV/(厘度/s) */
+#define MOTOR_KA_NV               9839   /* 加速系数，nV/(厘度/s²) */
+#define MOTOR_FC_MV                129   /* 动摩擦，mV */
+#define MOTOR_FS_MV                486   /* 起转电压，mV */
+#define MOTOR_DELAY_US            2733   /* 输入到响应的纯延迟，µs */
+#define MOTOR_NOISE_CDEG             5  /* 静止读数噪声幅值(±)，厘度 */
+#define MOTOR_MIN_STEP_CDEG         10   /* 最小可靠位移，厘度 */
+#define MOTOR_SIGN                   1   /* 正电压使输出轴角度增大 = 1 */
+#define MOTOR_RATED_VEL_DPS        181   /* 额定最高速度，度/秒 */
+#define MOTOR_RATED_ACC_DPS2      5562   /* 额定零速加速度，度/秒² */
+#define MOTOR_RATED_DEC_DPS2      5751   /* 额定低速减速度，度/秒² */
 
 /* ---- 电位器标定（单台实测，整节替换） ---- */
 #define ENCODER_POT_ADC_MIN         350U  /** 0度对应的实测ADC计数(整数，不带Q4) */
@@ -112,18 +120,18 @@
 /* ---- 电机标定（标定固件打印，整节替换） ----
  * 电压域模型 U = kv·ω + ka·α + fc·sgn(ω)，静止且 |U| < fs 时粘住；参数与母线电压无关，
  * 运行时电压按实测母线换算成占空比。额定能力为标定电压下的值(已留10%余量)，只用于配置校验与出厂默认值。 */
-#define MOTOR_CAL_MV              7666   /* 标定电压，mV */
-#define MOTOR_KV_UV                397   /* 反电势斜率，µV/(厘度/s) */
-#define MOTOR_KA_NV               7063   /* 加速系数，nV/(厘度/s²) */
-#define MOTOR_FC_MV                127   /* 动摩擦，mV */
-#define MOTOR_FS_MV                413   /* 起转电压，mV */
-#define MOTOR_DELAY_US            3211   /* 输入到响应的纯延迟，µs */
-#define MOTOR_NOISE_CDEG             6   /* 静止读数噪声幅值(±)，厘度 */
-#define MOTOR_MIN_STEP_CDEG         13   /* 最小可靠位移，厘度 */
+#define MOTOR_CAL_MV              7697   /* 标定电压，mV */
+#define MOTOR_KV_UV                400   /* 反电势斜率，µV/(厘度/s) */
+#define MOTOR_KA_NV               8051   /* 加速系数，nV/(厘度/s²) */
+#define MOTOR_FC_MV                80   /* 动摩擦，mV */
+#define MOTOR_FS_MV                457   /* 起转电压，mV */
+#define MOTOR_DELAY_US            3000   /* 输入到响应的纯延迟，µs */
+#define MOTOR_NOISE_CDEG             5   /* 静止读数噪声幅值(±)，厘度 */
+#define MOTOR_MIN_STEP_CDEG         18   /* 最小可靠位移，厘度 */
 #define MOTOR_SIGN                   1   /* 正电压使输出轴角度增大 = 1 */
-#define MOTOR_RATED_VEL_DPS        162   /* 额定最高速度，度/秒 */
-#define MOTOR_RATED_ACC_DPS2      7500   /* 额定零速加速度，度/秒² */
-#define MOTOR_RATED_DEC_DPS2      7500   /* 额定低速减速度，度/秒² */
+#define MOTOR_RATED_VEL_DPS        148   /* 额定最高速度，度/秒 */
+#define MOTOR_RATED_ACC_DPS2      7000   /* 额定零速加速度，度/秒² */
+#define MOTOR_RATED_DEC_DPS2      7000   /* 额定低速减速度，度/秒² */
 
 /* ---- 电位器标定（单台实测，整节替换） ---- */
 #define ENCODER_POT_ADC_MIN         350U  /** 0度对应的实测ADC计数(整数，不带Q4) */

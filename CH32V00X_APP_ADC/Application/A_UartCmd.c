@@ -6,7 +6,8 @@
  *         明文帧里出现 0xAA 即放弃明文、按二进制帧头处理(明文只含ASCII)。另有10ms静默丢弃半帧兜底。
  * 本层只做成帧、校验、ID过滤与应答排队，不直接碰参数字段。
  * 广播(ID=255/FF)的应答延时 100ms+本机ID×2ms 发出，总线上有别的舵机在应答就排队顺延；发给本机的新帧作废未发应答。
- * 广播对所有指令都执行(含改ID、全部恢复出厂)，明文、二进制一样。 */
+ * 广播对所有指令都执行(含改ID、全部恢复出厂)，明文、二进制一样。
+ * 从机模式(二进制CMD 04 置1，存Flash)：指令照常执行，但明文、二进制都不发应答；用于同ID并联只留一台应答。 */
 
 #include "A_UartCmd.h"
 #include "A_Config.h"
@@ -35,7 +36,7 @@
 #define BIN_CMD_STATE 0x01U
 #define BIN_CMD_READ 0x02U
 #define BIN_CMD_WRITE 0x03U
-#define BIN_CMD_RESERVED_04 0x04U
+#define BIN_CMD_SLAVE 0x04U   /* DATA 1B：0=主(正常应答) 1=从(不应答) */
 #define BIN_CMD_RESERVED_05 0x05U
 #define BIN_CMD_RESERVED_06 0x06U
 #define BIN_CMD_RESET_KEEP 0x07U
@@ -111,11 +112,11 @@ static void Bcast_Tick(void)
     }
 }
 
-/* 应答发出后切到当前配置的波特率；广播的等延时应答发完 */
+/* 应答发出后切到当前配置的波特率 */
 static void Baud_AfterReply(uint8_t bcast)
 {
-    if (bcast) s_bcast_baud = 1U;
-    else D_UART_SetBaud_Deferred(A_Config_Baudrate());   /* 先用旧波特率把应答发完再切 */
+    if (bcast && s_bcast.pending) s_bcast_baud = 1U;     /* 广播应答还在排队：等它发完再切 */
+    else D_UART_SetBaud_Deferred(A_Config_Baudrate());   /* 先用旧波特率把已入队的应答发完再切(从机不应答时直接切) */
 }
 
 /* ============================== 明文协议 ============================== */
@@ -135,7 +136,7 @@ static bool Text_Digits(const uint8_t *p, uint8_t n, uint16_t *out)
 }
 
 enum { T_VER, T_ID, T_ID_SET, T_ULK, T_ULM, T_ULR, T_MOD, T_MOD_SET, T_RAD, T_DPT, T_DCT, T_DST, T_BD, T_BD_SET,
-       T_SP, T_SP_SET, T_AMI, T_AMX, T_SMI, T_SMX, T_SCK, T_SCZ, T_RIV, T_CSD, T_CSM, T_CSM_SET, T_CLE0, T_CLE, T_RTV };
+       T_SP, T_SP_SET, T_AMI, T_AMX, T_SMI, T_SMX, T_SCK, T_SCK_TRIM, T_SCZ, T_RIV, T_CSD, T_CSM, T_CSM_SET, T_CLE0, T_CLE, T_RTV };
 
 /* 关键字 + 紧跟的参数位数；同一关键字靠总长度区分 */
 static const struct { char key[5]; uint8_t digits; uint8_t code; } k_text[] = {
@@ -171,6 +172,7 @@ static void Reply_Begin(void)
 
 static void Reply_Send(void)
 {
+    if (g_config.slave_mode) return;   /* 从机不应答 */
     Reply_Char('!');
     if (s_reply_bcast) { Bcast_Defer(s_reply, s_reply_len); return; }
     (void)D_UART1_Tx_Write(s_reply, s_reply_len);   /* 队列放不下整帧丢弃 */
@@ -244,6 +246,7 @@ static void Text_Execute(uint8_t code, uint16_t arg)
     case T_DPT: A_Servo_Pause(); break;
     case T_DCT: A_Servo_Resume(); break;
     case T_SCK: ok = A_Servo_CalibrateMid(); break;
+    case T_SCK_TRIM: ok = Text_Set(PARAM_CAL_TRIM, arg); break;   /* SCK±nnn：受理即回OK，到位后才写校准 */
     case T_SCZ: ok = A_Servo_CalibrateZero(); break;
     case T_AMI: ok = A_Servo_SetTravelEnd(1U); break;
     case T_AMX: ok = A_Servo_SetTravelEnd(0U); break;
@@ -287,6 +290,13 @@ static void Text_Frame(const uint8_t *f, uint8_t len)
         (void)A_Servo_Submit(pwm, arg);   /* 明文运动指令按协议不回复 */
         return;
     }
+    if (n == 7U && memcmp(body, "SCK", 3U) == 0 && (body[3] == '+' || body[3] == '-') && Text_Digits(body + 4, 3U, &arg))
+    {   /* SCK+nnn / SCK-nnn：中点微调，n 单位 us */
+        s_reply_bcast = (uint8_t)(id == 255U);
+        Text_Execute(T_SCK_TRIM, (body[3] == '-') ? (uint16_t)(0U - arg) : arg);
+        s_reply_bcast = 0U;
+        return;
+    }
     for (i = 0U; i < sizeof(k_text) / sizeof(k_text[0]); i++)
     {
         k = (uint8_t)strlen(k_text[i].key);
@@ -321,6 +331,7 @@ static void Bin_Reply(uint8_t cmd, uint8_t status, const uint8_t *data, uint8_t 
     memcpy(f + 6, data, len);
     f[6U + len] = Bin_Crc8(f + 2, (uint8_t)(4U + len));
     f[7U + len] = BIN_TAIL1; f[8U + len] = BIN_TAIL2;
+    if (g_config.slave_mode) return;   /* 从机不应答 */
     if (s_bin_bcast) { Bcast_Defer(f, (uint8_t)(9U + len)); return; }
     (void)D_UART1_Tx_Write(f, (uint8_t)(9U + len));
 }
@@ -360,7 +371,12 @@ static uint8_t Bin_Frame(const uint8_t *f, uint8_t len)
         A_Servo_FactoryReset((uint8_t)(cmd == BIN_CMD_RESET_KEEP));
         fx = PARAM_FX_BAUD;
         break;
-    case BIN_CMD_RESERVED_04: case BIN_CMD_RESERVED_05: case BIN_CMD_RESERVED_06: case BIN_CMD_REBOOT:
+    case BIN_CMD_SLAVE:   /* 04 主/从：应答按新设置，置从后本帧起就不再应答 */
+        if (n != 1U) { st = PARAM_ST_LENGTH; break; }
+        if (data[0] > 1U) { st = PARAM_ST_VALUE; break; }
+        if (g_config.slave_mode != data[0]) { g_config.slave_mode = data[0]; A_Config_MarkDirty(); }
+        break;
+    case BIN_CMD_RESERVED_05: case BIN_CMD_RESERVED_06: case BIN_CMD_REBOOT:
         st = PARAM_ST_UNSUP;
         break;
     default:

@@ -49,45 +49,41 @@ typedef struct {
 
 static const ParamDef_t k_params[] = {
     /* ---- Flash 参数 ---- */
-    P_CFG_(PARAM_SERVO_ID,             servo_id,                 0,                 0U, CFG_ID_MAX),
-    P_CFG_(PARAM_BAUD_CODE,            baud_code,                PF_BAUD,           CFG_BAUD_MIN, CFG_BAUD_MAX),
-    P_CFG_(PARAM_SERVO_MODE,           servo_mode,               PF_SPECIAL,        SERVO_MODE_270_CW, SERVO_MODE_CUSTOM),
-    P_CFG_(PARAM_BOOT_MODE,            boot_mode,                0,                 SERVO_BOOT_GOTO_START, SERVO_BOOT_RELEASE),
-    P_RUNF(PARAM_TORQUE_LIMIT,         torque_limit_pct,         PF_PROT,           0U, TORQUE_MAX_PERCENT),
-    P_RUNF(PARAM_TRAJ_VMAX,            traj_vmax_dps,            PF_TRAJ,           0U, CFG_TRAJ_VMAX_MAX_DPS),
-    P_RUNF(PARAM_TRAJ_AMAX,            traj_amax_dps2,           PF_TRAJ,           0U, CFG_TRAJ_AMAX_MAX_DPS2),
-    P_RUNF(PARAM_TRAJ_DMAX,            traj_dmax_dps2,           PF_TRAJ,           0U, CFG_TRAJ_DMAX_MAX_DPS2),
-    P_RUNF(PARAM_TRAJ_SMOOTH,          traj_smooth_ms,           PF_TRAJ | PF_ZERO, CFG_SMOOTH_MIN_MS, CFG_SMOOTH_MAX_MS),
-    P_RUNF(PARAM_MOVE_MIN,             traj_move_min_ms,         PF_TRAJ,           0U, CFG_MOVE_MIN_MAX_MS),
-    P_RUNF(PARAM_HOLD_KP,              hold_kp,                  0,                 0U, CFG_HOLD_KP_MAX),
-    P_RUNF(PARAM_RESOLUTION,           position_resolution_cdeg, 0,                 CFG_RESOLUTION_MIN_CDEG, CFG_RESOLUTION_MAX_CDEG),
-    P_RUNF(PARAM_HOLD_KI,              hold_ki,                  0,                 0U, CFG_HOLD_KI_MAX),
-    P_RUNF(PARAM_PROT_CURRENT_LIMIT,   prot_current_limit_ma,    PF_PROT,           PROT_CURRENT_LIMIT_MIN_MA, PROT_CURRENT_LIMIT_MAX_MA),
-    P_RUNF(PARAM_PROT_CURRENT_TIME,    prot_current_time_ms,     PF_PROT,           PROT_CURRENT_TIME_MIN_MS, PROT_CURRENT_TIME_MAX_MS),
-    P_RUNF(PARAM_PROT_TEMP_LIMIT,      prot_temp_limit_dC,       PF_PROT,           PROT_TEMP_LIMIT_MIN_DC, PROT_TEMP_LIMIT_MAX_DC),
-    P_RUNF(PARAM_PROT_TEMP_TIME,       prot_temp_time_ms,        PF_PROT,           PROT_TEMP_TIME_MIN_MS, PROT_TEMP_TIME_MAX_MS),
-    P_RUNF(PARAM_PROT_STALL_THRESHOLD, prot_stall_act_cdeg,      PF_PROT,           PROT_STALL_THRESHOLD_MIN_CDEG, PROT_STALL_THRESHOLD_MAX_CDEG),
-    P_RUNF(PARAM_PROT_STALL_TRIP,      prot_stall_trip,          PF_PROT,           PROT_STALL_TRIP_MIN, PROT_STALL_TRIP_MAX),
-    P_RUNF(PARAM_PROT_ENABLE,          protect_enable,           0,                 0U, PROT_ENABLE_IMPLEMENTED),
-    P_RUNF(PARAM_VOLTAGE_MIN,          voltage_min_dv,           PF_SPECIAL,        PROT_VOLTAGE_CFG_MIN_DV, PROT_VOLTAGE_CFG_MAX_DV),
-    P_RUNF(PARAM_VOLTAGE_MAX,          voltage_max_dv,           PF_SPECIAL,        PROT_VOLTAGE_CFG_MIN_DV, PROT_VOLTAGE_CFG_MAX_DV),
-    P_RUNF(PARAM_MIN_START_TORQUE,     min_start_torque_pct,     0,                 0U, TORQUE_MAX_PERCENT),
-    P_RUNF(PARAM_LOAD_RATIO,           load_ratio_x10,           0,                 0U, CFG_LOAD_RATIO_MAX_X10),
-    P_RUNF(PARAM_LOAD_LEARN,           load_learn,               0,                 0U, 1U),
+    P_CFG_(PARAM_SERVO_ID,             servo_id,                 0,                 0U, CFG_ID_MAX),                                                /* 20 舵机ID */
+    P_CFG_(PARAM_BAUD_CODE,            baud_code,                PF_BAUD,           CFG_BAUD_MIN, CFG_BAUD_MAX),                                    /* 21 波特率档位 */
+    P_CFG_(PARAM_SERVO_MODE,           servo_mode,               PF_SPECIAL,        SERVO_MODE_270_CW, SERVO_MODE_CUSTOM),                          /* 22 工作模式(校验在 A_Servo_SetMode) */
+    P_CFG_(PARAM_BOOT_MODE,            boot_mode,                0,                 SERVO_BOOT_GOTO_START, SERVO_BOOT_RELEASE),                     /* 23 上电动作 */
+    P_RUNF(PARAM_TORQUE_LIMIT,         torque_limit_pct,         PF_PROT,           0U, TORQUE_MAX_PERCENT),                                        /* 24 扭矩上限 % */
+    P_RUNF(PARAM_TRAJ_VMAX,            traj_vmax_dps,            PF_TRAJ,           0U, CFG_TRAJ_VMAX_MAX_DPS),                                     /* 30 最大速度 °/s */
+    P_RUNF(PARAM_TRAJ_AMAX,            traj_amax_dps2,           PF_TRAJ,           0U, CFG_TRAJ_AMAX_MAX_DPS2),                                    /* 31 最大加速度 °/s² */
+    P_RUNF(PARAM_TRAJ_DMAX,            traj_dmax_dps2,           PF_TRAJ,           0U, CFG_TRAJ_DMAX_MAX_DPS2),                                    /* 32 最大减速度 °/s² */
+    P_RUNF(PARAM_TRAJ_SMOOTH,          traj_smooth_ms,           PF_TRAJ | PF_ZERO, CFG_SMOOTH_MIN_MS, CFG_SMOOTH_MAX_MS),                          /* 33 S曲线平滑时间 ms，0=自动 */
+    P_RUNF(PARAM_MOVE_MIN,             traj_move_min_ms,         PF_TRAJ,           0U, CFG_MOVE_MIN_MAX_MS),                                       /* 34 最短运动时间 ms */
+    P_RUNF(PARAM_HOLD_KP,              hold_kp,                  0,                 0U, CFG_HOLD_KP_MAX),                                           /* 35 保持比例P */
+    P_RUNF(PARAM_RESOLUTION,           position_resolution_cdeg, 0,                 CFG_RESOLUTION_MIN_CDEG, CFG_RESOLUTION_MAX_CDEG),              /* 37 到位精度 0.01° */
+    P_RUNF(PARAM_HOLD_KI,              hold_ki,                  0,                 0U, CFG_HOLD_KI_MAX),                                           /* 38 保持积分I */
+    P_RUNF(PARAM_PROT_CURRENT_LIMIT,   prot_current_limit_ma,    PF_PROT,           PROT_CURRENT_LIMIT_MIN_MA, PROT_CURRENT_LIMIT_MAX_MA),          /* 40 过流阈值 mA */
+    P_RUNF(PARAM_PROT_CURRENT_TIME,    prot_current_time_ms,     PF_PROT,           PROT_CURRENT_TIME_MIN_MS, PROT_CURRENT_TIME_MAX_MS),            /* 41 过流持续时间 ms */
+    P_RUNF(PARAM_PROT_TEMP_LIMIT,      prot_temp_limit_dC,       PF_PROT,           PROT_TEMP_LIMIT_MIN_DC, PROT_TEMP_LIMIT_MAX_DC),                /* 42 过温阈值 0.1℃ */
+    P_RUNF(PARAM_PROT_TEMP_TIME,       prot_temp_time_ms,        PF_PROT,           PROT_TEMP_TIME_MIN_MS, PROT_TEMP_TIME_MAX_MS),                  /* 43 过温持续时间 ms */
+    P_RUNF(PARAM_PROT_STALL_THRESHOLD, prot_stall_act_cdeg,      PF_PROT,           PROT_STALL_THRESHOLD_MIN_CDEG, PROT_STALL_THRESHOLD_MAX_CDEG),  /* 44 堵转位移阈值 */
+    P_RUNF(PARAM_PROT_STALL_TRIP,      prot_stall_trip,          PF_PROT,           PROT_STALL_TRIP_MIN, PROT_STALL_TRIP_MAX),                      /* 45 堵转连续次数 */
+    P_RUNF(PARAM_PROT_ENABLE,          protect_enable,           0,                 0U, PROT_ENABLE_IMPLEMENTED),                                   /* 46 保护开关位掩码 */
+    P_RUNF(PARAM_VOLTAGE_MIN,          voltage_min_dv,           PF_SPECIAL,        PROT_VOLTAGE_CFG_MIN_DV, PROT_VOLTAGE_CFG_MAX_DV),              /* 47 最低工作电压(成对校验) */
+    P_RUNF(PARAM_VOLTAGE_MAX,          voltage_max_dv,           PF_SPECIAL,        PROT_VOLTAGE_CFG_MIN_DV, PROT_VOLTAGE_CFG_MAX_DV),              /* 48 最高工作电压(成对校验) */
+    P_RUNF(PARAM_MIN_START_TORQUE,     min_start_torque_pct,     0,                 0U, TORQUE_MAX_PERCENT),                                        /* 49 最小启动扭矩 % */
     /* ---- SRAM 参数 ---- */
-    P_RAM_(PARAM_TORQUE_MODE,          torque_mode,              PF_SPECIAL,        0U, 2U),
-    P_RAM_(PARAM_DAMPING,              damping_percent,          PF_SPECIAL,        0U, 100U),
-    P_RUNR(PARAM_RT_TORQUE_LIMIT,      torque_limit_pct,         PF_PROT,           0U, TORQUE_MAX_PERCENT),
-    P_RUNR(PARAM_RT_TRAJ_VMAX,         traj_vmax_dps,            PF_TRAJ,           0U, CFG_TRAJ_VMAX_MAX_DPS),
-    P_RUNR(PARAM_RT_TRAJ_AMAX,         traj_amax_dps2,           PF_TRAJ,           0U, CFG_TRAJ_AMAX_MAX_DPS2),
-    P_RUNR(PARAM_RT_TRAJ_DMAX,         traj_dmax_dps2,           PF_TRAJ,           0U, CFG_TRAJ_DMAX_MAX_DPS2),
-    P_RUNR(PARAM_RT_TRAJ_SMOOTH,       traj_smooth_ms,           PF_TRAJ | PF_ZERO, CFG_SMOOTH_MIN_MS, CFG_SMOOTH_MAX_MS),
-    P_RUNR(PARAM_RT_MOVE_MIN,          traj_move_min_ms,         PF_TRAJ,           0U, CFG_MOVE_MIN_MAX_MS),
-    P_RUNR(PARAM_RT_HOLD_KP,           hold_kp,                  0,                 0U, CFG_HOLD_KP_MAX),
-    P_RUNR(PARAM_RT_RESOLUTION,        position_resolution_cdeg, 0,                 CFG_RESOLUTION_MIN_CDEG, CFG_RESOLUTION_MAX_CDEG),
-    P_RUNR(PARAM_RT_HOLD_KI,           hold_ki,                  0,                 0U, CFG_HOLD_KI_MAX),
-    P_RUNR(PARAM_RT_LOAD_RATIO,        load_ratio_x10,           0,                 0U, CFG_LOAD_RATIO_MAX_X10),
-    P_RUNR(PARAM_RT_LOAD_LEARN,        load_learn,               0,                 0U, 1U),
+    P_RAM_(PARAM_TORQUE_MODE,          torque_mode,              PF_SPECIAL,        0U, 2U),                                                        /* 82 扭矩模式 */
+    P_RAM_(PARAM_DAMPING,              damping_percent,          PF_SPECIAL,        0U, 100U),                                                      /* 83 阻尼比例 % */
+    P_RUNR(PARAM_RT_TORQUE_LIMIT,      torque_limit_pct,         PF_PROT,           0U, TORQUE_MAX_PERCENT),                                        /* 84 实时扭矩上限 */
+    P_RUNR(PARAM_RT_TRAJ_VMAX,         traj_vmax_dps,            PF_TRAJ,           0U, CFG_TRAJ_VMAX_MAX_DPS),                                     /* 85 实时最大速度 */
+    P_RUNR(PARAM_RT_TRAJ_AMAX,         traj_amax_dps2,           PF_TRAJ,           0U, CFG_TRAJ_AMAX_MAX_DPS2),                                    /* 86 实时最大加速度 */
+    P_RUNR(PARAM_RT_TRAJ_DMAX,         traj_dmax_dps2,           PF_TRAJ,           0U, CFG_TRAJ_DMAX_MAX_DPS2),                                    /* 87 实时最大减速度 */
+    P_RUNR(PARAM_RT_TRAJ_SMOOTH,       traj_smooth_ms,           PF_TRAJ | PF_ZERO, CFG_SMOOTH_MIN_MS, CFG_SMOOTH_MAX_MS),                          /* 88 实时平滑时间 */
+    P_RUNR(PARAM_RT_MOVE_MIN,          traj_move_min_ms,         PF_TRAJ,           0U, CFG_MOVE_MIN_MAX_MS),                                       /* 89 实时最短运动时间 */
+    P_RUNR(PARAM_RT_HOLD_KP,           hold_kp,                  0,                 0U, CFG_HOLD_KP_MAX),                                           /* 8A 实时保持P */
+    P_RUNR(PARAM_RT_RESOLUTION,        position_resolution_cdeg, 0,                 CFG_RESOLUTION_MIN_CDEG, CFG_RESOLUTION_MAX_CDEG),              /* 8E 实时到位精度 */
+    P_RUNR(PARAM_RT_HOLD_KI,           hold_ki,                  0,                 0U, CFG_HOLD_KI_MAX),                                           /* 8F 实时保持I */
 };
 
 /* 参数表上限写在2字节里，型号额定能力也必须放得进去 */
@@ -208,11 +204,11 @@ uint8_t A_Param_Read(uint8_t addr, uint8_t *out, uint8_t *len)
     switch (addr)
     {
     /* 速度/加减速报标定值(标定电压下的能力)：与用户可设上限同源，不读 IAP 区 */
-    case PARAM_HW_VMAX: n = Param_Put(out, MOTOR_RATED_VEL_DPS, 2U);  break;
-    case PARAM_HW_AMAX: n = Param_Put(out, MOTOR_RATED_ACC_DPS2, 2U); break;
-    case PARAM_HW_DMAX: n = Param_Put(out, MOTOR_RATED_DEC_DPS2, 2U); break;
-    case PARAM_HW_TYPE: case PARAM_HW_VERSION: case PARAM_HW_VOLTAGE: case PARAM_HW_TORQUE:
-    case PARAM_HW_SMOOTH: case PARAM_HW_MIN_STEP:
+    case PARAM_HW_VMAX: n = Param_Put(out, MOTOR_RATED_VEL_DPS, 2U);  break;   /* 04 额定最大速度 °/s */
+    case PARAM_HW_AMAX: n = Param_Put(out, MOTOR_RATED_ACC_DPS2, 2U); break;   /* 05 额定最大加速度 °/s² */
+    case PARAM_HW_DMAX: n = Param_Put(out, MOTOR_RATED_DEC_DPS2, 2U); break;   /* 06 额定最大减速度 °/s² */
+    case PARAM_HW_TYPE: case PARAM_HW_VERSION: case PARAM_HW_VOLTAGE: case PARAM_HW_TORQUE:   /* 00 类型 01 硬件版本 02 标称电压 03 扭力型号 */
+    case PARAM_HW_SMOOTH: case PARAM_HW_MIN_STEP:   /* 07 自动平滑时间 08 最小可靠位移(读硬件信息页) */
         if (!IAP_HwInfoRead(&hw)) return PARAM_ST_FAILED;
         n = Param_Put(out, (addr == PARAM_HW_TYPE)    ? hw.servo_type
                          : (addr == PARAM_HW_VERSION) ? hw.hw_version
@@ -221,19 +217,19 @@ uint8_t A_Param_Read(uint8_t addr, uint8_t *out, uint8_t *len)
                          : (addr == PARAM_HW_SMOOTH)  ? (uint8_t)hw.smooth_ms
                          :                              (uint8_t)hw.min_step_cdeg, 1U);
         break;
-    case PARAM_FW_VERSION:
+    case PARAM_FW_VERSION:   /* 10 固件版本 3B */
         out[0] = SERVO_VERSION_MAJOR; out[1] = SERVO_VERSION_MINOR; out[2] = SERVO_VERSION_PATCH; n = 3U; break;
-    case PARAM_STARTUP_POS:  n = Param_Put(out, Q3_TO_PARAM_POS(g_config.startup_q3), 2U);       break;
-    case PARAM_WORK_STATE:   n = Param_Put(out, A_Servo_GetWorkState(), 1U);                     break;
-    case PARAM_FAULT:        n = Param_Put(out, A_Protect_Fault(), 2U);                          break;
-    case PARAM_POSITION:     n = Param_Put(out, Q3_TO_PARAM_POS(A_Servo_GetPositionQ3()), 2U);  break;
-    case PARAM_SPEED:        n = Param_Put(out, (uint16_t)Param_Speed(), 2U);                    break;
-    case PARAM_TEMPERATURE:  n = Param_Put(out, (uint16_t)Param_Temperature(A_Protect_GetTemperature()), 2U);     break;
-    case PARAM_VOLTAGE:      n = Param_Put(out, A_Voltage_Read(), 2U);                           break;
-    case PARAM_CURRENT:      n = Param_Put(out, (uint16_t)A_Protect_GetCurrent(), 2U);           break;
-    case PARAM_TORQUE:       n = Param_Put(out, (uint16_t)Param_Torque(), 2U);                   break;
-    case PARAM_STALLED:      n = Param_Put(out, A_Protect_Stalled(), 1U);                        break;   /* 1=堵转保持中 */
-    case PARAM_TELEMETRY:    Param_Telemetry(out); n = PARAM_TELEMETRY_BYTES;                    break;
+    case PARAM_STARTUP_POS:  n = Param_Put(out, Q3_TO_PARAM_POS(g_config.startup_q3), 2U);       break;   /* 25 上电位置 位置码 */
+    case PARAM_WORK_STATE:   n = Param_Put(out, A_Servo_GetWorkState(), 1U);                     break;   /* C0 工作状态 */
+    case PARAM_FAULT:        n = Param_Put(out, A_Protect_Fault(), 2U);                          break;   /* C1 故障位掩码 */
+    case PARAM_POSITION:     n = Param_Put(out, Q3_TO_PARAM_POS(A_Servo_GetPositionQ3()), 2U);  break;   /* C2 当前位置 位置码 */
+    case PARAM_SPEED:        n = Param_Put(out, (uint16_t)Param_Speed(), 2U);                    break;   /* C3 速度 0.1°/s */
+    case PARAM_TEMPERATURE:  n = Param_Put(out, (uint16_t)Param_Temperature(A_Protect_GetTemperature()), 2U);     break;   /* C4 温度 0.1℃ */
+    case PARAM_VOLTAGE:      n = Param_Put(out, A_Voltage_Read(), 2U);                           break;   /* C5 电压 0.01V */
+    case PARAM_CURRENT:      n = Param_Put(out, (uint16_t)A_Protect_GetCurrent(), 2U);           break;   /* C6 电流 mA */
+    case PARAM_TORQUE:       n = Param_Put(out, (uint16_t)Param_Torque(), 2U);                   break;   /* C7 扭矩 % */
+    case PARAM_STALLED:      n = Param_Put(out, A_Protect_Stalled(), 1U);                        break;   /* C8 堵转状态，1=堵转保持中 */
+    case PARAM_TELEMETRY:    Param_Telemetry(out); n = PARAM_TELEMETRY_BYTES;                    break;   /* C9 七项状态集合 14B */
     default: return PARAM_ST_VALUE;
     }
     *len = n;
@@ -250,6 +246,12 @@ static uint8_t Cal_PulseMin(void)   { return A_Servo_SetPulseLimit(1U); }
 static uint8_t Cal_PulseMax(void)   { return A_Servo_SetPulseLimit(0U); }
 static uint8_t Cal_SaveStart(void)  { return A_Servo_SaveStartup(); }
 
+/* 运动指令受理结果 → 状态码 */
+static uint8_t Param_SubmitStatus(uint8_t r)
+{
+    return (r == SERVO_SUBMIT_OK) ? PARAM_ST_OK : (r == SERVO_SUBMIT_VALUE) ? PARAM_ST_VALUE : PARAM_ST_STATE;
+}
+
 /* 有联动或要调用其它模块的地址；返回 0xFF 表示不是特殊地址，走通用流程 */
 static uint8_t Param_WriteSpecial(uint8_t addr, uint32_t v, uint8_t *fx)
 {
@@ -260,15 +262,15 @@ static uint8_t Param_WriteSpecial(uint8_t addr, uint32_t v, uint8_t *fx)
 
     switch (addr)
     {
-    case PARAM_SERVO_MODE:
+    case PARAM_SERVO_MODE:   /* 22 工作模式 */
         return A_Servo_SetMode((uint8_t)((v > 0xFFU) ? 0U : v)) ? PARAM_ST_OK : PARAM_ST_VALUE;
-    case PARAM_STARTUP_POS:   /* 位置码存成 Q3 */
+    case PARAM_STARTUP_POS:   /* 25 上电位置，位置码存成 Q3 */
         if (v > PARAM_POS_MAX) return PARAM_ST_VALUE;
         g_config.startup_q3 = PARAM_POS_TO_Q3(v);
         A_Config_MarkDirty();
         return PARAM_ST_OK;
-    case PARAM_VOLTAGE_MIN:
-    case PARAM_VOLTAGE_MAX:   /* 上下限成对校验：各留回差后仍有恢复区间 */
+    case PARAM_VOLTAGE_MIN:   /* 47 最低工作电压 */
+    case PARAM_VOLTAGE_MAX:   /* 48 最高工作电压；上下限成对校验：各留回差后仍有恢复区间 */
         lo = (addr == PARAM_VOLTAGE_MIN) ? (uint8_t)v : g_config.run.voltage_min_dv;
         hi = (addr == PARAM_VOLTAGE_MAX) ? (uint8_t)v : g_config.run.voltage_max_dv;
         if (v > 0xFFU || !A_Param_VoltageRangeValid(lo, hi)) return PARAM_ST_VALUE;
@@ -276,21 +278,24 @@ static uint8_t Param_WriteSpecial(uint8_t addr, uint32_t v, uint8_t *fx)
         g_config.run.voltage_max_dv = g_runtime_config.run.voltage_max_dv = hi;
         A_Config_MarkDirty();
         return PARAM_ST_OK;
-    case PARAM_TORQUE_MODE:
+    case PARAM_TORQUE_MODE:   /* 82 扭矩模式 */
         if (v > 2U) return PARAM_ST_VALUE;
         return A_Servo_SetTorqueMode((uint8_t)v) ? PARAM_ST_OK : PARAM_ST_STATE;
-    case PARAM_DAMPING:
+    case PARAM_DAMPING:   /* 83 阻尼比例 */
         return (v <= 100U && A_Servo_SetDamping((uint8_t)v)) ? PARAM_ST_OK : PARAM_ST_VALUE;
-    case PARAM_MOTION_ACTION:  /* 1=继续 2=暂停 3=停止 */
+    case PARAM_MOTION_ACTION:   /* 81 运动动作：1=继续 2=暂停 3=停止 */
         if (v == 1U)      A_Servo_Resume();
         else if (v == 2U) A_Servo_Pause();
         else if (v == 3U) A_Servo_Stop();
         else return PARAM_ST_VALUE;
         return PARAM_ST_OK;
-    case PARAM_CAL_ACTION:
+    case PARAM_CAL_ACTION:   /* 8B 校准动作 1~7 */
         if (v < 1U || v > sizeof(k_cal) / sizeof(k_cal[0])) return PARAM_ST_VALUE;
         return k_cal[v - 1U]() ? PARAM_ST_OK : PARAM_ST_FAILED;
-    case PARAM_SYSTEM_ACTION:  /* 1=SRAM参数重载，2=仅保留ID恢复默认，3=全部恢复默认 */
+    case PARAM_CAL_TRIM:   /* 91 中点微调：int16 us，受理即应答，到位后才写校准 */
+        if (v > 0xFFFFU || (int16_t)v < -SERVO_TRIM_MAX_US || (int16_t)v > SERVO_TRIM_MAX_US) return PARAM_ST_VALUE;
+        return Param_SubmitStatus(A_Servo_CalibrateTrim((int16_t)v));
+    case PARAM_SYSTEM_ACTION:   /* 8C 系统动作：1=SRAM参数重载，2=仅保留ID恢复默认，3=全部恢复默认 */
         if (v == 1U) { A_Config_ReloadRuntime(0U); A_Servo_ApplyTrajConfig(); A_Protect_Refresh(); return PARAM_ST_OK; }
         if (v != 2U && v != 3U) return PARAM_ST_VALUE;
         A_Servo_FactoryReset((uint8_t)(v == 2U));
@@ -326,9 +331,13 @@ static uint8_t Param_WriteSize(uint8_t addr)
     if (d != 0) return d->size;
     switch (addr)
     {
-    case PARAM_STARTUP_POS:    return 2U;
-    case PARAM_MOTION_REQUEST: return 4U;
-    case PARAM_MOTION_ACTION: case PARAM_CAL_ACTION: case PARAM_SYSTEM_ACTION: return 1U;
+    case PARAM_STARTUP_POS:    return 2U;   /* 25 上电位置 */
+    case PARAM_CAL_TRIM:       return 2U;   /* 91 中点微调 int16 us */
+    case PARAM_MOTION_REQUEST: return 4U;   /* 80 运动目标 */
+#if ENCODER_IS_CIRCULAR
+    case PARAM_MOTION_TURNS:   return 5U;   /* 90 多圈运动 */
+#endif
+    case PARAM_MOTION_ACTION: case PARAM_CAL_ACTION: case PARAM_SYSTEM_ACTION: return 1U;   /* 81/8B/8C 动作命令 */
     default:                   return 0U;
     }
 }
@@ -338,19 +347,26 @@ uint8_t A_Param_Write(uint8_t addr, const uint8_t *data, uint8_t len, uint8_t *f
     uint8_t  size = Param_WriteSize(addr);
     uint16_t pos;
 
+#if !ENCODER_IS_CIRCULAR
+    if (addr == PARAM_MOTION_TURNS) return PARAM_ST_UNSUP;   /* 多圈只有整圈编码器支持 */
+#endif
     if (size == 0U) return (addr < 0x20U || addr >= 0x80U) ? PARAM_ST_READONLY : PARAM_ST_VALUE;
     if (len != size) return PARAM_ST_LENGTH;
     if (addr == PARAM_MOTION_REQUEST)
     {   /* 位置码2B(0~4095)+时间2B；越界=值非法，故障/编码器失效/行程无效=状态不允许 */
         pos = (uint16_t)(data[0] | (uint16_t)data[1] << 8);
         if (pos > PARAM_POS_MAX) return PARAM_ST_VALUE;   /* 先拦再换算，防溢出 */
-        switch (A_Servo_SubmitQ3(PARAM_POS_TO_Q3(pos), (uint16_t)(data[2] | (uint16_t)data[3] << 8)))
-        {
-        case SERVO_SUBMIT_OK:    return PARAM_ST_OK;
-        case SERVO_SUBMIT_VALUE: return PARAM_ST_VALUE;
-        default:                 return PARAM_ST_STATE;
-        }
+        return Param_SubmitStatus(A_Servo_SubmitQ3(PARAM_POS_TO_Q3(pos), (uint16_t)(data[2] | (uint16_t)data[3] << 8)));
     }
+#if ENCODER_IS_CIRCULAR
+    if (addr == PARAM_MOTION_TURNS)
+    {   /* 位置码2B + 整圈数1B(0~9) + 每圈时间2B；规则同明文 nnnnNnTnnnn，非位置模式=状态不允许 */
+        pos = (uint16_t)(data[0] | (uint16_t)data[1] << 8);
+        if (pos > PARAM_POS_MAX) return PARAM_ST_VALUE;
+        return Param_SubmitStatus(A_Servo_SubmitTurnsQ3(PARAM_POS_TO_Q3(pos), data[2],
+                                                        (uint16_t)(data[3] | (uint16_t)data[4] << 8)));
+    }
+#endif
     return A_Param_WriteValue(addr, (size == 1U) ? data[0] : (uint32_t)(data[0] | (uint32_t)data[1] << 8), fx);
 }
 
@@ -386,5 +402,7 @@ void A_Param_Repair(Config_t *c, const Config_t *def)
     }
     if (!A_Param_VoltageRangeValid(c->run.voltage_min_dv, c->run.voltage_max_dv))
     { c->run.voltage_min_dv = def->run.voltage_min_dv; c->run.voltage_max_dv = def->run.voltage_max_dv; }
+    if (c->slave_mode > 1U) c->slave_mode = def->slave_mode;
+    c->reserved_cfg = 0U;
     c->run.reserved = 0U;
 }

@@ -36,6 +36,7 @@ typedef struct {
     uint8_t  paused;            /* 位置模式保持暂停点，保留原目标 */
     uint8_t  arrived;           /* 1=本条指令已首次到位；外力推动不改变，下一条指令清零 */
     uint8_t  move_pending;      /* 有一条被合并、等最小间隔到了再下发的普通目标 */
+    uint8_t  trim_pending;      /* SCK±n：到位后按实测位置做中点校准；任何别的指令/停止/故障作废 */
     uint8_t  resume_valid;      /* 有可继续的指令 */
     uint8_t  timed_position;    /* 当前是带时间参数的位置指令 */
     uint8_t  boot_pending;      /* 有指令(或上电动作)在等脱困结束 */
@@ -59,6 +60,7 @@ static Servo_t s_servo;
 
 
 static uint8_t Servo_SubmitQ3(uint16_t q3, uint16_t value);
+static uint8_t Servo_Calibrate(uint8_t kind);
 
 /* ============================== 输入源 ============================== */
 
@@ -140,6 +142,7 @@ static void Servo_Resync(uint8_t reinit)
     A_ServoCtrl_Rebase();
     s_servo.arrived       = 1U;
     s_servo.move_pending  = 0U;
+    s_servo.trim_pending  = 0U;
     s_servo.move_age      = 0xFFFFU;
     s_servo.control_valid = 0U;
     s_servo.target_angle  = GEO->angle;
@@ -163,6 +166,7 @@ static void Servo_ClearCommand(void)
 {
     s_servo.arrived      = 1U;
     s_servo.move_pending = 0U;
+    s_servo.trim_pending = 0U;
     s_servo.move_age     = 0xFFFFU;
     s_servo.paused       = (uint8_t)(s_servo.enc_state == SERVO_ENC_ESCAPING);
     s_servo.resume_valid = s_servo.boot_pending = s_servo.timed_position = 0U;
@@ -187,6 +191,7 @@ static void Servo_ApplyBootAction(void)
 static void Servo_EscapeStart(void)
 {
     s_servo.enc_state = SERVO_ENC_ESCAPING;
+    s_servo.trim_pending = 0U;
     s_servo.escape_dir = 1U;
     s_servo.escape_retried = s_servo.enc_fail = 0U;
     s_servo.escape_ticks = s_servo.escape_settle = 0U;
@@ -290,6 +295,7 @@ static uint8_t Servo_SubmitQ3(uint16_t q3, uint16_t value)
     uint8_t  was_paused = s_servo.paused;
     uint16_t lo = g_config.pulse_lo_q3, hi = g_config.pulse_hi_q3, target;
 
+    s_servo.trim_pending = 0U;   /* 新指令取代未完成的中点微调 */
     if (lo < Q3_MIN) lo = Q3_MIN;
     if (hi > Q3_MAX) hi = Q3_MAX;
     if (s_servo.enc_state == SERVO_ENC_FAULT || !A_Protect_CanDrive()
@@ -357,13 +363,11 @@ uint8_t A_Servo_Submit(uint16_t pwm, uint16_t value)
 
 void A_Servo_Pause(void)
 {
-    uint16_t target = s_servo.target_angle;
-
+    s_servo.trim_pending = 0U;
     if (s_servo.torque != SERVO_TORQUE_ON || s_servo.paused || (!s_servo.resume_valid && !s_servo.boot_pending)) return;
     s_servo.paused = s_servo.resume_valid = 1U;
     if (A_ServoCtrl_IsPosition() && s_servo.enc_state == SERVO_ENC_OK) {
         A_ServoCtrl_Brake();                /* 沿当前方向平滑刹停，保留原目标供继续 */
-        s_servo.target_angle = target;
         s_servo.arrived      = 1U;
         s_servo.move_pending = 0U;
     }
@@ -477,6 +481,23 @@ static uint8_t Servo_Calibrate(uint8_t kind)
 uint8_t A_Servo_CalibrateMid(void)  { return Servo_Calibrate((uint8_t)SERVO_CAL_MID); }
 uint8_t A_Servo_CalibrateZero(void) { return Servo_Calibrate((uint8_t)SERVO_CAL_ZERO); }
 
+/* SCK±n：按当前坐标转到 1500+n us(最快)，到位后用实测编码器读数做一次 SCK，新的1500就是那个位置。
+ * 目标超出脉冲边界或被可转范围截断都拒绝(截断后的位置不是 1500+n，记成中点会错) */
+uint8_t A_Servo_CalibrateTrim(int16_t us)
+{
+    uint16_t q3, angle;
+    uint8_t  r;
+
+    if (us < -SERVO_TRIM_MAX_US || us > SERVO_TRIM_MAX_US) return SERVO_SUBMIT_VALUE;
+    if (!A_ServoCtrl_IsPosition() || s_servo.enc_state != SERVO_ENC_OK || !GEO->range_valid) return SERVO_SUBMIT_STATE;
+    q3 = (uint16_t)((int32_t)Q3_MID + (int32_t)us * 8);
+    angle = A_ServoCtrl_PulseToAngle(q3);
+    if (angle < GEO->traj_lo || angle > GEO->traj_hi) return SERVO_SUBMIT_VALUE;
+    r = A_Servo_SubmitQ3(q3, 0U);
+    if (r == SERVO_SUBMIT_OK) s_servo.trim_pending = 1U;
+    return r;
+}
+
 /* AMI/AMX：把行程一端收到当前位置并进入自定义模式，可连续收窄；被拒的不停舵机、不写Flash */
 uint8_t A_Servo_SetTravelEnd(uint8_t is_min)
 {
@@ -547,7 +568,7 @@ void A_Servo_GetTelemetry(ServoTelemetry_t *out)
     out->position_q3  = A_ServoCtrl_AngleToQ3(GEO->angle);
     out->speed_cdps   = (A_ServoCtrl_IsPosition() && GEO->range_valid
                          && s_servo.torque == SERVO_TORQUE_ON && s_servo.enc_state == SERVO_ENC_OK
-                         && s_servo.enc_fail == 0U && obs->vel != INT32_MIN)
+                         && s_servo.enc_fail == 0U)
                       ? (GEO->reverse ? -obs->vel : obs->vel) : INT32_MIN;
 }
 
@@ -676,6 +697,12 @@ static void Servo_PositionControl(void)
     s_servo.control_valid = 1U;
     /* 首次到位：参考已停且控制器按到位精度判定到位；锁存到下一条指令，外力推动不改变上报状态 */
     if (!s_servo.arrived && !s_servo.move_pending && A_ServoCtrl_Arrived()) s_servo.arrived = 1U;
+    if (s_servo.trim_pending && s_servo.arrived && !s_servo.paused)
+    {   /* 中点微调到位：实测位置记为新中点(失败则只是这次不校准) */
+        s_servo.trim_pending = 0U;
+        (void)Servo_Calibrate((uint8_t)SERVO_CAL_MID);
+        return;
+    }
     if (!s_servo.paused && s_servo.timed_position && s_servo.remaining != 0U) s_servo.remaining--;
 }
 
